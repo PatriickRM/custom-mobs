@@ -1,0 +1,49 @@
+# ===== Vorthak, el Centinela de Ceniza =====
+vorthak:
+  health: 1000.0
+  # Daño máximo que puede recibir por golpe (evita que lo maten de un burst)
+  max-damage-per-hit: 40.0
+  # Umbrales de vida (fracción) para pasar a Fase II, III y IV
+  phase-thresholds: [0.70, 0.40, 0.15]
+  xp: 4000
+  # Probabilidad de que suelte la Hoja de Ceniza (0.0 - 1.0). El Corazón de Ceniza es 100%.
+  blade-drop-chance: 0.25
+  # Máximo de Almas Cautivas (súbditos) vivas a la vez
+  minion-cap: 6
+
+# ===== Requisito de equipo para poder HERIRLO =====
+# Si el atacante no cumple, el golpe se anula (no recibe daño).
+gear:
+  allow-netherite: true
+  netherite-sword-min-sharpness: 0
+
+ritual:
+  time-limit-seconds: 60
+  herald-health: 250.0
+  fail-heal-percent: 0.10
+
+drops:
+  books:
+    - {enchant: protection, level: 5, chance: 0.30}
+    - {enchant: sharpness, level: 6, chance: 0.20}
+    - {enchant: sharpness, level: 7, chance: 0.05}
+    - {enchant: mending, level: 1, chance: 0.10}
+
+ash-sword:
+  vorthak-damage-multiplier: 1.35
+
+blade:
+  vorthak-damage-multiplier: 1.20
+
+dungeon:
+  world-name: dungeon_world
+  max-players: 4
+  party-radius: 15
+  lives: 3
+  countdown-seconds: 10
+  rest-seconds: 20
+  end-delay-seconds: 30
+  cooldown-seconds: 0
+  max-instances: 5
+  miniboss-health: 400
+  vorthak-health-per-extra-player: 0.25

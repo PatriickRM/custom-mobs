@@ -1,0 +1,24 @@
+name: CustomMobs
+version: ${version}
+main: me.custommobs.CustomMobsPlugin
+api-version: '26.1'
+description: Mobs custom con fases y habilidades. Primer mob - Vorthak, el Centinela de Ceniza.
+authors: [Patrick]
+
+commands:
+  mob:
+    description: Gestiona los mobs custom
+    usage: /mob <spawn|list|killall|reload> [mob]
+    permission: custommobs.admin
+  
+  dungeon:
+    description: Dungeon de Vorthak
+    usage: /dungeon <join|start|leave|status|top>
+
+permissions:
+  custommobs.admin:
+    description: Permite usar /mob
+    default: op
+  dungeon.admin:
+    description: Administrar la dungeon
+    default: op

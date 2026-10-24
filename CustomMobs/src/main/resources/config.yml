@@ -47,3 +47,10 @@ dungeon:
   max-instances: 5
   miniboss-health: 400
   vorthak-health-per-extra-player: 0.25
+# Modelos 3D de los enemigos de la dungeon (resource pack generado por tools/mobgen).
+# Si el pack no se puede descargar, pon enabled: false y los enemigos vuelven a ser los vanilla.
+models:
+  enabled: true
+  resource-pack-url: "https://raw.githubusercontent.com/PatriickRM/custom-mobs/main/resourcepack/CustomMobsPack.zip"
+  sha1: "d29025434de85e97e1f03c32b3be8e7d8a342a9c"
+  required: true

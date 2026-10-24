@@ -1,6 +1,7 @@
 package me.custommobs.dungeon;
 
 import me.custommobs.Text;
+import me.custommobs.model.MobVisuals;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -32,24 +33,26 @@ import java.util.concurrent.ThreadLocalRandom;
 public final class WaveMobs {
 
     private enum Arch {
-        CENIZO(Zombie.class, "Cenizo", 28, 5, 0.24, 0),
-        CALCINADO(Skeleton.class, "Arquero Calcinado", 22, 4, 0.25, 0),
-        MARCHITO(Husk.class, "Marchito", 36, 6, 0.25, 1),
-        BRUTO(Vindicator.class, "Bruto", 42, 9, 0.27, 1),
-        ESPECTRO(WitherSkeleton.class, "Espectro", 48, 9, 0.27, 2),
-        ACECHADOR(Stray.class, "Acechador Gélido", 32, 4, 0.26, 2),
-        BESTIA(Ravager.class, "Bestia de Ceniza", 95, 12, 0.30, 3);
+        CENIZO(Zombie.class, "Cenizo", "cenizo", 28, 5, 0.24, 0),
+        CALCINADO(Skeleton.class, "Arquero Calcinado", "calcinado", 22, 4, 0.25, 0),
+        MARCHITO(Husk.class, "Marchito", "marchito", 36, 6, 0.25, 1),
+        BRUTO(Vindicator.class, "Bruto Forjado", "bruto", 42, 9, 0.27, 1),
+        ESPECTRO(WitherSkeleton.class, "Espectro", "espectro", 48, 9, 0.27, 2),
+        ACECHADOR(Stray.class, "Sacerdote de Almas", "sacerdote", 32, 4, 0.26, 2),
+        BESTIA(Ravager.class, "Bestia de Ceniza", "bestia", 95, 12, 0.30, 3);
 
         final Class<? extends LivingEntity> type;
         final String name;
+        final String model;
         final double hp;
         final double atk;
         final double speed;
         final int minTier;
 
-        Arch(Class<? extends LivingEntity> type, String name, double hp, double atk, double speed, int minTier) {
+        Arch(Class<? extends LivingEntity> type, String name, String model, double hp, double atk, double speed, int minTier) {
             this.type = type;
             this.name = name;
+            this.model = model;
             this.hp = hp;
             this.atk = atk;
             this.speed = speed;
@@ -97,18 +100,26 @@ public final class WaveMobs {
         e.setRemoveWhenFarAway(false);
         e.setCanPickupItems(false);
         e.setPersistent(false);
-        equip(e, arch, tier + (elite ? 1 : 0));
+        MobVisuals vis = inst.plugin().visuals();
+        boolean modeled = vis != null && vis.has(arch.model);
+        if (modeled) {
+            equipModeled(e, arch, tier + (elite ? 1 : 0), vis);
+        } else {
+            equip(e, arch, tier + (elite ? 1 : 0));
+        }
 
         if (elite) {
             e.customName(Text.mm("<gold>★ Élite</gold> <white>" + arch.name + "</white>"));
             e.setCustomNameVisible(true);
-            e.setGlowing(true);
+            if (!modeled) e.setGlowing(true);   // con modelo, el brillo lo llevan las piezas
         }
         if (inst.modifier() == Modifier.FRENZY) {
             e.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, 20 * 60 * 20, 0, false, false));
         }
 
         inst.registerMob(e, elite);
+        if (modeled) vis.attach(e, arch.model, elite);
+        if (inst.plugin().abilities() != null) inst.plugin().abilities().register(e, arch.model, inst);
 
         if (e instanceof Mob m) {
             Player t = inst.nearestAlive(loc);
@@ -128,6 +139,21 @@ public final class WaveMobs {
         meta.setColor(Color.fromRGB(38, 36, 40));
         it.setItemMeta(meta);
         return it;
+    }
+
+    /** Con modelo 3D: sin armadura visible (se compensa con el atributo de armadura) y arco invisible si dispara. */
+    private static void equipModeled(LivingEntity e, Arch arch, int tier, MobVisuals vis) {
+        int t = Math.max(0, Math.min(4, tier));
+        attr(e, Attribute.ARMOR, new double[]{3, 6, 10, 15, 18}[t]);
+        EntityEquipment eq = e.getEquipment();
+        if (eq == null) return;
+        if (arch == Arch.CALCINADO || arch == Arch.ACECHADOR) eq.setItemInMainHand(vis.invisibleItem(Material.BOW));
+        eq.setItemInMainHandDropChance(0f);
+        eq.setItemInOffHandDropChance(0f);
+        eq.setHelmetDropChance(0f);
+        eq.setChestplateDropChance(0f);
+        eq.setLeggingsDropChance(0f);
+        eq.setBootsDropChance(0f);
     }
 
     private static void equip(LivingEntity e, Arch arch, int tier) {

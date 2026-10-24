@@ -7,3 +7,6 @@ build/
 world*/
 logs/
 plugins/
+
+tools/mobgen/out/
+__pycache__/

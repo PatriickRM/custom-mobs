@@ -418,7 +418,7 @@ public final class DungeonBuilder {
                 cobwebs(r, 4);
             }
             case PUZZLE -> {
-                // 4 placas en cruz: norte, este, sur, oeste (memoria y sincronía)
+                // 4 puntos de anclaje en cruz (norte, este, sur, oeste): fragmentos, pedestales o cristales según el acertijo
                 int rad = Math.max(4, Math.min(8, h - 4));
                 int[][] padOffs = {{0, -rad}, {rad, 0}, {0, rad}, {-rad, 0}};
                 for (int k = 0; k < 4; k++) {

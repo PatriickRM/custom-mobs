@@ -75,6 +75,8 @@ final class BlessingSystem {
         long windReady;
         long stormNext;
         long chainReady;
+        long judgNext;
+        long singNext;
         long lastHeartFx;
         boolean offerBoss;
         /** Puntos de la estela: {x, y, z, tick en que caduca}. */
@@ -95,6 +97,14 @@ final class BlessingSystem {
     private final Map<UUID, Rt> rts = new HashMap<>();
     /** Enemigos marcados por Marca de Brasas / Ignición: id -> tick en que caduca la marca. */
     private final Map<UUID, Long> brands = new HashMap<>();
+    /** Sangrados activos (Hemorragia): enemigo -> {dueño, caduca, daño por segundo}. */
+    private static final class Bleed {
+        UUID owner;
+        long until;
+        double dps;
+    }
+
+    private final Map<UUID, Bleed> bleeds = new HashMap<>();
     /** > 0 mientras se aplica daño causado por una bendición (evita bucles de efectos). */
     private int procDepth;
     /** Profundidad de explosiones encadenadas (limita las reacciones en cadena). */
@@ -301,6 +311,7 @@ final class BlessingSystem {
     void resetAll() {
         rts.clear();
         brands.clear();
+        bleeds.clear();
         chainGen = 0;
         procDepth = 0;
     }
@@ -317,7 +328,9 @@ final class BlessingSystem {
     double takenMultiplier(Player p) {
         DungeonInstance.PState s = st(p);
         if (s == null) return 1.0;
-        return Math.max(0.4, 1.0 - Blessing.iron(s.stacks(Blessing.IRON)));
+        double m = Math.max(0.4, 1.0 - Blessing.iron(s.stacks(Blessing.IRON)));
+        if (s.stacks(Blessing.BERSERK) > 0) m *= 1.0 + Blessing.berserkTaken();
+        return m;
     }
 
     // ------------------------------------------------------------------ bucle
@@ -336,7 +349,11 @@ final class BlessingSystem {
             auraTick(p, s, t);
             guardTick(p, s, r, t);
             trailTick(p, s, r, t);
-            if (t % 8 == 0) stormTick(p, s, r, t);
+            if (t % 8 == 0) {
+                stormTick(p, s, r, t);
+                judgmentTick(p, s, r, t);
+                singularityTick(p, s, r, t);
+            }
             dashCueTick(p, s, r, t);
             frenzyTick(p, s, r, t);
             if (s.stacks(Blessing.SWIFT) > 0 && p.isSprinting()) {
@@ -345,6 +362,7 @@ final class BlessingSystem {
             }
         }
         if (t % 8 == 0) brandTick(t);
+        if (t % 20 == 0) bleedTick(t);
     }
 
     private void regenTick(Player p, DungeonInstance.PState s) {
@@ -362,7 +380,7 @@ final class BlessingSystem {
         double by = base.getY();
         double bz = base.getZ();
         for (School sc : School.values()) {
-            if (sc == School.NINGUNA) continue;
+            if (!sc.hasSynergy()) continue;
             int n = schoolStacks(s, sc);
             if (n <= 0) continue;
             int tr = tierOf(n);
@@ -504,6 +522,88 @@ final class BlessingSystem {
         }, null);
     }
 
+    // --- Juicio de Almas (legendaria)
+
+    private void judgmentTick(Player p, DungeonInstance.PState s, Rt r, long t) {
+        int jl = s.stacks(Blessing.JUDGMENT);
+        if (jl <= 0 || t < r.judgNext) return;
+        List<LivingEntity> near = enemiesNear(p.getLocation(), 16);
+        if (near.isEmpty()) return;
+        r.judgNext = t + Blessing.judgmentCooldownTicks(jl);
+        Location from = p.getLocation();
+        near.sort(Comparator.comparingDouble(le -> le.getLocation().distanceSquared(from)));
+        int n = Math.min(near.size(), Blessing.judgmentTargets(jl));
+        double dmg = Blessing.judgmentDamage(jl) * (tier(s, School.ALMAS, 2) ? 1.5 : 1.0);
+        for (int i = 0; i < n; i++) {
+            LivingEntity le = near.get(i);
+            Location at = le.getLocation();
+            inst.later(i * 4, () -> {
+                if (!le.isValid() || le.isDead()) return;
+                Location top = le.getLocation().add(0, 9, 0);
+                Location bot = le.getLocation().add(0, 1, 0);
+                lightning(top, bot);
+                world.strikeLightningEffect(le.getLocation());
+                world.spawnParticle(Particle.SOUL_FIRE_FLAME, bot, 30, 0.4, 0.8, 0.4, 0.08);
+                deal(p, le, dmg);
+            });
+        }
+        p.playSound(from, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 0.6f, 1.6f);
+    }
+
+    // --- Singularidad (legendaria)
+
+    private void singularityTick(Player p, DungeonInstance.PState s, Rt r, long t) {
+        int sl = s.stacks(Blessing.SINGULARITY);
+        if (sl <= 0 || t < r.singNext) return;
+        List<LivingEntity> near = enemiesNear(p.getLocation(), 14);
+        if (near.isEmpty()) return;
+        r.singNext = t + Blessing.singularityCooldownTicks(sl);
+        Location from = p.getLocation();
+        near.sort(Comparator.comparingDouble(le -> le.getLocation().distanceSquared(from)));
+        Location c = near.get(Math.min(near.size() - 1, 1)).getLocation().add(0, 1, 0);
+        double rad = Blessing.singularityRadius(sl);
+        double dmg = Blessing.singularityDamage(sl);
+        world.playSound(c, Sound.ENTITY_ENDERMAN_TELEPORT, 1.2f, 0.4f);
+        world.playSound(c, Sound.BLOCK_END_PORTAL_SPAWN, 0.5f, 1.8f);
+        inst.repeat(5, 12, i -> {
+            world.spawnParticle(Particle.REVERSE_PORTAL, c, 30, 0.3, 0.3, 0.3, 0.25);
+            world.spawnParticle(Particle.DUST, c.getX(), c.getY(), c.getZ(), 10, 0.25, 0.25, 0.25, 0, PURPLE);
+            ring(c.clone().add(0, -0.7, 0), rad * (1.0 - (i % 4) * 0.2), 18, Particle.PORTAL);
+            for (LivingEntity le : enemiesNear(c, rad)) {
+                Vector pull = c.toVector().subtract(le.getLocation().toVector());
+                double len = pull.length();
+                if (len > 0.8) {
+                    pull.multiply(1.0 / len).multiply(0.45);
+                    pull.setY(Math.max(0.05, pull.getY()));
+                    le.setVelocity(pull);
+                }
+                if (i % 4 == 3) deal(p, le, dmg);
+            }
+        }, () -> {
+            world.spawnParticle(Particle.EXPLOSION, c, 1, 0, 0, 0, 0);
+            world.playSound(c, Sound.ENTITY_GENERIC_EXPLODE, 0.6f, 0.8f);
+        });
+    }
+
+    // --- Hemorragia
+
+    private void bleedTick(long t) {
+        Iterator<Map.Entry<UUID, Bleed>> it = bleeds.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<UUID, Bleed> en = it.next();
+            Bleed b = en.getValue();
+            Entity e = Bukkit.getEntity(en.getKey());
+            Player owner = Bukkit.getPlayer(b.owner);
+            if (b.until < t || !(e instanceof LivingEntity le) || !le.isValid() || le.isDead() || owner == null) {
+                it.remove();
+                continue;
+            }
+            Location at = le.getLocation().add(0, le.getHeight() * 0.5, 0);
+            world.spawnParticle(Particle.DUST, at.getX(), at.getY(), at.getZ(), 10, 0.25, 0.4, 0.25, 0, RED);
+            deal(owner, le, b.dps);
+        }
+    }
+
     // --- Dash, frenesí y marcas
 
     private void dashCueTick(Player p, DungeonInstance.PState s, Rt r, long t) {
@@ -564,7 +664,14 @@ final class BlessingSystem {
         int eb = s.stacks(Blessing.EMBER_BRAND);
         if (eb > 0 && branded(target)) bonus += Blessing.brandBonus(eb);
         if (tier(s, School.SANGRE, 2) && lowHp(p)) bonus += 0.30;
+        if (s.stacks(Blessing.BERSERK) > 0) bonus += Blessing.berserkDealt();
+        bonus += bannerBonus(p, s);
         if (t < r.echoUntil) {
+            int bd = s.stacks(Blessing.BLOODDASH);
+            if (bd > 0) {
+                inst.healPlayer(p, Blessing.bloodDashHeal(bd));
+                world.spawnParticle(Particle.HEART, p.getLocation().add(0, 2.0, 0), 3, 0.3, 0.1, 0.3, 0);
+            }
             int ec = s.stacks(Blessing.ECHO);
             bonus += ec > 0 ? Blessing.echo(ec) : 0.40;
             r.echoUntil = 0;
@@ -574,6 +681,34 @@ final class BlessingSystem {
             world.playSound(at, Sound.ENTITY_ILLUSIONER_MIRROR_MOVE, 1f, 1.4f);
         }
         if (bonus != 0) e.setDamage(e.getDamage() * (1.0 + bonus));
+    }
+
+    /** Estandarte de Guerra: bonus de daño por cada portador cercano (tú cuentas la mitad). */
+    private double bannerBonus(Player p, DungeonInstance.PState s) {
+        double b = 0;
+        for (Player q : inst.aliveOnline()) {
+            DungeonInstance.PState qs = st(q);
+            if (qs == null) continue;
+            int lvl = qs.stacks(Blessing.BANNER);
+            if (lvl <= 0) continue;
+            if (q.getUniqueId().equals(p.getUniqueId())) b += Blessing.banner(lvl) * 0.5;
+            else if (q.getWorld().equals(p.getWorld()) && q.getLocation().distanceSquared(p.getLocation()) <= 100) b += Blessing.banner(lvl);
+        }
+        return Math.min(0.5, b);
+    }
+
+    /** Nivel de Médico de Campaña del jugador (0 si no lo tiene). */
+    int medicLevel(Player p) {
+        DungeonInstance.PState s = st(p);
+        return s == null ? 0 : s.stacks(Blessing.MEDIC);
+    }
+
+    /** ¿Algún jugador vivo tiene una bendición sin elegir? */
+    boolean hasPending() {
+        for (DungeonInstance.PState s : inst.memberStates().values()) {
+            if (!s.eliminated && s.offer != null) return true;
+        }
+        return false;
     }
 
     /** Después de aplicar el daño: robo de vida, marcas, cadena y efectos de golpe. */
@@ -609,6 +744,15 @@ final class BlessingSystem {
                     world.spawnParticle(Particle.HEART, p.getLocation().add(0, 2.0, 0), 2, 0.25, 0.1, 0.25, 0);
                 }
             }
+        }
+
+        int bld = s.stacks(Blessing.BLEED);
+        if (bld > 0 && inst.isProcTarget(target)) {
+            Bleed b = bleeds.computeIfAbsent(target.getUniqueId(), k -> new Bleed());
+            b.owner = p.getUniqueId();
+            b.dps = Blessing.bleedDps(bld);
+            b.until = t + 20L * Blessing.bleedSeconds(bld);
+            world.spawnParticle(Particle.DUST, at.getX(), at.getY(), at.getZ(), 6, 0.25, 0.3, 0.25, 0, RED);
         }
 
         int ch = s.stacks(Blessing.CHAIN);
@@ -654,6 +798,21 @@ final class BlessingSystem {
             r.frenzyUntil = t + 120;
             world.spawnParticle(Particle.DUST, at.getX(), at.getY(), at.getZ(), 18, 0.4, 0.5, 0.4, 0, RED);
             killer.playSound(killer.getLocation(), Sound.ENTITY_PLAYER_ATTACK_CRIT, 0.6f, 0.7f + 0.1f * r.frenzy);
+        }
+
+        bleeds.remove(mob.getUniqueId());
+        int fe = s.stacks(Blessing.FEAST);
+        if (fe > 0) {
+            inst.healPlayer(killer, Blessing.feastSelf(fe));
+            ringDust(at, 1.6, 14, RED);
+            world.spawnParticle(Particle.HEART, killer.getLocation().add(0, 2.0, 0), 3, 0.3, 0.1, 0.3, 0);
+            for (Player q : inst.aliveOnline()) {
+                if (q.getUniqueId().equals(killer.getUniqueId())) continue;
+                if (q.getWorld().equals(killer.getWorld()) && q.getLocation().distanceSquared(killer.getLocation()) <= 100) {
+                    inst.healPlayer(q, Blessing.feastAlly(fe));
+                    bloodLine(at, q.getLocation().add(0, 1.1, 0));
+                }
+            }
         }
 
         int hv = s.stacks(Blessing.SOUL_HARVEST);
@@ -835,7 +994,8 @@ final class BlessingSystem {
         r.invulUntil = Math.max(r.invulUntil, t + Blessing.dashInvulTicks(lvl));
 
         boolean cuts = lvl >= 3 || tier(s, School.VACIO, 2);
-        boolean echo = s.stacks(Blessing.ECHO) > 0 || tier(s, School.VACIO, 2);
+        boolean echo = s.stacks(Blessing.ECHO) > 0 || tier(s, School.VACIO, 2) || s.stacks(Blessing.BLOODDASH) > 0;
+        int fw = s.stacks(Blessing.FIREWALK);
         double dmg = 6 + 2 * lvl;
         Vector d = p.getLocation().getDirection().setY(0);
         if (d.lengthSquared() < 1.0E-4) d = new Vector(0, 0, 1);
@@ -847,6 +1007,7 @@ final class BlessingSystem {
         world.playSound(from, Sound.ENTITY_PLAYER_ATTACK_SWEEP, 0.8f, 0.6f);
 
         Set<UUID> hit = new HashSet<>();
+        Set<UUID> hitFire = new HashSet<>();
         inst.repeat(2, 6, i -> {
             if (!p.isOnline() || p.isDead()) return;
             Vector v = dir.clone().multiply(0.85);
@@ -855,6 +1016,16 @@ final class BlessingSystem {
             Location l = p.getLocation().add(0, 0.9, 0);
             world.spawnParticle(Particle.REVERSE_PORTAL, l, 14, 0.25, 0.5, 0.25, 0.05);
             world.spawnParticle(Particle.DUST, l.getX(), l.getY(), l.getZ(), 8, 0.3, 0.5, 0.3, 0, PURPLE);
+            if (fw > 0) {
+                world.spawnParticle(Particle.FLAME, l, 12, 0.3, 0.4, 0.3, 0.04);
+                world.spawnParticle(Particle.LAVA, l, 2, 0.3, 0.3, 0.3, 0);
+                for (LivingEntity le : enemiesNear(l, 2.2)) {
+                    if (hitFire.add(le.getUniqueId())) {
+                        deal(p, le, Blessing.firewalkDamage(fw));
+                        brand(le, 80);
+                    }
+                }
+            }
             if (cuts) {
                 for (LivingEntity le : enemiesNear(l, 2.2)) {
                     if (hit.add(le.getUniqueId())) {
@@ -917,6 +1088,13 @@ final class BlessingSystem {
         List<Blessing> pool = new ArrayList<>();
         for (Blessing b : Blessing.values()) {
             if (s.stacks(b) >= b.max || room < b.minRoom) continue;
+            if (b.teamOnly() && inst.groupSize() < 2) continue;
+            if (b == Blessing.FIREWALK || b == Blessing.BLOODDASH) {
+                if (dashLevel(s) <= 0) continue;
+            }
+            boolean schoolsOk = true;
+            for (School need : b.needSchools()) if (schoolStacks(s, need) <= 0) schoolsOk = false;
+            if (!schoolsOk) continue;
             if (b.requires != null && s.stacks(b.requires) <= 0
                     && !(b.requires == Blessing.DASH && dashLevel(s) > 0)) {
                 continue;
@@ -938,7 +1116,7 @@ final class BlessingSystem {
                 Blessing b = pool.get(i);
                 int wt = b.weight * 2;
                 // las escuelas en las que ya tienes bendiciones salen más a menudo (para poder completar sinergias)
-                if (b.school != School.NINGUNA && schoolStacks(s, b.school) > 0) wt += b.weight;
+                if (b.school.hasSynergy() && schoolStacks(s, b.school) > 0) wt += b.weight;
                 w[i] = wt;
                 total += wt;
             }
@@ -1043,7 +1221,7 @@ final class BlessingSystem {
                 p.sendMessage(Text.mm(DungeonManager.PREFIX + "<light_purple>Pulsa <white><bold>F</bold></white> (cambiar de mano) para hacer un dash.</light_purple>"));
             }
             int now = schoolStacks(s, b.school);
-            if (b.school != School.NINGUNA && tierOf(now) > tierOf(oldSchool)) {
+            if (b.school.hasSynergy() && tierOf(now) > tierOf(oldSchool)) {
                 final int newTier = tierOf(now);
                 inst.later(45, () -> {
                     if (p.isOnline()) synergyFx(p, b.school, newTier);
@@ -1180,7 +1358,7 @@ final class BlessingSystem {
         lore.add(Text.item(""));
         lore.add(Text.item("<dark_gray>Nivel:</dark_gray> " + levelBar(cur, b.max) + " <white>" + next + "</white><dark_gray>/" + b.max));
         if (cur > 0) lore.add(Text.item("<dark_gray>Mejora tu nivel actual (" + cur + ")"));
-        if (b.school != School.NINGUNA) {
+        if (b.school.hasSynergy()) {
             int n = schoolStacks(s, b.school);
             int t0 = tierOf(n);
             int t1 = tierOf(n + 1);
@@ -1220,7 +1398,7 @@ final class BlessingSystem {
                 }
             }
             int tr = tierOf(n);
-            for (int k = 1; k <= 2 && sc != School.NINGUNA; k++) {
+            for (int k = 1; k <= 2 && sc.hasSynergy(); k++) {
                 if (tr >= k) lore.add(Text.item("<green>   ✔ " + sc.tierName(k)));
             }
         }

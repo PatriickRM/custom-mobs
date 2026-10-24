@@ -49,3 +49,25 @@ Entre salas cada jugador elige una bendición (1 de 3 opciones, **2 relanzamient
 Los efectos extra (cadena, explosiones, estela, tormenta...) **no dañan a Vorthak ni a sus heraldos**: su combate sigue regido por el requisito de equipo.
 
 Opciones en `dungeon.yml` → `blessings`: `enabled`, `every`, `choices`, `rerolls`, `miniboss-reward` (bendición rara extra al derrotar al mini jefe).
+
+
+## Dungeon de Vorthak (`/dungeon join`)
+
+Dungeon cooperativa (1-4 jugadores) con salas encadenadas hasta Vorthak. Cada jugador tiene vidas, se puede revivir a los caídos
+y al terminar hay puntaje y rango (S/A/B/C/D). Hay un modificador distinto cada día.
+
+### Camino a elegir
+En `dungeon.yml`, `rooms:` acepta `"A|B"` para que el grupo **vote** entre dos salas (clic en el chat o `/dungeon path <n>`):
+`rooms: [WAVES, "ALTAR|TRAP", "VAULT|PUZZLE", WAVES, "SWEEP|PUZZLE", MINIBOSS, REST]`
+
+### Acertijos (uno distinto cada vez)
+- **Los Vigilantes**: recoge 4 fragmentos; las estatuas solo se mueven cuando nadie las mira (y aparece una más por fragmento).
+- **Portadores de Almas**: lleva cada orbe a su pedestal del mismo color mientras te atacan. Si te hieren, lo sueltas.
+- **Resonancia**: rompe a golpes el cristal que brilla antes de que se acabe el tiempo; en grupo, de dos en dos.
+
+### Bendiciones
+Cuatro escuelas (Ceniza, Almas, Sangre, Vacío) con sinergias a 2 y 4 niveles, más:
+- **Legendarias**: Tormenta de Ceniza, Juicio de Almas, Banquete Carmesí, Singularidad.
+- **Riesgo**: Furia Desatada (+40% daño, +25% daño recibido), Pacto de Sangre.
+- **Equipo** (solo salen en grupo): Estandarte de Guerra, Médico de Campaña.
+- **Híbridas** (piden dos escuelas y un dash): Paso Ígneo (Ceniza+Vacío), Dash Carmesí (Sangre+Vacío).

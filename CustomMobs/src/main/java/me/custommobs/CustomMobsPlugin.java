@@ -4,6 +4,8 @@ import me.custommobs.boss.BossListener;
 import me.custommobs.boss.BossManager;
 import me.custommobs.command.MobCommand;
 import me.custommobs.dungeon.DungeonManager;
+import me.custommobs.dungeon.WaveAbilities;
+import me.custommobs.model.MobVisuals;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -11,6 +13,8 @@ public final class CustomMobsPlugin extends JavaPlugin {
 
     private BossManager bosses;
     private DungeonManager dungeons;
+    private MobVisuals visuals;
+    private WaveAbilities abilities;
 
     @Override
     public void onEnable() {
@@ -29,6 +33,12 @@ public final class CustomMobsPlugin extends JavaPlugin {
         dungeons = new DungeonManager(this, bosses);
         dungeons.enable();
 
+        // Modelos 3D (resource pack) y habilidades de los enemigos de oleadas
+        visuals = new MobVisuals(this);
+        visuals.enable();
+        abilities = new WaveAbilities(this, dungeons, visuals);
+        abilities.enable();
+
         // Re-adopta jefes que sigan cargados (por ejemplo tras /reload)
         bosses.adoptLoaded();
         getLogger().info("CustomMobs activado. Usa /mob spawn vorthak o /dungeon start");
@@ -37,11 +47,22 @@ public final class CustomMobsPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         // Primero la dungeon (usa el BossManager para retirar a Vorthak) y luego los jefes
+        if (visuals != null) {
+            visuals.shutdown();
+        }
         if (dungeons != null) {
             dungeons.shutdown();
         }
         if (bosses != null) {
             bosses.shutdown();
         }
+    }
+
+    public MobVisuals visuals() {
+        return visuals;
+    }
+
+    public WaveAbilities abilities() {
+        return abilities;
     }
 }

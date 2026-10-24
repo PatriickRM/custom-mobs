@@ -1,0 +1,660 @@
+# GENERADO por tools/mobgen/build.py: no editar a mano.
+mobs:
+  cenizo:
+    scale: 1.0
+    name: "Cenizo"
+    nodes:
+      - id: legL
+        parent: null
+        pivot: [2.5, 12, 0]
+        rest: [0, 0, 0]
+        model: cenizo_legL
+        glow: false
+        walk_amp: 34
+        walk_phase: 0
+      - id: legR
+        parent: null
+        pivot: [-2.5, 12, 0]
+        rest: [0, 0, 0]
+        model: cenizo_legR
+        glow: false
+        walk_amp: 34
+        walk_phase: 180
+      - id: body
+        parent: null
+        pivot: [0, 12, 0]
+        rest: [14, 0, 0]
+        model: cenizo_body
+        glow: false
+        idle_amp: 2.0
+        idle_axis: "x"
+        idle_speed: 1.4
+      - id: body_glow
+        parent: body
+        pivot: [0, 12, 0]
+        rest: [0, 0, 0]
+        model: cenizo_body_glow
+        glow: true
+      - id: head
+        parent: body
+        pivot: [0, 24, 0]
+        rest: [0, 0, 0]
+        model: cenizo_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 24, 0]
+        rest: [0, 0, 0]
+        model: cenizo_head_glow
+        glow: true
+      - id: armL
+        parent: body
+        pivot: [6, 23, 0]
+        rest: [-82, 0, -4]
+        model: cenizo_armL
+        glow: false
+        walk_amp: 9
+        walk_phase: 180
+        atk: 45
+      - id: armR
+        parent: body
+        pivot: [-6, 23, 0]
+        rest: [-82, 0, 4]
+        model: cenizo_armR
+        glow: false
+        walk_amp: 9
+        walk_phase: 0
+        atk: 45
+  calcinado:
+    scale: 1.0
+    name: "Arquero Calcinado"
+    nodes:
+      - id: legL
+        parent: null
+        pivot: [2, 12, 0]
+        rest: [0, 0, 0]
+        model: calcinado_legL
+        glow: false
+        walk_amp: 32
+        walk_phase: 0
+      - id: legR
+        parent: null
+        pivot: [-2, 12, 0]
+        rest: [0, 0, 0]
+        model: calcinado_legR
+        glow: false
+        walk_amp: 32
+        walk_phase: 180
+      - id: body
+        parent: null
+        pivot: [0, 12, 0]
+        rest: [6, 0, 0]
+        model: calcinado_body
+        glow: false
+        idle_amp: 1.5
+        idle_axis: "x"
+        idle_speed: 1.2
+      - id: body_glow
+        parent: body
+        pivot: [0, 12, 0]
+        rest: [0, 0, 0]
+        model: calcinado_body_glow
+        glow: true
+      - id: cape
+        parent: body
+        pivot: [0, 23, -2.6]
+        rest: [0, 0, 0]
+        model: calcinado_cape
+        glow: false
+        idle_amp: 7
+        idle_axis: "x"
+        idle_speed: 1.5
+      - id: head
+        parent: body
+        pivot: [0, 24, 0]
+        rest: [0, 0, 0]
+        model: calcinado_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 24, 0]
+        rest: [0, 0, 0]
+        model: calcinado_head_glow
+        glow: true
+      - id: armL
+        parent: body
+        pivot: [4, 23, 0]
+        rest: [-85, 0, 0]
+        model: calcinado_armL
+        glow: false
+        walk_amp: 4
+        walk_phase: 180
+        atk: 10
+      - id: bow
+        parent: armL
+        pivot: [4, 11, 0]
+        rest: [0, 0, 0]
+        model: calcinado_bow
+        glow: false
+      - id: armR
+        parent: body
+        pivot: [-4, 23, 0]
+        rest: [-62, 0, 14]
+        model: calcinado_armR
+        glow: false
+        walk_amp: 4
+        walk_phase: 0
+        atk: 10
+  marchito:
+    scale: 1.0
+    name: "Marchito"
+    nodes:
+      - id: legL
+        parent: null
+        pivot: [2, 12, 0]
+        rest: [0, 0, 0]
+        model: marchito_legL
+        glow: false
+        walk_amp: 30
+        walk_phase: 0
+      - id: legR
+        parent: null
+        pivot: [-2, 12, 0]
+        rest: [0, 0, 0]
+        model: marchito_legR
+        glow: false
+        walk_amp: 30
+        walk_phase: 180
+      - id: body
+        parent: null
+        pivot: [0, 12, 0]
+        rest: [20, 0, 0]
+        model: marchito_body
+        glow: false
+        idle_amp: 2.5
+        idle_axis: "x"
+        idle_speed: 1.1
+      - id: body_glow
+        parent: body
+        pivot: [0, 12, 0]
+        rest: [0, 0, 0]
+        model: marchito_body_glow
+        glow: true
+      - id: stripBack
+        parent: body
+        pivot: [0, 24, -2]
+        rest: [0, 0, 0]
+        model: marchito_stripBack
+        glow: false
+        idle_amp: 9
+        idle_axis: "x"
+        idle_speed: 1.7
+      - id: stripL
+        parent: body
+        pivot: [3, 24, 1.5]
+        rest: [0, 0, 0]
+        model: marchito_stripL
+        glow: false
+        idle_amp: 10
+        idle_axis: "z"
+        idle_speed: 1.5
+        idle_phase: 40
+      - id: stripR
+        parent: body
+        pivot: [-3, 24, 1.5]
+        rest: [0, 0, 0]
+        model: marchito_stripR
+        glow: false
+        idle_amp: 10
+        idle_axis: "z"
+        idle_speed: 1.5
+        idle_phase: 200
+      - id: head
+        parent: body
+        pivot: [0, 25, 0]
+        rest: [0, 0, 0]
+        model: marchito_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 25, 0]
+        rest: [0, 0, 0]
+        model: marchito_head_glow
+        glow: true
+      - id: armL
+        parent: body
+        pivot: [4.5, 24, 0]
+        rest: [-68, 0, -6]
+        model: marchito_armL
+        glow: false
+        walk_amp: 8
+        walk_phase: 180
+        atk: 50
+      - id: armR
+        parent: body
+        pivot: [-4.5, 24, 0]
+        rest: [-68, 0, 6]
+        model: marchito_armR
+        glow: false
+        walk_amp: 8
+        walk_phase: 0
+        atk: 50
+  bruto:
+    scale: 1.0
+    name: "Bruto Forjado"
+    nodes:
+      - id: legL
+        parent: null
+        pivot: [3.5, 12, 0]
+        rest: [0, 0, 0]
+        model: bruto_legL
+        glow: false
+        walk_amp: 26
+        walk_phase: 0
+      - id: legR
+        parent: null
+        pivot: [-3.5, 12, 0]
+        rest: [0, 0, 0]
+        model: bruto_legR
+        glow: false
+        walk_amp: 26
+        walk_phase: 180
+      - id: body
+        parent: null
+        pivot: [0, 12, 0]
+        rest: [8, 0, 0]
+        model: bruto_body
+        glow: false
+        idle_amp: 1.6
+        idle_axis: "x"
+        idle_speed: 1.0
+      - id: body_glow
+        parent: body
+        pivot: [0, 12, 0]
+        rest: [0, 0, 0]
+        model: bruto_body_glow
+        glow: true
+      - id: head
+        parent: body
+        pivot: [0, 25, 0]
+        rest: [0, 0, 0]
+        model: bruto_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 25, 0]
+        rest: [0, 0, 0]
+        model: bruto_head_glow
+        glow: true
+      - id: armL
+        parent: body
+        pivot: [8.4, 23.5, 0]
+        rest: [-12, 0, -6]
+        model: bruto_armL
+        glow: false
+        walk_amp: 14
+        walk_phase: 180
+        atk: 60
+      - id: armR
+        parent: body
+        pivot: [-8.4, 23.5, 0]
+        rest: [-38, 0, 8]
+        model: bruto_armR
+        glow: false
+        walk_amp: 8
+        walk_phase: 0
+        atk: 100
+      - id: cleaver
+        parent: armR
+        pivot: [-8.4, 18, 0]
+        rest: [0, 0, 0]
+        model: bruto_cleaver
+        glow: false
+      - id: cleaver_glow
+        parent: cleaver
+        pivot: [-8.4, 18, 0]
+        rest: [0, 0, 0]
+        model: bruto_cleaver_glow
+        glow: true
+  espectro:
+    scale: 1.0
+    name: "Espectro"
+    nodes:
+      - id: core
+        parent: null
+        pivot: [0, 20, 0]
+        rest: [0, 0, 0]
+        model: null
+        glow: false
+        hover_amp: 2.2
+        hover_speed: 1.2
+      - id: robe
+        parent: core
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: espectro_robe
+        glow: false
+        idle_amp: 1.5
+        idle_axis: "z"
+        idle_speed: 1.0
+      - id: tail1
+        parent: robe
+        pivot: [0, 18, 0]
+        rest: [0, 0, 0]
+        model: espectro_tail1
+        glow: false
+        idle_amp: 6
+        idle_axis: "x"
+        idle_speed: 1.1
+      - id: tail2
+        parent: tail1
+        pivot: [0, 10, 0]
+        rest: [0, 0, 0]
+        model: espectro_tail2
+        glow: false
+        idle_amp: 10
+        idle_axis: "x"
+        idle_speed: 1.3
+        idle_phase: 60
+      - id: rags
+        parent: tail2
+        pivot: [0, 8, 0]
+        rest: [0, 0, 0]
+        model: espectro_rags
+        glow: false
+        idle_amp: 14
+        idle_axis: "z"
+        idle_speed: 1.6
+        idle_phase: 120
+      - id: hood
+        parent: robe
+        pivot: [0, 28, 0]
+        rest: [0, 0, 0]
+        model: espectro_hood
+        glow: false
+        look: true
+      - id: skull
+        parent: hood
+        pivot: [0, 28, 0]
+        rest: [0, 0, 0]
+        model: espectro_skull
+        glow: false
+      - id: skull_glow
+        parent: skull
+        pivot: [0, 28, 0]
+        rest: [0, 0, 0]
+        model: espectro_skull_glow
+        glow: true
+      - id: armL
+        parent: robe
+        pivot: [4, 24, 0]
+        rest: [-55, 0, -8]
+        model: espectro_armL
+        glow: false
+        idle_amp: 6
+        idle_axis: "x"
+        idle_speed: 1.0
+        atk: 40
+      - id: armR
+        parent: robe
+        pivot: [-4, 24, 0]
+        rest: [-55, 0, 8]
+        model: espectro_armR
+        glow: false
+        idle_amp: 6
+        idle_axis: "x"
+        idle_speed: 1.0
+        idle_phase: 180
+        atk: 40
+      - id: wisp0
+        parent: core
+        pivot: [0, 14, 0]
+        rest: [0, 0, 0]
+        model: espectro_wisp0
+        glow: true
+        orbit_r: 10
+        orbit_speed: 70
+        orbit_phase: 0
+        hover_amp: 1.5
+        hover_speed: 2.0
+      - id: wisp1
+        parent: core
+        pivot: [0, 19, 0]
+        rest: [0, 0, 0]
+        model: espectro_wisp1
+        glow: true
+        orbit_r: 11
+        orbit_speed: 90
+        orbit_phase: 120
+        hover_amp: 1.5
+        hover_speed: 2.4
+      - id: wisp2
+        parent: core
+        pivot: [0, 24, 0]
+        rest: [0, 0, 0]
+        model: espectro_wisp2
+        glow: true
+        orbit_r: 12
+        orbit_speed: 110
+        orbit_phase: 240
+        hover_amp: 1.5
+        hover_speed: 2.8
+  sacerdote:
+    scale: 1.0
+    name: "Sacerdote de Almas"
+    nodes:
+      - id: skirt
+        parent: null
+        pivot: [0, 14, 0]
+        rest: [0, 0, 0]
+        model: sacerdote_skirt
+        glow: false
+        idle_amp: 2
+        idle_axis: "z"
+        idle_speed: 1.1
+        walk_amp: 3
+        walk_phase: 0
+      - id: torso
+        parent: null
+        pivot: [0, 14, 0]
+        rest: [0, 0, 0]
+        model: sacerdote_torso
+        glow: false
+        idle_amp: 1.2
+        idle_axis: "x"
+        idle_speed: 1.2
+      - id: torso_glow
+        parent: torso
+        pivot: [0, 14, 0]
+        rest: [0, 0, 0]
+        model: sacerdote_torso_glow
+        glow: true
+      - id: head
+        parent: torso
+        pivot: [0, 24, 0]
+        rest: [0, 0, 0]
+        model: sacerdote_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 24, 0]
+        rest: [0, 0, 0]
+        model: sacerdote_head_glow
+        glow: true
+      - id: halo
+        parent: torso
+        pivot: [0, 29, -6.5]
+        rest: [0, 0, 0]
+        model: sacerdote_halo
+        glow: true
+        spin_axis: "z"
+        spin_speed: 25
+      - id: armL
+        parent: torso
+        pivot: [5, 23, 0]
+        rest: [-30, 0, -5]
+        model: sacerdote_armL
+        glow: false
+        idle_amp: 4
+        idle_axis: "x"
+        idle_speed: 1.0
+        atk: 40
+      - id: armR
+        parent: torso
+        pivot: [-5, 23, 0]
+        rest: [-45, 0, 0]
+        model: sacerdote_armR
+        glow: false
+        walk_amp: 3
+        walk_phase: 0
+        atk: 25
+      - id: staff
+        parent: armR
+        pivot: [-6, 10, 0]
+        rest: [45, 0, 0]
+        model: sacerdote_staff
+        glow: false
+      - id: orb
+        parent: staff
+        pivot: [-6, 34, 0]
+        rest: [0, 0, 0]
+        model: sacerdote_orb
+        glow: true
+        hover_amp: 1.2
+        hover_speed: 2.0
+        spin_axis: "y"
+        spin_speed: 90
+  bestia:
+    scale: 1.0
+    name: "Bestia de Ceniza"
+    nodes:
+      - id: legFL
+        parent: null
+        pivot: [6.5, 14, 7.75]
+        rest: [0, 0, 0]
+        model: bestia_legFL
+        glow: false
+        walk_amp: 30
+        walk_phase: 0
+      - id: legFR
+        parent: null
+        pivot: [-6.5, 14, 7.75]
+        rest: [0, 0, 0]
+        model: bestia_legFR
+        glow: false
+        walk_amp: 30
+        walk_phase: 180
+      - id: legBL
+        parent: null
+        pivot: [6.5, 14, -7.75]
+        rest: [0, 0, 0]
+        model: bestia_legBL
+        glow: false
+        walk_amp: 30
+        walk_phase: 180
+      - id: legBR
+        parent: null
+        pivot: [-6.5, 14, -7.75]
+        rest: [0, 0, 0]
+        model: bestia_legBR
+        glow: false
+        walk_amp: 30
+        walk_phase: 0
+      - id: body
+        parent: null
+        pivot: [0, 20, 0]
+        rest: [0, 0, 0]
+        model: bestia_body
+        glow: false
+        idle_amp: 1.0
+        idle_axis: "x"
+        idle_speed: 1.0
+      - id: body_glow
+        parent: body
+        pivot: [0, 20, 0]
+        rest: [0, 0, 0]
+        model: bestia_body_glow
+        glow: true
+      - id: mane
+        parent: body
+        pivot: [0, 24, 10]
+        rest: [0, 0, 0]
+        model: bestia_mane
+        glow: false
+        idle_amp: 2
+        idle_axis: "x"
+        idle_speed: 1.2
+      - id: mane_glow
+        parent: mane
+        pivot: [0, 24, 10]
+        rest: [0, 0, 0]
+        model: bestia_mane_glow
+        glow: true
+      - id: head
+        parent: body
+        pivot: [0, 25, 14]
+        rest: [0, 0, 0]
+        model: bestia_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 25, 14]
+        rest: [0, 0, 0]
+        model: bestia_head_glow
+        glow: true
+      - id: jaw
+        parent: head
+        pivot: [0, 22, 15]
+        rest: [12, 0, 0]
+        model: bestia_jaw
+        glow: false
+        idle_amp: 5
+        idle_axis: "x"
+        idle_speed: 1.4
+      - id: jaw_glow
+        parent: jaw
+        pivot: [0, 22, 15]
+        rest: [0, 0, 0]
+        model: bestia_jaw_glow
+        glow: true
+      - id: tail1
+        parent: body
+        pivot: [0, 24, -11]
+        rest: [0, 0, 0]
+        model: bestia_tail1
+        glow: false
+        idle_amp: 10
+        idle_axis: "y"
+        idle_speed: 1.3
+      - id: tail2
+        parent: tail1
+        pivot: [0, 24, -18]
+        rest: [0, 0, 0]
+        model: bestia_tail2
+        glow: false
+        idle_amp: 14
+        idle_axis: "y"
+        idle_speed: 1.3
+        idle_phase: 50
+      - id: tail3
+        parent: tail2
+        pivot: [0, 24, -25]
+        rest: [0, 0, 0]
+        model: bestia_tail3
+        glow: false
+        idle_amp: 16
+        idle_axis: "y"
+        idle_speed: 1.3
+        idle_phase: 100
+      - id: tail_glow
+        parent: tail3
+        pivot: [0, 24, -25]
+        rest: [0, 0, 0]
+        model: bestia_tail_glow
+        glow: true

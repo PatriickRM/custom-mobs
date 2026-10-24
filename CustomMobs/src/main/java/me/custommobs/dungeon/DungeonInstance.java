@@ -252,6 +252,10 @@ public final class DungeonInstance {
         return cfg;
     }
 
+    public CustomMobsPlugin plugin() {
+        return plugin;
+    }
+
     // acceso para Puzzles (mismo paquete)
 
     World world() {

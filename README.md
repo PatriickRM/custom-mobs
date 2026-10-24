@@ -71,3 +71,28 @@ Cuatro escuelas (Ceniza, Almas, Sangre, Vacío) con sinergias a 2 y 4 niveles, m
 - **Riesgo**: Furia Desatada (+40% daño, +25% daño recibido), Pacto de Sangre.
 - **Equipo** (solo salen en grupo): Estandarte de Guerra, Médico de Campaña.
 - **Híbridas** (piden dos escuelas y un dash): Paso Ígneo (Ceniza+Vacío), Dash Carmesí (Sangre+Vacío).
+
+## Enemigos con modelos 3D (ceniza e infierno)
+
+Los enemigos de las salas de oleadas se dibujan con modelos propios del resource pack
+(`resourcepack/CustomMobsPack.zip`). El mob vanilla queda invisible y cada pieza del modelo es un `ItemDisplay`
+animado (caminar, respirar, atacar, mirar, muerte con ceniza).
+
+| Enemigo | Base | Habilidad |
+|---|---|---|
+| Cenizo | Zombie | al morir suelta una nube de ceniza que ciega |
+| Arquero Calcinado | Skeleton | flechas en llamas |
+| Marchito | Husk | su golpe aplica Wither |
+| Bruto Forjado | Vindicator | pisotón telegrafiado cada ~9 s |
+| Espectro | Wither Skeleton | se teletransporta a tu espalda |
+| Sacerdote de Almas | Stray | cura a sus aliados cada ~7 s (mátalo primero) |
+| Bestia de Ceniza | Ravager | al morir deja un foso de brasas |
+
+**Configuración** (`config.yml`, sección `models`): `enabled`, `resource-pack-url`, `sha1`, `required`.
+Sube el zip a un sitio con enlace directo (por ejemplo el raw de GitHub) y pon su URL y su sha1
+(`sha1sum resourcepack/CustomMobsPack.zip`). Se envía a cada jugador al entrar. Con `enabled: false`
+los enemigos vuelven a ser los vanilla.
+
+**Regenerar el pack**: `pip install pillow numpy pyyaml` y `python3 tools/mobgen/build.py`
+(edita los diseños en `tools/mobgen/defs.py`; genera el zip, `mobmodels.yml` y una vista previa en
+`tools/mobgen/out/preview.png`). Después actualiza el `sha1` de la config.

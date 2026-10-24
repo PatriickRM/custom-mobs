@@ -17,7 +17,7 @@ import java.util.Locale;
 /** /dungeon join | start | leave | status | top | reset | reload | setlobby | clearcooldown */
 public final class DungeonCommand implements CommandExecutor, TabCompleter {
 
-    private static final List<String> PLAYER_SUBS = List.of("join", "start", "leave", "status", "top", "bless", "help");
+    private static final List<String> PLAYER_SUBS = List.of("join", "start", "leave", "status", "top", "bless", "path", "help");
     private static final List<String> ADMIN_SUBS = List.of("reset", "reload", "setlobby", "clearcooldown", "list");
 
     private final CustomMobsPlugin plugin;
@@ -62,6 +62,24 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
                 if (!(sender instanceof Player p)) return playerOnly(sender);
                 DungeonInstance inst = manager.of(p);
                 if (inst == null || !inst.openBlessingMenu(p)) send(p, "<red>No tienes ninguna bendición pendiente.</red>");
+            }
+            case "path" -> {
+                if (!(sender instanceof Player p)) return playerOnly(sender);
+                DungeonInstance inst = manager.of(p);
+                if (inst == null) {
+                    send(p, "<red>No estás en una dungeon.</red>");
+                } else if (args.length < 2) {
+                    send(p, "<red>Uso: /dungeon path <número></red>");
+                } else {
+                    int n;
+                    try {
+                        n = Integer.parseInt(args[1]);
+                    } catch (NumberFormatException ex) {
+                        n = -1;
+                    }
+                    String err = inst.vote(p, n);
+                    if (err != null) send(p, "<red>" + err + "</red>");
+                }
             }
             case "status" -> status(sender);
             case "top" -> top(sender);
@@ -115,6 +133,7 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
         s.sendMessage(Text.mm("<dark_gray>▸</dark_gray> <white>/dungeon start</white> <gray>— empezar ya (con el grupo en cola)</gray>"));
         s.sendMessage(Text.mm("<dark_gray>▸</dark_gray> <white>/dungeon leave</white> <gray>— salir de la cola o de la dungeon</gray>"));
         s.sendMessage(Text.mm("<dark_gray>▸</dark_gray> <white>/dungeon bless</white> <gray>— elegir tu bendición pendiente</gray>"));
+        s.sendMessage(Text.mm("<dark_gray>▸</dark_gray> <white>/dungeon path <n></white> <gray>— votar el camino cuando hay dos salas</gray>"));
         s.sendMessage(Text.mm("<dark_gray>▸</dark_gray> <white>/dungeon status</white> <gray>— estado y tu cooldown</gray>"));
         s.sendMessage(Text.mm("<dark_gray>▸</dark_gray> <white>/dungeon top</white> <gray>— mejores puntajes</gray>"));
         if (s.hasPermission("dungeon.admin")) {

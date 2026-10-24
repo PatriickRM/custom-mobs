@@ -65,16 +65,24 @@ public final class DungeonConfig {
         return cfg.getStringList(path);
     }
 
-    /** Salas de la dungeon (sin START). VORTHAK siempre queda al final y una sola vez. */
-    public List<RoomType> rooms() {
-        List<RoomType> out = new ArrayList<>();
+    /**
+     * Pasos de la dungeon (sin START). Cada paso es una sala o, si se escribe "A|B", una elección entre dos salas
+     * (el grupo vota qué camino tomar). VORTHAK siempre queda al final y una sola vez.
+     */
+    public List<List<RoomType>> steps() {
+        List<List<RoomType>> out = new ArrayList<>();
         for (String s : cfg.getStringList("rooms")) {
-            RoomType t = RoomType.parse(s);
-            if (t == null || t == RoomType.START || t == RoomType.VORTHAK) continue;
-            out.add(t);
+            if (s == null) continue;
+            List<RoomType> opts = new ArrayList<>();
+            for (String part : s.split("\\|")) {
+                RoomType t = RoomType.parse(part);
+                if (t == null || t == RoomType.START || t == RoomType.VORTHAK) continue;
+                if (opts.size() < 2) opts.add(t);
+            }
+            if (!opts.isEmpty()) out.add(opts);
         }
-        if (out.isEmpty()) out.add(RoomType.WAVES);
-        out.add(RoomType.VORTHAK);
+        if (out.isEmpty()) out.add(List.of(RoomType.WAVES));
+        out.add(List.of(RoomType.VORTHAK));
         return out;
     }
 
@@ -156,7 +164,12 @@ public final class DungeonConfig {
 
             # Orden de las salas. Tipos: WAVES, TRAP, PUZZLE, MINIBOSS, REST, ALTAR, VAULT, SWEEP
             # (la sala de entrada y la de VORTHAK se añaden solas).
-            rooms: [WAVES, ALTAR, TRAP, VAULT, WAVES, PUZZLE, SWEEP, MINIBOSS, REST]
+            # Escribe "A|B" para que el grupo ELIJA entre dos salas (voto). Ej: "ALTAR|TRAP".
+            rooms: [WAVES, "ALTAR|TRAP", "VAULT|PUZZLE", WAVES, "SWEEP|PUZZLE", MINIBOSS, REST]
+
+            path:
+              # Segundos que tiene el grupo para votar el camino (si nadie vota, se elige al azar).
+              vote-seconds: 25
 
             # size = lado interior (se fuerza impar), height = alto interior.
             sizes:
@@ -230,15 +243,21 @@ public final class DungeonConfig {
               checker-cell: 4
 
             puzzle:
-              # AUTO = memoria en solitario; en grupo elige memoria o cooperativo al azar.
-              # También: SEQUENCE o COOP (COOP necesita 2+ jugadores).
+              # AUTO = uno distinto al azar cada vez. También: VIGILANTES, PORTADORES, RESONANCIA
+              #  VIGILANTES: recoge 4 fragmentos; las estatuas solo se mueven cuando NADIE las mira.
+              #  PORTADORES: lleva cada orbe a su pedestal de color mientras te atacan (si te hieren, lo sueltas).
+              #  RESONANCIA: rompe a golpes los cristales que se iluminan antes de que se acabe el tiempo.
               mode: AUTO
-              # Memoria: rondas (empieza con 3 pasos y suma 1 por ronda).
-              rounds: 4
-              # Duración de cada destello de la secuencia (ticks).
-              show-ticks: 14
-              # Cooperativo: segundos seguidos con las placas ocupadas a la vez.
-              sync-seconds: 8
+              # Vigilantes: estatuas al empezar / máximo, y velocidad (bloques cada 2 ticks).
+              statue-start: 2
+              statue-max: 6
+              statue-speed: 0.36
+              # Portadores: cada cuántos segundos llega un grupo de enemigos a por los portadores.
+              carrier-spawn-seconds: 9
+              # Resonancia: rondas, golpes para romper cada cristal y tiempo (segundos) de la primera ronda.
+              crystal-rounds: 5
+              crystal-hits: 6
+              crystal-window-seconds: 9
               # Cada cuántos segundos cae un golpe de presión mientras resuelves.
               pressure-seconds: 5
 

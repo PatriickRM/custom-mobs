@@ -90,6 +90,7 @@ public final class DungeonInstance {
         Location loc;
         TextDisplay display;
         int progress;
+        int medic;
     }
 
     // ------------------------------------------------------------------ campos
@@ -139,19 +140,6 @@ public final class DungeonInstance {
     private int[] trapProg = new int[3];
     private int trapDone;
     private long trapNext;
-    private PuzzleMode puzzleMode = PuzzleMode.SEQUENCE;
-    private boolean[] padOcc = new boolean[4];
-    private boolean[] padLit = new boolean[4];
-    private long puzzlePress;
-    private int[] seq = new int[0];
-    private int seqRound;
-    private int seqPhase;
-    private int seqShow;
-    private boolean seqShowLit;
-    private long seqNext;
-    private int seqInput;
-    private int coopProg;
-    private int coopTotal = 160;
     // salas nuevas
     private double altarCharge;
     private int altarTotal;
@@ -171,6 +159,15 @@ public final class DungeonInstance {
     private long sweepHaz;
     private final Map<UUID, Long> sweepHit = new java.util.HashMap<>();
     private final BlessingSystem bless;
+    private final Puzzles puzzles;
+    // camino: cada paso es una sala o una elección entre dos (índices físicos de sala)
+    private final List<int[]> steps = new ArrayList<>();
+    private final int[] stepOfRoom;
+    private int curStep;
+    private int voteStep = -1;
+    private int voteFrom;
+    private long voteEnd;
+    private final Map<UUID, Integer> votes = new LinkedHashMap<>();
     private long miniSpawnTick;
     private MiniBoss mini;
     private long restEnd;
@@ -200,7 +197,19 @@ public final class DungeonInstance {
 
         List<RoomType> types = new ArrayList<>();
         types.add(RoomType.START);
-        types.addAll(cfg.rooms());
+        steps.add(new int[]{0});
+        for (List<RoomType> opt : cfg.steps()) {
+            int[] idx = new int[opt.size()];
+            for (int k = 0; k < opt.size(); k++) {
+                idx[k] = types.size();
+                types.add(opt.get(k));
+            }
+            steps.add(idx);
+        }
+        this.stepOfRoom = new int[types.size()];
+        for (int st = 0; st < steps.size(); st++) {
+            for (int ri : steps.get(st)) stepOfRoom[ri] = st;
+        }
         this.builder = new DungeonBuilder(plugin, world, cfg, types, 16, cfg.i("build-y"), oz, System.nanoTime());
         this.rooms = builder.rooms();
         int maxHalf = 0;
@@ -211,6 +220,7 @@ public final class DungeonInstance {
         Collections.shuffle(miniOrder);
 
         this.bless = new BlessingSystem(plugin, this, cfg, world, id);
+        this.puzzles = new Puzzles(this);
         this.maxLives = cfg.i("players.lives") + (modifier == Modifier.BLESSED ? 1 : 0);
         for (Player p : players) {
             PState s = new PState();
@@ -242,6 +252,57 @@ public final class DungeonInstance {
         return cfg;
     }
 
+    // acceso para Puzzles (mismo paquete)
+
+    World world() {
+        return world;
+    }
+
+    Random rnd() {
+        return rnd;
+    }
+
+    void setHint(String h) {
+        hint = h;
+    }
+
+    void puzzleCleared() {
+        clearRoom(active);
+    }
+
+    /** Daño de zona de peligro (atraviesa armadura) a un jugador. */
+    void hazardHit(Player p, double dmg) {
+        p.damage(dmg, HAZARD_SRC);
+    }
+
+    /** Pone enemigos en cola para que aparezcan en la sala actual. */
+    void queueMobs(int n) {
+        pendingSpawns += Math.max(0, n);
+    }
+
+    void pumpMobs(DungeonBuilder.Room r) {
+        if (pendingSpawns > 0) spawnPending(r);
+        if (tick % 10 == 0) cleanMobs();
+    }
+
+    int liveMobs() {
+        return mobs.size() + pendingSpawns;
+    }
+
+    /** Las salas sin oleadas no usan 'wave'; así los enemigos no reciben el bonus de última oleada. */
+    void mobMode() {
+        wave = 1;
+        totalWaves = 99;
+    }
+
+    void killAllMobs() {
+        killMobs();
+    }
+
+    void unregisterMob(Entity e) {
+        manager.unindexMob(e.getUniqueId());
+    }
+
     public Modifier modifier() {
         return modifier;
     }
@@ -258,8 +319,9 @@ public final class DungeonInstance {
         return Math.max(1, members.size());
     }
 
+    /** Número de sala jugada (cuenta pasos, no salas físicas: una elección no suma dos). */
     public int roomOrdinal() {
-        return Math.max(1, active);
+        return Math.max(1, curStep);
     }
 
     public DungeonBuilder.Room currentRoom() {
@@ -276,7 +338,7 @@ public final class DungeonInstance {
     }
 
     public String describe() {
-        return "#" + id + " " + state + " sala " + active + "/" + (rooms.size() - 1) + " jugadores=" + members.size();
+        return "#" + id + " " + state + " sala " + curStep + "/" + (steps.size() - 1) + " jugadores=" + members.size();
     }
 
     public List<String> memberNames() {
@@ -360,11 +422,11 @@ public final class DungeonInstance {
         for (Player p : onlineMembers()) p.showTitle(t);
     }
 
-    private void soundAll(Sound s, float vol, float pitch) {
+    void soundAll(Sound s, float vol, float pitch) {
         for (Player p : onlineMembers()) p.playSound(p.getLocation(), s, vol, pitch);
     }
 
-    private void setBlock(int x, int y, int z, Material m) {
+    void setBlock(int x, int y, int z, Material m) {
         world.getBlockAt(x, y, z).setType(m, false);
     }
 
@@ -443,7 +505,7 @@ public final class DungeonInstance {
         p.showBossBar(bar);
         p.sendMessage(Text.mm("<dark_gray>━━━━━━━━ <gradient:#ff4d4d:#ffb347><bold>DUNGEON DE VORTHAK</bold></gradient> <dark_gray>━━━━━━━━"));
         p.sendMessage(Text.mm("<gray>Vidas: <red>" + maxLives + " ❤</red>  <dark_gray>·</dark_gray>  Salas: <white>"
-                + (rooms.size() - 1) + "</white>  <dark_gray>·</dark_gray>  Equipo: <white>" + members.size() + "</white>"));
+                + (steps.size() - 1) + "</white>  <dark_gray>·</dark_gray>  Equipo: <white>" + members.size() + "</white>"));
         p.sendMessage(Text.mm("<gray>Si un compañero cae sin vidas, mantén <white>SHIFT</white> sobre su tumba para revivirlo."));
         if (modifier != null) {
             p.sendMessage(Text.mm("<gray>Modificador del día: <light_purple><bold>" + modifier.title + "</bold></light_purple> <dark_gray>—</dark_gray> "
@@ -555,12 +617,13 @@ public final class DungeonInstance {
             return;
         }
         checkEntry();
+        voteTick();
         if (active <= 0 || roomStates[active] != RoomState.ACTIVE) return;
         DungeonBuilder.Room r = rooms.get(active);
         switch (r.type) {
             case WAVES -> wavesTick(r);
             case TRAP -> trapTick(r);
-            case PUZZLE -> puzzleTick(r);
+            case PUZZLE -> puzzles.tick(r);
             case ALTAR -> altarTick(r);
             case VAULT -> vaultTick(r);
             case SWEEP -> sweepTick(r);
@@ -599,6 +662,7 @@ public final class DungeonInstance {
     private void activateRoom(int i) {
         roomStates[i] = RoomState.ACTIVE;
         active = i;
+        curStep = stepOfRoom[i];
         DungeonBuilder.Room r = rooms.get(i);
         setGate(i, false, false);
         mobs.clear();
@@ -612,7 +676,7 @@ public final class DungeonInstance {
             case WAVES -> {
                 totalWaves = cfg.i("waves.count");
                 nextWaveTick = tick + 50;
-                titleAll("<gold><bold>SALA " + i + "</bold></gold>", "<gray>Sobrevive a las oleadas</gray>");
+                titleAll("<gold><bold>SALA " + curStep + "</bold></gold>", "<gray>Sobrevive a las oleadas</gray>");
             }
             case TRAP -> {
                 trapStart = tick;
@@ -624,7 +688,7 @@ public final class DungeonInstance {
                 titleAll("<red><bold>SALA TRAMPA</bold></red>",
                         "<gray>Activa las <white>" + r.pads.size() + " balizas</white> quedándote encima. ¡El suelo ataca!</gray>");
             }
-            case PUZZLE -> startPuzzle(r);
+            case PUZZLE -> puzzles.start(r);
             case ALTAR -> startAltar(r);
             case VAULT -> startVault(r);
             case SWEEP -> startSweep(r);
@@ -657,10 +721,119 @@ public final class DungeonInstance {
                     && cfg.b("blessings.miniboss-reward");
             if (blessingsDue(i) || miniReward) offerBlessings(r.type == RoomType.MINIBOSS);
         }
-        if (i + 1 < rooms.size()) {
-            roomStates[i + 1] = RoomState.READY;
-            setGate(i + 1, true, false);
+        advanceFrom(i);
+    }
+
+    // ------------------------------------------------------------------ camino (elección entre salas)
+
+    /** Prepara lo que viene tras limpiar la sala 'i': la siguiente sala o una votación entre dos. */
+    private void advanceFrom(int i) {
+        int next = stepOfRoom[i] + 1;
+        if (next >= steps.size()) return;
+        int[] opts = steps.get(next);
+        if (opts.length == 1) openRoom(i, opts[0]);
+        else startVote(i, next, opts);
+    }
+
+    /** Abre la sala 'to' tras limpiar 'from': a pie si es la contigua, o con un portal si se saltó alguna. */
+    private void openRoom(int from, int to) {
+        roomStates[to] = RoomState.READY;
+        setGate(to, true, false);
+        if (to != from + 1) portal(to);
+    }
+
+    private void portal(int to) {
+        DungeonBuilder.Room r = rooms.get(to);
+        titleAll("<light_purple><bold>EL CAMINO SE ABRE</bold></light_purple>", "<gray>" + r.type.title + "</gray>");
+        soundAll(Sound.BLOCK_BEACON_ACTIVATE, 1f, 0.6f);
+        for (Player p : aliveOnline()) {
+            world.spawnParticle(Particle.REVERSE_PORTAL, p.getLocation().add(0, 1, 0), 60, 0.5, 1, 0.5, 0.3);
         }
+        later(40, () -> {
+            if (state != State.RUNNING || roomStates[to] != RoomState.READY) return;
+            for (Player p : aliveOnline()) {
+                p.teleport(r.entrance(world));
+                world.spawnParticle(Particle.REVERSE_PORTAL, p.getLocation().add(0, 1, 0), 40, 0.4, 0.8, 0.4, 0.2);
+            }
+            soundAll(Sound.ENTITY_ENDERMAN_TELEPORT, 0.9f, 0.7f);
+        });
+    }
+
+    private void startVote(int from, int step, int[] opts) {
+        voteStep = step;
+        voteFrom = from;
+        votes.clear();
+        voteEnd = tick + Math.max(8, cfg.i("path.vote-seconds")) * 20L;
+        titleAll("<gold><bold>ELIGE EL CAMINO</bold></gold>", "<gray>Votad en el chat: gana la mayoría</gray>");
+        soundAll(Sound.BLOCK_BEACON_POWER_SELECT, 1f, 1.3f);
+        for (Player p : onlineMembers()) {
+            p.sendMessage(Text.mm("<dark_gray>━━━━━━━━ <gradient:#ffd86b:#ff9a3c><bold>ELIGE EL CAMINO</bold></gradient> <dark_gray>━━━━━━━━"));
+            for (int k = 0; k < opts.length; k++) {
+                RoomType t = rooms.get(opts[k]).type;
+                p.sendMessage(Text.mm("<green><bold>[" + (k + 1) + "] " + t.title + "</bold></green>")
+                        .clickEvent(ClickEvent.runCommand("/dungeon path " + (k + 1)))
+                        .append(Text.mm(" <gray>" + t.blurb + "</gray>")));
+            }
+            p.sendMessage(Text.mm("<gray>Haz clic en una opción o usa <white>/dungeon path <número></white>.</gray>"));
+        }
+    }
+
+    /** Voto de un jugador. @return mensaje de error, o null si se registró. */
+    public String vote(Player p, int option) {
+        if (voteStep < 0) return "No hay ninguna votación de camino ahora mismo.";
+        PState s = members.get(p.getUniqueId());
+        if (s == null || s.eliminated) return "Solo los jugadores vivos pueden votar.";
+        int[] opts = steps.get(voteStep);
+        if (option < 1 || option > opts.length) return "Opción inválida (1-" + opts.length + ").";
+        votes.put(p.getUniqueId(), option - 1);
+        broadcast("<white>" + s.name + "</white> <gray>vota por</gray> <green>" + rooms.get(opts[option - 1]).type.title
+                + "</green> <dark_gray>(" + votes.size() + "/" + Math.max(1, aliveOnline().size()) + ")</dark_gray>");
+        return null;
+    }
+
+    private void voteTick() {
+        if (voteStep < 0) return;
+        if (state != State.RUNNING) return;
+        votes.keySet().removeIf(u -> {
+            PState s = members.get(u);
+            return s == null || s.eliminated;
+        });
+        int[] opts = steps.get(voteStep);
+        int[] count = new int[opts.length];
+        for (int v : votes.values()) count[v]++;
+        List<Player> al = aliveOnline();
+        boolean allIn = !al.isEmpty() && votes.size() >= al.size();
+        boolean pending = bless.hasPending();
+        boolean timeUp = tick >= voteEnd;
+        StringBuilder sb = new StringBuilder("Camino: ");
+        for (int k = 0; k < opts.length; k++) {
+            sb.append(rooms.get(opts[k]).type.title).append(" ").append(count[k]).append("  ");
+        }
+        sb.append(timeUp ? "· elige tu bendición" : "· " + Math.max(0, (voteEnd - tick) / 20) + "s");
+        hint = sb.toString();
+        if ((allIn && !pending) || (timeUp && (!pending || tick >= voteEnd + 300))) resolveVote(opts, count);
+    }
+
+    private void resolveVote(int[] opts, int[] count) {
+        int max = -1;
+        List<Integer> best = new ArrayList<>();
+        for (int k = 0; k < count.length; k++) {
+            if (count[k] > max) {
+                max = count[k];
+                best.clear();
+                best.add(k);
+            } else if (count[k] == max) {
+                best.add(k);
+            }
+        }
+        int pick = best.get(rnd.nextInt(best.size()));
+        int to = opts[pick];
+        int from = voteFrom;
+        voteStep = -1;
+        votes.clear();
+        hint = "";
+        broadcast("<gold>Camino elegido:</gold> <white>" + rooms.get(to).type.title + "</white>");
+        openRoom(from, to);
     }
 
     private void setGate(int i, boolean open, boolean quiet) {
@@ -1455,216 +1628,6 @@ public final class DungeonInstance {
         if (keysDone >= n) clearRoom(active);
     }
 
-    // ------------------------------------------------------------------ acertijo
-
-    private enum PuzzleMode { SEQUENCE, COOP }
-
-    private static final Material[] PAD_LIT = {Material.SHROOMLIGHT, Material.VERDANT_FROGLIGHT,
-            Material.PEARLESCENT_FROGLIGHT, Material.SEA_LANTERN};
-    private static final float[] PAD_PITCH = {0.7f, 0.95f, 1.25f, 1.6f};
-
-    private void setPad(DungeonBuilder.Room r, int k, boolean lit) {
-        int[] pd = r.pads.get(k);
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                Material m = lit ? PAD_LIT[k % PAD_LIT.length]
-                        : (dx == 0 && dz == 0 ? Material.GILDED_BLACKSTONE : Material.BLACKSTONE);
-                setBlock(pd[0] + dx, r.floorY, pd[1] + dz, m);
-            }
-        }
-    }
-
-    private void padSound(DungeonBuilder.Room r, int k, Sound s, float vol, float pitch) {
-        int[] pd = r.pads.get(k);
-        world.playSound(new Location(world, pd[0] + 0.5, r.floorY + 1, pd[1] + 0.5), s, vol, pitch);
-    }
-
-    private void startPuzzle(DungeonBuilder.Room r) {
-        String mode = cfg.s("puzzle.mode").trim().toUpperCase();
-        if (mode.equals("COOP") && groupSize() >= 2) puzzleMode = PuzzleMode.COOP;
-        else if (mode.equals("SEQUENCE")) puzzleMode = PuzzleMode.SEQUENCE;
-        else puzzleMode = groupSize() >= 2 && rnd.nextBoolean() ? PuzzleMode.COOP : PuzzleMode.SEQUENCE;
-
-        int n = r.pads.size();
-        padOcc = new boolean[n];
-        padLit = new boolean[n];
-        for (int k = 0; k < n; k++) setPad(r, k, false);
-        puzzlePress = tick + cfg.i("puzzle.pressure-seconds") * 20L + 60;
-
-        if (puzzleMode == PuzzleMode.SEQUENCE) {
-            int rounds = Math.max(1, Math.min(6, cfg.i("puzzle.rounds")));
-            seq = new int[2 + rounds];
-            for (int i = 0; i < seq.length; i++) {
-                int v;
-                do {
-                    v = rnd.nextInt(n);
-                } while (n > 1 && i > 0 && v == seq[i - 1]);
-                seq[i] = v;
-            }
-            seqRound = 0;
-            seqPhase = 0;
-            seqShow = 0;
-            seqShowLit = false;
-            seqNext = tick + 70;
-            titleAll("<aqua><bold>ACERTIJO: MEMORIA</bold></aqua>",
-                    "<gray>Memoriza la secuencia de placas y repítela pisándolas en orden</gray>");
-        } else {
-            coopProg = 0;
-            coopTotal = Math.max(20, cfg.i("puzzle.sync-seconds") * 20);
-            titleAll("<aqua><bold>ACERTIJO: SINCRONÍA</bold></aqua>",
-                    "<gray>Ocupad las placas a la vez (una por jugador) durante <white>"
-                            + (coopTotal / 20) + "s</white></gray>");
-        }
-    }
-
-    private void puzzleTick(DungeonBuilder.Room r) {
-        if (puzzleMode == PuzzleMode.COOP) coopTick(r);
-        else sequenceTick(r);
-    }
-
-    private void puzzleSolved(DungeonBuilder.Room r) {
-        for (int k = 0; k < r.pads.size(); k++) {
-            int[] pd = r.pads.get(k);
-            setPad(r, k, true);
-            world.spawnParticle(Particle.TOTEM_OF_UNDYING, pd[0] + 0.5, r.floorY + 1.5, pd[1] + 0.5,
-                    30, 0.6, 1, 0.6, 0.2);
-        }
-        clearRoom(active);
-    }
-
-    /** Golpe de presión sobre un jugador mientras se resuelve el acertijo. */
-    private void puzzlePressure(List<Player> al, double factor) {
-        puzzlePress = tick + cfg.i("puzzle.pressure-seconds") * 20L;
-        if (al.isEmpty()) return;
-        Player t = al.get(rnd.nextInt(al.size()));
-        hazard(t.getLocation(), cfg.i("trap.telegraph-ticks"), 2.2, cfg.d("trap.hazard-damage") * factor);
-    }
-
-    // --- memoria (tipo Simon) ---
-
-    private void sequenceTick(DungeonBuilder.Room r) {
-        int rounds = seq.length - 2;
-        int len = 3 + seqRound;
-        switch (seqPhase) {
-            case 0 -> {
-                hint = "Memoria " + (seqRound + 1) + "/" + rounds + " · atento a la secuencia";
-                if (tick >= seqNext) {
-                    seqPhase = 1;
-                    seqShow = 0;
-                    seqShowLit = false;
-                    seqNext = tick;
-                }
-            }
-            case 1 -> {
-                hint = "Memoriza (" + len + " placas)";
-                if (tick < seqNext) return;
-                if (!seqShowLit) {
-                    int k = seq[seqShow];
-                    setPad(r, k, true);
-                    padSound(r, k, Sound.BLOCK_NOTE_BLOCK_PLING, 1.6f, PAD_PITCH[k % PAD_PITCH.length]);
-                    seqShowLit = true;
-                    seqNext = tick + Math.max(6, cfg.i("puzzle.show-ticks"));
-                } else {
-                    setPad(r, seq[seqShow], false);
-                    seqShowLit = false;
-                    seqShow++;
-                    seqNext = tick + 6;
-                    if (seqShow >= len) {
-                        seqPhase = 2;
-                        seqInput = 0;
-                        List<Player> al = aliveOnline();
-                        for (int k = 0; k < r.pads.size(); k++) padOcc[k] = onPad(al, r.pads.get(k), r, 1.5);
-                        puzzlePress = tick + cfg.i("puzzle.pressure-seconds") * 20L;
-                        titleAll("<green><bold>¡TU TURNO!</bold></green>", "<gray>Pisa las placas en el mismo orden</gray>");
-                    }
-                }
-            }
-            default -> sequenceInput(r, len, rounds);
-        }
-    }
-
-    private void sequenceInput(DungeonBuilder.Room r, int len, int rounds) {
-        List<Player> al = aliveOnline();
-        hint = "Repite: " + seqInput + "/" + len + " · ronda " + (seqRound + 1) + "/" + rounds;
-        int stepped = -1;
-        for (int k = 0; k < r.pads.size(); k++) {
-            boolean occ = onPad(al, r.pads.get(k), r, 1.5);
-            if (occ && !padOcc[k] && stepped < 0) stepped = k;
-            padOcc[k] = occ;
-        }
-        if (stepped >= 0) {
-            final int k = stepped;
-            if (seq[seqInput] == k) {
-                setPad(r, k, true);
-                padSound(r, k, Sound.BLOCK_NOTE_BLOCK_PLING, 1.6f, PAD_PITCH[k % PAD_PITCH.length]);
-                later(8, () -> setPad(r, k, false));
-                seqInput++;
-                if (seqInput >= len) {
-                    seqRound++;
-                    if (seqRound >= rounds) {
-                        puzzleSolved(r);
-                        return;
-                    }
-                    broadcast("<green>Ronda superada.</green> <gray>La secuencia crece...</gray>");
-                    soundAll(Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.4f);
-                    seqPhase = 0;
-                    seqNext = tick + 50;
-                    return;
-                }
-            } else {
-                padSound(r, k, Sound.BLOCK_NOTE_BLOCK_BASS, 2f, 0.5f);
-                int[] pd = r.pads.get(k);
-                hazard(new Location(world, pd[0] + 0.5, r.floorY + 1, pd[1] + 0.5), 20, 2.6, cfg.d("trap.hazard-damage"));
-                titleAll("<red><bold>¡ERROR!</bold></red>", "<gray>Sal de la placa. La ronda se repite...</gray>");
-                seqPhase = 0;
-                seqNext = tick + 60;
-                return;
-            }
-        }
-        if (tick >= puzzlePress) puzzlePressure(al, 0.7);
-    }
-
-    // --- sincronía cooperativa ---
-
-    private void coopTick(DungeonBuilder.Room r) {
-        List<Player> al = aliveOnline();
-        int occ = 0;
-        for (int k = 0; k < r.pads.size(); k++) {
-            boolean on = onPad(al, r.pads.get(k), r, 1.5);
-            if (on != padLit[k]) {
-                padLit[k] = on;
-                setPad(r, k, on);
-                padSound(r, k, on ? Sound.BLOCK_NOTE_BLOCK_PLING : Sound.BLOCK_NOTE_BLOCK_BASS, 1.2f,
-                        on ? PAD_PITCH[k % PAD_PITCH.length] : 0.6f);
-            }
-            if (on) {
-                occ++;
-                if (tick % 10 == 0) {
-                    int[] pd = r.pads.get(k);
-                    world.spawnParticle(Particle.END_ROD, pd[0] + 0.5, r.floorY + 1.5, pd[1] + 0.5, 4, 0.5, 0.8, 0.5, 0.02);
-                }
-            }
-        }
-        int need = Math.min(r.pads.size(), Math.max(1, al.size()));
-        coopProg = occ >= need ? Math.min(coopTotal, coopProg + 2) : Math.max(0, coopProg - 2);
-        hint = "Placas " + occ + "/" + need + " · sincronía " + (coopProg * 100 / coopTotal) + "%";
-        if (coopProg >= coopTotal) {
-            puzzleSolved(r);
-            return;
-        }
-        if (tick >= puzzlePress) {
-            puzzlePress = tick + cfg.i("puzzle.pressure-seconds") * 20L;
-            // golpea una placa ocupada: hay que esquivar y volver a ella
-            List<Integer> busy = new ArrayList<>();
-            for (int k = 0; k < r.pads.size(); k++) if (padLit[k]) busy.add(k);
-            if (!busy.isEmpty()) {
-                int[] pd = r.pads.get(busy.get(rnd.nextInt(busy.size())));
-                hazard(new Location(world, pd[0] + 0.5, r.floorY + 1, pd[1] + 0.5),
-                        cfg.i("trap.telegraph-ticks"), 2.6, cfg.d("trap.hazard-damage"));
-            }
-        }
-    }
-
     // ------------------------------------------------------------------ mini jefe
 
     private void miniTick(DungeonBuilder.Room r) {
@@ -1918,7 +1881,8 @@ public final class DungeonInstance {
     private boolean blessingsDue(int clearedRoom) {
         if (!cfg.b("blessings.enabled")) return false;
         int every = Math.max(1, cfg.i("blessings.every"));
-        return clearedRoom > 0 && clearedRoom % every == 0 && clearedRoom + 1 < rooms.size();
+        int st = stepOfRoom[clearedRoom];
+        return st > 0 && st % every == 0 && st + 1 < steps.size();
     }
 
     /** Ofrece una bendición a cada jugador vivo (se abre un menú; también con /dungeon bless). */
@@ -1978,12 +1942,14 @@ public final class DungeonInstance {
         if (!(e instanceof LivingEntity) || e instanceof Player) return false;
         if (!e.isValid() || e.isDead()) return false;
         if (manager.byMob(e.getUniqueId()) != this) return false;
+        if (puzzles.owns(e)) return false;
         return !isBossEntity(e);
     }
 
     // ------------------------------------------------------------------ eventos delegados
 
     public void onMobDamaged(EntityDamageEvent e) {
+        if (puzzles.onDamaged(e)) return;
         if (mini != null && mini.owns(e.getEntity().getUniqueId())) mini.onDamage(e);
     }
 
@@ -2118,17 +2084,20 @@ public final class DungeonInstance {
             }
             boolean ownerOnline = Bukkit.getPlayer(t.owner) != null;
             boolean any = false;
+            int medic = 0;
             if (ownerOnline) {
                 for (Player p : aliveOnline()) {
                     if (p.isSneaking() && !p.getUniqueId().equals(t.owner)
                             && p.getLocation().distanceSquared(t.loc) <= 6.25) {
                         any = true;
+                        medic = Math.max(medic, bless.medicLevel(p));
                         p.sendActionBar(Text.mm("<aqua>Reviviendo a <white>" + t.ownerName + "</white>... <white>"
                                 + Math.min(100, (t.progress * 100) / Math.max(1, need)) + "%</white></aqua>"));
                     }
                 }
             }
-            t.progress = any ? t.progress + 2 : Math.max(0, t.progress - 4);
+            t.progress = any ? t.progress + 2 + 2 * medic : Math.max(0, t.progress - 4);
+            t.medic = Math.max(medic, any ? medic : t.medic);
             if (tick % 10 == 0) {
                 world.spawnParticle(Particle.SOUL, t.loc.getX(), t.loc.getY() + 1, t.loc.getZ(), 4, 0.3, 0.6, 0.3, 0.02);
                 if (t.display != null && t.display.isValid()) {
@@ -2142,6 +2111,11 @@ public final class DungeonInstance {
                 removeTomb(t);
                 revivesUsed++;
                 reviveAt(t.owner, t.loc.clone().add(0, 0.2, 0), cfg.i("players.revive-lives"), true);
+                if (t.medic > 0) {
+                    Player rp = Bukkit.getPlayer(t.owner);
+                    AttributeInstance rmh = rp == null ? null : rp.getAttribute(Attribute.MAX_HEALTH);
+                    if (rp != null && rmh != null) rp.setHealth(Math.min(rmh.getValue(), rmh.getValue() * (0.6 + 0.2 * t.medic)));
+                }
             }
         }
     }
@@ -2221,12 +2195,15 @@ public final class DungeonInstance {
         for (int i = 1; i < rooms.size(); i++) {
             setGate(i, false, true);
             DungeonBuilder.Room r = rooms.get(i);
-            if (r.type == RoomType.PUZZLE) for (int k = 0; k < r.pads.size(); k++) setPad(r, k, false);
             if (r.type == RoomType.TRAP || r.type == RoomType.SWEEP) for (int k = 0; k < r.pads.size(); k++) setTrapPad(r, k, false);
             if (r.type == RoomType.VAULT) for (int k = 0; k < r.pads.size(); k++) setRelic(r, k, false);
         }
+        puzzles.reset();
+        voteStep = -1;
+        votes.clear();
         roomStates[0] = RoomState.ACTIVE;
         active = 0;
+        curStep = 0;
         revivesUsed = 0;
         startEnd = tick + cfg.i("players.start-countdown-seconds") * 20L;
         bless.resetAll();
@@ -2395,13 +2372,13 @@ public final class DungeonInstance {
     // ------------------------------------------------------------------ HUD
 
     private void hud() {
-        int total = Math.max(1, rooms.size() - 1);
+        int total = Math.max(1, steps.size() - 1);
         int cleared = 0;
         for (int i = 1; i < rooms.size(); i++) if (roomStates[i] == RoomState.CLEARED) cleared++;
         if (state == State.COMPLETED) cleared = total;
         bar.progress((float) Math.max(0.0, Math.min(1.0, cleared / (double) total)));
         bar.name(Text.mm("<gradient:#ff4d4d:#ffb347><bold>Dungeon de Vorthak</bold></gradient> <dark_gray>·</dark_gray> <gray>Sala <white>"
-                + Math.max(0, Math.min(active, total)) + "/" + total + "</white></gray> <dark_gray>·</dark_gray> <aqua>"
+                + Math.max(0, Math.min(curStep, total)) + "/" + total + "</white></gray> <dark_gray>·</dark_gray> <aqua>"
                 + clock(elapsedSeconds()) + "</aqua>"
                 + (modifier != null ? " <dark_gray>·</dark_gray> <light_purple>" + modifier.title + "</light_purple>" : "")));
         for (Player p : onlineMembers()) {

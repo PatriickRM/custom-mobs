@@ -45,7 +45,22 @@ public enum Blessing {
     PHASE("Evasión Sombría", Material.PHANTOM_MEMBRANE, School.VACIO, Rarity.RARE, 3, 6, 1, null),
 
     // ------------------------------------------------------------------ NEUTRAL
-    LIFE("Corazón Extra", Material.TOTEM_OF_UNDYING, School.NINGUNA, Rarity.EPIC, 2, 3, 2, null);
+    LIFE("Corazón Extra", Material.TOTEM_OF_UNDYING, School.NINGUNA, Rarity.EPIC, 2, 3, 2, null),
+    BERSERK("Furia Desatada", Material.NETHERITE_AXE, School.NINGUNA, Rarity.RARE, 1, 5, 1, null),
+
+    // ------------------------------------------------------------------ NUEVAS (por escuela)
+    BLEED("Hemorragia", Material.IRON_SWORD, School.SANGRE, Rarity.RARE, 3, 6, 1, null),
+    FEAST("Banquete Carmesí", Material.ROTTEN_FLESH, School.SANGRE, Rarity.LEGENDARY, 2, 2, 4, null),
+    JUDGMENT("Juicio de Almas", Material.TRIDENT, School.ALMAS, Rarity.LEGENDARY, 2, 2, 4, null),
+    SINGULARITY("Singularidad", Material.ENDER_EYE, School.VACIO, Rarity.LEGENDARY, 2, 2, 4, null),
+
+    // ------------------------------------------------------------------ EQUIPO (solo salen en grupo)
+    BANNER("Estandarte de Guerra", Material.WHITE_BANNER, School.EQUIPO, Rarity.RARE, 3, 7, 1, null),
+    MEDIC("Médico de Campaña", Material.GLISTERING_MELON_SLICE, School.EQUIPO, Rarity.RARE, 2, 5, 1, null),
+
+    // ------------------------------------------------------------------ HÍBRIDAS (piden dos escuelas)
+    FIREWALK("Paso Ígneo", Material.BLAZE_ROD, School.HIBRIDA, Rarity.EPIC, 2, 4, 2, null),
+    BLOODDASH("Dash Carmesí", Material.CRIMSON_FUNGUS, School.HIBRIDA, Rarity.EPIC, 2, 4, 2, null);
 
     // ================================================================== escuelas y rarezas
 
@@ -63,7 +78,9 @@ public enum Blessing {
         VACIO("Vacío", "<light_purple>", 170, 80, 255,
                 "Paso Latente", "Desbloqueas el Dash (nivel 1) y su recarga baja un 20%.",
                 "Cazador del Vacío", "Tu dash daña a quien atraviesas y activa un Eco (+40%)."),
-        NINGUNA("Neutral", "<gray>", 200, 200, 200, "", "", "", "");
+        NINGUNA("Neutral", "<gray>", 200, 200, 200, "", "", "", ""),
+        EQUIPO("Equipo", "<green>", 90, 230, 120, "", "", "", ""),
+        HIBRIDA("Híbrida", "<#dc78be>", 220, 120, 190, "", "", "", "");
 
         public final String label;
         public final String color;
@@ -86,6 +103,11 @@ public enum Blessing {
             this.tier1Desc = tier1Desc;
             this.tier2Name = tier2Name;
             this.tier2Desc = tier2Desc;
+        }
+
+        /** ¿Tiene sinergias por acumulación (2 y 4 niveles)? */
+        public boolean hasSynergy() {
+            return this != NINGUNA && this != EQUIPO && this != HIBRIDA;
         }
 
         public Color rgb() {
@@ -149,7 +171,85 @@ public enum Blessing {
         this.color = school.color;
     }
 
+    /** Solo tiene sentido en grupo: no se ofrece en solitario. */
+    public boolean teamOnly() {
+        return this == BANNER || this == MEDIC;
+    }
+
+    /** Escuelas en las que hay que tener ya al menos 1 nivel para que salga (híbridas). */
+    public School[] needSchools() {
+        return switch (this) {
+            case FIREWALK -> new School[]{School.CENIZA, School.VACIO};
+            case BLOODDASH -> new School[]{School.SANGRE, School.VACIO};
+            default -> new School[0];
+        };
+    }
+
     // ================================================================== fórmulas (compartidas)
+
+    public static double bleedDps(int l) {
+        return 2.0 + 1.5 * l;
+    }
+
+    public static int bleedSeconds(int l) {
+        return 3 + l;
+    }
+
+    public static double feastSelf(int l) {
+        return 2.0 + 2.0 * l;
+    }
+
+    public static double feastAlly(int l) {
+        return 1.0 + 1.0 * l;
+    }
+
+    public static double judgmentDamage(int l) {
+        return 10 + 6 * l;
+    }
+
+    public static int judgmentTargets(int l) {
+        return 2 + l;
+    }
+
+    public static int judgmentCooldownTicks(int l) {
+        return 200 - 40 * l;
+    }
+
+    public static double singularityDamage(int l) {
+        return 4 + 3 * l;
+    }
+
+    public static double singularityRadius(int l) {
+        return 5.0 + 1.0 * l;
+    }
+
+    public static int singularityCooldownTicks(int l) {
+        return 360 - 60 * l;
+    }
+
+    public static double banner(int l) {
+        return 0.08 * l;
+    }
+
+    public static double medic(int l) {
+        return 1.0 * l;
+    }
+
+    public static double berserkDealt() {
+        return 0.40;
+    }
+
+    public static double berserkTaken() {
+        return 0.25;
+    }
+
+    public static double firewalkDamage(int l) {
+        return 6 + 4 * l;
+    }
+
+    public static double bloodDashHeal(int l) {
+        return 3.0 * l;
+    }
 
     public static double fury(int l) {
         return 0.12 * l;
@@ -304,6 +404,25 @@ public enum Blessing {
             case ECHO -> "Tras un dash, tu siguiente golpe (3 s)\nhace <white>+" + pct(echo(l)) + "%</white> de daño.";
             case PHASE -> "<white>" + pct(phase(l)) + "%</white> de probabilidad de esquivar\nun ataque enemigo.";
             case LIFE -> "<white>+1</white> vida en la dungeon.";
+            case BERSERK -> "<white>+" + pct(berserkDealt()) + "%</white> de daño infligido,\npero recibes <white>+" + pct(berserkTaken())
+                    + "%</white> de daño.\n<red>Alto riesgo, alta recompensa.</red>";
+            case BLEED -> "Tus golpes causan sangrado: <white>" + num(bleedDps(l)) + "</white> de daño por segundo\ndurante <white>"
+                    + bleedSeconds(l) + "s</white> (se renueva al golpear).";
+            case FEAST -> "Cada muerte te cura <white>" + num(feastSelf(l)) + "</white> de vida y a tus aliados\ncercanos <white>"
+                    + num(feastAlly(l)) + "</white>.";
+            case JUDGMENT -> "Cada <white>" + secs(judgmentCooldownTicks(l)) + "s</white> cae un rayo sobre los <white>"
+                    + judgmentTargets(l) + "</white> enemigos más\ncercanos: <white>" + num(judgmentDamage(l)) + "</white> de daño cada uno.";
+            case SINGULARITY -> "Cada <white>" + secs(singularityCooldownTicks(l)) + "s</white> abres un agujero negro que atrae\n"
+                    + "a los enemigos (radio <white>" + num(singularityRadius(l)) + "</white>) y les daña <white>"
+                    + num(singularityDamage(l)) + "</white> por segundo.";
+            case BANNER -> "<green>EQUIPO.</green> Tú y tus aliados a menos de 10 bloques\ncausáis <white>+" + pct(banner(l))
+                    + "%</white> de daño por cada portador del estandarte.";
+            case MEDIC -> "<green>EQUIPO.</green> Revives a tus compañeros <white>" + (1 + (int) medic(l))
+                    + "x</white> más rápido\ny vuelven con más vida.";
+            case FIREWALK -> "<gold>Ceniza</gold> + <light_purple>Vacío</light_purple>: tu dash deja un rastro de fuego que\ndaña y marca a quien atraviesas (<white>"
+                    + num(firewalkDamage(l)) + "</white> de daño).";
+            case BLOODDASH -> "<red>Sangre</red> + <light_purple>Vacío</light_purple>: tras un dash, tu siguiente golpe hace\n+40% de daño y te cura <white>"
+                    + num(bloodDashHeal(l)) + "</white> de vida.";
         };
     }
 }

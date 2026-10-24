@@ -1,0 +1,9 @@
+# Gradle / compilación
+.gradle/
+build/
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+
+world*/
+logs/
+plugins/

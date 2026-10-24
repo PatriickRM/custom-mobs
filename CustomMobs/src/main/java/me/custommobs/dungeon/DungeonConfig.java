@@ -248,6 +248,10 @@ public final class DungeonConfig {
               every: 2
               # Opciones que se muestran (1-4).
               choices: 3
+              # Relanzamientos del menú por jugador y partida (0 = desactivado).
+              rerolls: 2
+              # Tras derrotar al mini jefe todos reciben una bendición extra (rara o mejor).
+              miniboss-reward: true
 
             altar:
               # Altar de Almas: quédate en la zona para cargarlo mientras llegan enemigos.

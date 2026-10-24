@@ -77,6 +77,7 @@ public final class DungeonInstance {
         final Map<Blessing, Integer> blessings = new EnumMap<>(Blessing.class);
         List<Blessing> offer;
         int bonusLives;
+        int rerolls;
 
         int stacks(Blessing b) {
             return blessings.getOrDefault(b, 0);
@@ -169,8 +170,7 @@ public final class DungeonInstance {
     private boolean sweepWarned;
     private long sweepHaz;
     private final Map<UUID, Long> sweepHit = new java.util.HashMap<>();
-    private final NamespacedKey healthKey;
-    private final NamespacedKey speedKey;
+    private final BlessingSystem bless;
     private long miniSpawnTick;
     private MiniBoss mini;
     private long restEnd;
@@ -210,13 +210,13 @@ public final class DungeonInstance {
         Arrays.fill(roomStates, RoomState.LOCKED);
         Collections.shuffle(miniOrder);
 
-        this.healthKey = new NamespacedKey(plugin, "bless_health_" + id);
-        this.speedKey = new NamespacedKey(plugin, "bless_speed_" + id);
+        this.bless = new BlessingSystem(plugin, this, cfg, world, id);
         this.maxLives = cfg.i("players.lives") + (modifier == Modifier.BLESSED ? 1 : 0);
         for (Player p : players) {
             PState s = new PState();
             s.name = p.getName();
             s.lives = maxLives;
+            s.rerolls = cfg.i("blessings.rerolls");
             s.returnLoc = manager.returnPoint(p);
             s.prevMode = p.getGameMode();
             members.put(p.getUniqueId(), s);
@@ -486,7 +486,7 @@ public final class DungeonInstance {
         }
         updateTombs();
         hazardTick();
-        if (tick % 100 == 0) blessingTick();
+        bless.tick(tick);
         if (tick % 40 == 0) keepSpectators();
         if (state == State.RUNNING) {
             runRooms();
@@ -653,7 +653,9 @@ public final class DungeonInstance {
             titleAll("<green><bold>SALA SUPERADA</bold></green>", "<gray>Las puertas se abren</gray>");
             soundAll(Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1.2f);
             setGate(i, true, false);
-            if (blessingsDue(i)) offerBlessings();
+            boolean miniReward = r.type == RoomType.MINIBOSS && cfg.b("blessings.enabled")
+                    && cfg.b("blessings.miniboss-reward");
+            if (blessingsDue(i) || miniReward) offerBlessings(r.type == RoomType.MINIBOSS);
         }
         if (i + 1 < rooms.size()) {
             roomStates[i + 1] = RoomState.READY;
@@ -1888,11 +1890,12 @@ public final class DungeonInstance {
     }
 
     // ------------------------------------------------------------------ bendiciones
+    // La lógica vive en BlessingSystem; aquí solo quedan los puntos de enganche.
 
     /** Menú de elección (el holder permite reconocer el inventario en el listener). */
     public static final class BlessingMenu implements InventoryHolder {
         private final DungeonInstance inst;
-        private Inventory inv;
+        Inventory inv;
 
         BlessingMenu(DungeonInstance inst) {
             this.inst = inst;
@@ -1908,7 +1911,9 @@ public final class DungeonInstance {
         }
     }
 
-    private static final int[][] MENU_SLOTS = {{13}, {11, 15}, {11, 13, 15}, {10, 12, 14, 16}};
+    BlessingSystem blessings() {
+        return bless;
+    }
 
     private boolean blessingsDue(int clearedRoom) {
         if (!cfg.b("blessings.enabled")) return false;
@@ -1916,191 +1921,64 @@ public final class DungeonInstance {
         return clearedRoom > 0 && clearedRoom % every == 0 && clearedRoom + 1 < rooms.size();
     }
 
-    private List<Blessing> rollOffer(PState s, int n) {
-        List<Blessing> pool = new ArrayList<>();
-        for (Blessing b : Blessing.values()) {
-            if (s.stacks(b) < b.max) pool.add(b);
-        }
-        List<Blessing> out = new ArrayList<>();
-        while (out.size() < n && !pool.isEmpty()) {
-            int total = 0;
-            for (Blessing b : pool) total += b.weight;
-            int roll = rnd.nextInt(total);
-            for (Iterator<Blessing> it = pool.iterator(); it.hasNext(); ) {
-                Blessing b = it.next();
-                roll -= b.weight;
-                if (roll < 0) {
-                    out.add(b);
-                    it.remove();
-                    break;
-                }
-            }
-        }
-        return out;
+    /** Ofrece una bendición a cada jugador vivo (se abre un menú; también con /dungeon bless). */
+    private void offerBlessings(boolean boss) {
+        bless.offer(boss);
     }
 
-    /** Ofrece una bendición a cada jugador vivo (se abre un menú; también con /dungeon bless). */
     private void offerBlessings() {
-        if (state != State.RUNNING) return;
-        int n = Math.max(1, Math.min(4, cfg.i("blessings.choices")));
-        for (UUID u : new ArrayList<>(members.keySet())) {
-            PState s = members.get(u);
-            if (s == null || s.eliminated) continue;
-            if (s.offer != null) chooseBlessing(u, rnd.nextInt(s.offer.size()), true);
-            List<Blessing> offer = rollOffer(s, n);
-            if (offer.isEmpty()) continue;
-            s.offer = offer;
-            Player p = Bukkit.getPlayer(u);
-            if (p == null) continue;
-            p.playSound(p.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 1f, 1.2f);
-            p.sendMessage(Text.mm(DungeonManager.PREFIX + "<yellow>¡Bendición disponible!</yellow> ")
-                    .append(Text.mm("<green><bold>[Elegir]</bold></green>")
-                            .clickEvent(ClickEvent.runCommand("/dungeon bless"))));
-            if (!p.isDead()) openBlessingMenu(p);
-        }
+        bless.offer(false);
     }
 
     /** Si alguien no eligió a tiempo, se le concede una al azar al entrar en la siguiente sala. */
     private void autoPickPending() {
-        for (UUID u : new ArrayList<>(members.keySet())) {
-            PState s = members.get(u);
-            if (s != null && s.offer != null) chooseBlessing(u, rnd.nextInt(s.offer.size()), true);
-        }
-    }
-
-    private ItemStack blessingItem(Blessing b, int current) {
-        ItemStack it = new ItemStack(b.icon);
-        ItemMeta m = it.getItemMeta();
-        m.displayName(Text.item(b.color + "<bold>" + b.title));
-        m.lore(List.of(
-                Text.item("<gray>" + b.desc),
-                Text.item(""),
-                Text.item("<dark_gray>Nivel: <white>" + current + "</white> → <white>" + (current + 1) + "</white>/" + b.max),
-                Text.item(""),
-                Text.item("<yellow>Clic para elegir")));
-        it.setItemMeta(m);
-        return it;
+        bless.autoPickPending();
     }
 
     /** @return false si el jugador no tiene ninguna bendición pendiente. */
     public boolean openBlessingMenu(Player p) {
-        PState s = members.get(p.getUniqueId());
-        if (s == null || s.eliminated || s.offer == null || s.offer.isEmpty()) return false;
-        BlessingMenu menu = new BlessingMenu(this);
-        Inventory inv = Bukkit.createInventory(menu, 27, Text.mm("<dark_gray>Elige una bendición"));
-        menu.inv = inv;
-        ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
-        ItemMeta fm = filler.getItemMeta();
-        fm.displayName(Component.space());
-        filler.setItemMeta(fm);
-        for (int i = 0; i < inv.getSize(); i++) inv.setItem(i, filler);
-        int[] slots = MENU_SLOTS[s.offer.size() - 1];
-        for (int i = 0; i < s.offer.size(); i++) {
-            Blessing b = s.offer.get(i);
-            inv.setItem(slots[i], blessingItem(b, s.stacks(b)));
-        }
-        p.openInventory(inv);
-        return true;
+        return bless.openMenu(p);
     }
 
     public void chooseBlessingBySlot(Player p, int slot) {
-        PState s = members.get(p.getUniqueId());
-        if (s == null || s.offer == null || s.offer.isEmpty()) return;
-        int[] slots = MENU_SLOTS[s.offer.size() - 1];
-        for (int i = 0; i < slots.length; i++) {
-            if (slots[i] == slot) {
-                chooseBlessing(p.getUniqueId(), i, false);
-                return;
-            }
-        }
+        bless.click(p, slot);
     }
 
-    private void chooseBlessing(UUID u, int idx, boolean auto) {
-        PState s = members.get(u);
-        if (s == null || s.offer == null || idx < 0 || idx >= s.offer.size()) return;
-        Blessing b = s.offer.get(idx);
-        s.offer = null;
-        int lvl = s.blessings.merge(b, 1, Integer::sum);
-        if (b == Blessing.LIFE) {
-            s.bonusLives++;
-            s.lives++;
-        }
-        Player p = Bukkit.getPlayer(u);
-        if (p != null) {
-            applyBlessingAttributes(p, s);
-            if (b == Blessing.VITALITY) healPlayer(p, 4.0);
-            p.sendMessage(Text.mm(DungeonManager.PREFIX + "<gray>" + (auto ? "Bendición aleatoria: " : "Bendición elegida: ")
-                    + "</gray>" + b.color + "<bold>" + b.title + "</bold> <gray>(nivel " + lvl + "/" + b.max + ")</gray>"));
-            p.playSound(p.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 1f, 1.3f);
-            p.spawnParticle(Particle.TOTEM_OF_UNDYING, p.getLocation().add(0, 1, 0), 25, 0.4, 0.8, 0.4, 0.2);
-            if (p.getOpenInventory().getTopInventory().getHolder() instanceof BlessingMenu) {
-                Bukkit.getScheduler().runTask(plugin, () -> p.closeInventory());
-            }
-        }
-        broadcast("<white>" + s.name + "</white> <gray>obtiene</gray> " + b.color + b.title);
-    }
-
-    private void healPlayer(Player p, double amount) {
+    void healPlayer(Player p, double amount) {
         AttributeInstance mh = p.getAttribute(Attribute.MAX_HEALTH);
         double max = mh == null ? 20.0 : mh.getValue();
         p.setHealth(Math.max(0.1, Math.min(max, p.getHealth() + amount)));
     }
 
-    private static void setModifier(Player p, Attribute a, NamespacedKey key, double amount,
-                                    AttributeModifier.Operation op) {
-        AttributeInstance ai = p.getAttribute(a);
-        if (ai == null) return;
-        for (AttributeModifier m : new ArrayList<>(ai.getModifiers())) {
-            if (key.equals(m.getKey())) ai.removeModifier(m);
-        }
-        if (amount != 0) ai.addTransientModifier(new AttributeModifier(key, amount, op));
-    }
-
-    /** Vida máxima y velocidad (modificadores transitorios: no se guardan si el jugador se desconecta). */
-    private void applyBlessingAttributes(Player p, PState s) {
-        double hp = 4.0 * s.stacks(Blessing.VITALITY) - 4.0 * s.stacks(Blessing.PACT);
-        setModifier(p, Attribute.MAX_HEALTH, healthKey, hp, AttributeModifier.Operation.ADD_NUMBER);
-        setModifier(p, Attribute.MOVEMENT_SPEED, speedKey, 0.15 * s.stacks(Blessing.SWIFT),
-                AttributeModifier.Operation.ADD_SCALAR);
-    }
-
     private void clearBlessingAttributes(Player p) {
-        setModifier(p, Attribute.MAX_HEALTH, healthKey, 0, AttributeModifier.Operation.ADD_NUMBER);
-        setModifier(p, Attribute.MOVEMENT_SPEED, speedKey, 0, AttributeModifier.Operation.ADD_SCALAR);
+        bless.clearAttributes(p);
     }
 
-    /** Multiplicador del daño que inflige el jugador. */
-    public double damageMultiplier(Player p) {
-        PState s = members.get(p.getUniqueId());
-        if (s == null) return 1.0;
-        return 1.0 + 0.12 * s.stacks(Blessing.FURY) + 0.25 * s.stacks(Blessing.PACT);
-    }
-
-    /** Multiplicador del daño que recibe el jugador. */
+    /** Multiplicador del daño que recibe el jugador (Piel de Obsidiana). */
     public double damageTakenMultiplier(Player p) {
-        PState s = members.get(p.getUniqueId());
-        if (s == null) return 1.0;
-        return Math.max(0.4, 1.0 - 0.10 * s.stacks(Blessing.IRON));
+        return bless.takenMultiplier(p);
     }
 
-    /** Filo Vampírico: cura una fracción del daño infligido. */
-    public void lifesteal(Player p, double dealt) {
-        PState s = members.get(p.getUniqueId());
-        if (s == null || s.eliminated) return;
-        int v = s.stacks(Blessing.VAMPIRE);
-        if (v > 0) healPlayer(p, Math.min(4.0, dealt * 0.04 * v));
+    // acceso para BlessingSystem (mismo paquete)
+
+    PState pstate(UUID u) {
+        return members.get(u);
     }
 
-    /** Regeneración pasiva (cada 5 s). */
-    private void blessingTick() {
-        if (state != State.RUNNING) return;
-        for (Player p : aliveOnline()) {
-            PState s = members.get(p.getUniqueId());
-            if (s == null) continue;
-            applyBlessingAttributes(p, s);
-            int rg = s.stacks(Blessing.REGEN);
-            if (rg > 0) healPlayer(p, rg);
-        }
+    Map<UUID, PState> memberStates() {
+        return members;
+    }
+
+    boolean isBossEntity(Entity e) {
+        return e.getUniqueId().equals(vorthakId) || bosses.heraldOwner(e) != null;
+    }
+
+    /** Enemigo normal o mini jefe de esta partida sobre el que las bendiciones pueden causar daño. */
+    boolean isProcTarget(Entity e) {
+        if (!(e instanceof LivingEntity) || e instanceof Player) return false;
+        if (!e.isValid() || e.isDead()) return false;
+        if (manager.byMob(e.getUniqueId()) != this) return false;
+        return !isBossEntity(e);
     }
 
     // ------------------------------------------------------------------ eventos delegados
@@ -2122,6 +2000,7 @@ public final class DungeonInstance {
         if (killer != null) {
             PState s = members.get(killer.getUniqueId());
             if (s != null) s.kills++;
+            if (!u.equals(vorthakId)) bless.onKill(e.getEntity(), killer);
         }
         if (mini != null && mini.owns(u)) {
             mini.onDeath();
@@ -2165,6 +2044,7 @@ public final class DungeonInstance {
         if (s == null || state != State.RUNNING) return;
         s.deaths++;
         s.lives--;
+        bless.onDeath(p);
         Location at = p.getLocation().clone();
         if (s.lives > 0) {
             broadcast("<red>☠ " + s.name + " ha caído</red> <gray>(vidas restantes: <white>" + s.lives + "</white>)</gray>");
@@ -2349,6 +2229,7 @@ public final class DungeonInstance {
         active = 0;
         revivesUsed = 0;
         startEnd = tick + cfg.i("players.start-countdown-seconds") * 20L;
+        bless.resetAll();
         for (UUID u : members.keySet()) {
             PState s = members.get(u);
             s.lives = maxLives;
@@ -2356,6 +2237,7 @@ public final class DungeonInstance {
             s.blessings.clear();
             s.offer = null;
             s.bonusLives = 0;
+            s.rerolls = cfg.i("blessings.rerolls");
             Player bp = Bukkit.getPlayer(u);
             if (bp != null) clearBlessingAttributes(bp);
         }
@@ -2527,7 +2409,9 @@ public final class DungeonInstance {
             if (s == null) continue;
             String hearts = "<red>" + "❤".repeat(Math.max(0, s.lives)) + "</red><dark_gray>"
                     + "❤".repeat(Math.max(0, maxLives + s.bonusLives - s.lives)) + "</dark_gray>";
-            p.sendActionBar(Text.mm(hearts + (hint.isEmpty() ? "" : " <dark_gray>·</dark_gray> <gray>" + hint + "</gray>")));
+            String bl = bless.hudLine(p);
+            p.sendActionBar(Text.mm(hearts + (bl.isEmpty() ? "" : " <dark_gray>·</dark_gray> " + bl)
+                    + (hint.isEmpty() ? "" : " <dark_gray>·</dark_gray> <gray>" + hint + "</gray>")));
         }
     }
 

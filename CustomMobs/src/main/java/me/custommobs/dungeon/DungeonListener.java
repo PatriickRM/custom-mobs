@@ -5,6 +5,7 @@ import me.custommobs.Text;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
@@ -32,6 +33,7 @@ import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 
 import java.util.List;
@@ -123,6 +125,7 @@ public final class DungeonListener implements Listener {
                 double m = inst.damageTakenMultiplier(p);
                 if (inst.modifier() == Modifier.GLASS) m *= 1.3;
                 if (m != 1.0) e.setDamage(e.getDamage() * m);
+                inst.blessings().onHurt(p, e);
             }
             return;
         }
@@ -145,8 +148,16 @@ public final class DungeonListener implements Listener {
         if (p == null) return;
         DungeonInstance inst = manager.of(p);
         if (inst == null) return;
-        double m = inst.damageMultiplier(p);
-        if (m != 1.0) e.setDamage(e.getDamage() * m);
+        if (e.getEntity() instanceof LivingEntity target) inst.blessings().modifyDealt(p, target, e);
+    }
+
+    /** Bendición Paso del Vacío: la tecla de cambiar de mano (F) hace un dash. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onSwapHands(PlayerSwapHandItemsEvent e) {
+        Player p = e.getPlayer();
+        if (!inDungeon(p.getWorld())) return;
+        DungeonInstance inst = manager.of(p);
+        if (inst != null && inst.blessings().tryDash(p)) e.setCancelled(true);
     }
 
     /** Menú de bendiciones. */
@@ -174,7 +185,9 @@ public final class DungeonListener implements Listener {
         DungeonInstance inst = manager.of(p);
         if (inst != null) {
             inst.addDamage(p, e.getFinalDamage());
-            inst.lifesteal(p, e.getFinalDamage());
+            if (e.getEntity() instanceof LivingEntity target) {
+                inst.blessings().afterDealt(p, target, e.getFinalDamage());
+            }
         }
     }
 

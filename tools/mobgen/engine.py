@@ -212,17 +212,17 @@ def model_json(mob, node):
             if v < -16 or v > 32:
                 raise ValueError(f"{mob.id}/{node.id}: caja fuera de rango (-16..32): {fr} {to}")
         elems.append({"from": fr, "to": to, "faces": faces})
-    return {"textures": {"0": f"{NS}:mob/{mob.id}", "particle": f"{NS}:mob/{mob.id}"}, "elements": elems}
+    return {"textures": {"0": f"{NS}:item/mob/{mob.id}", "particle": f"{NS}:item/mob/{mob.id}"}, "elements": elems}
 
 
 def export(mobs, out):
     rp = os.path.join(out, "resourcepack")
-    for sub in ("assets/%s/textures/mob" % NS, "assets/%s/models/item" % NS, "assets/%s/items" % NS):
+    for sub in ("assets/%s/textures/item/mob" % NS, "assets/%s/models/item" % NS, "assets/%s/items" % NS):
         os.makedirs(os.path.join(rp, sub), exist_ok=True)
     yml = ["# GENERADO por tools/mobgen/build.py: no editar a mano.", "mobs:"]
     for mob in mobs:
         pack(mob)
-        paint(mob).save(os.path.join(rp, "assets/%s/textures/mob/%s.png" % (NS, mob.id)))
+        paint(mob).save(os.path.join(rp, "assets/%s/textures/item/mob/%s.png" % (NS, mob.id)))
         yml += [f"  {mob.id}:", f"    scale: {mob.scale}", f"    name: \"{mob.name}\"", "    nodes:"]
         for n in mob.nodes:
             has = bool(n.boxes)

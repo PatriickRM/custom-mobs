@@ -12,6 +12,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Color;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -816,6 +817,25 @@ public final class VorthakBoss {
     }
 
     private final Map<UUID, Cam> cams = new HashMap<>();
+    private final Map<UUID, ItemStack> savedHelmets = new HashMap<>();
+
+    /** Casco invisible cuyo "overlay de cámara" (textura del pack) dibuja las franjas negras a pantalla completa. */
+    private ItemStack letterboxHelmet() {
+        ItemStack it = new ItemStack(Material.LEATHER_HELMET);
+        ItemMeta m = it.getItemMeta();
+        NamespacedKey empty = NamespacedKey.fromString("custommobs:empty");
+        if (empty != null) m.setItemModel(empty);
+        org.bukkit.inventory.meta.components.EquippableComponent eq = m.getEquippable();
+        eq.setSlot(org.bukkit.inventory.EquipmentSlot.HEAD);
+        NamespacedKey inv = NamespacedKey.fromString("custommobs:invisible");
+        if (inv != null) eq.setModel(inv);
+        NamespacedKey overlay = NamespacedKey.fromString("custommobs:misc/letterbox");
+        if (overlay != null) eq.setCameraOverlay(overlay);
+        m.setEquippable(eq);
+        m.setMaxStackSize(1);
+        it.setItemMeta(m);
+        return it;
+    }
 
     private static double lerp(double a, double b, double t) {
         return a + (b - a) * t;
@@ -840,6 +860,15 @@ public final class VorthakBoss {
             p.setFlying(true);
             p.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 120, 4, false, false, false));
             p.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 100, 0, false, false, false));
+            MobVisuals pk = plugin.visuals();
+            if (plugin.getConfig().getBoolean("vorthak.letterbox", true) && pk != null && pk.enabled()) {
+                try {
+                    savedHelmets.put(p.getUniqueId(), p.getInventory().getHelmet());
+                    p.getInventory().setHelmet(letterboxHelmet());
+                } catch (Throwable t) {
+                    savedHelmets.remove(p.getUniqueId());   // versión sin soporte: se omiten las franjas
+                }
+            }
         }
         new BukkitRunnable() {
             int t = 0;
@@ -907,30 +936,24 @@ public final class VorthakBoss {
             Cam cam = en.getValue();
             p.removePotionEffect(PotionEffectType.SLOWNESS);
             p.removePotionEffect(PotionEffectType.INVISIBILITY);
-            p.clearTitle();   // quita las franjas de cine
+            if (savedHelmets.containsKey(p.getUniqueId())) p.getInventory().setHelmet(savedHelmets.get(p.getUniqueId()));   // quita las franjas
             p.setFlying(cam.flying());
             p.setAllowFlight(cam.allowFlight());
             if (cam.start().getWorld() != null) p.teleport(cam.start());
             p.setFallDistance(0f);
         }
         cams.clear();
+        savedHelmets.clear();
     }
 
     private void intro() {
         transitioning = true;
         entity.setAI(false);
         Location c = entity.getLocation();
-        MobVisuals pack = plugin.visuals();
-        boolean bars = plugin.getConfig().getBoolean("vorthak.letterbox", true) && pack != null && pack.enabled();
-        Title title = bars
-                // franjas de cine (glifo del resource pack) en el título y el nombre en el subtítulo, dentro del encuadre
-                ? Title.title(Component.text("\uE000", NamedTextColor.WHITE).font(net.kyori.adventure.key.Key.key("custommobs", "cinema")),
-                        Text.mm("<gradient:#ff4d4d:#ffb347><bold>VORTHAK</bold></gradient> <dark_gray>·</dark_gray> <gray>El Centinela de Ceniza despierta</gray>"),
-                        Title.Times.times(Duration.ofMillis(300), Duration.ofMillis(3300), Duration.ofMillis(400)))
-                : Title.title(
-                        Text.mm("<gradient:#ff4d4d:#ffb347><bold>VORTHAK</bold></gradient>"),
-                        Text.mm("<gray>El Centinela de Ceniza despierta</gray>"),
-                        Title.Times.times(Duration.ofMillis(400), Duration.ofSeconds(3), Duration.ofMillis(800)));
+        Title title = Title.title(
+                Text.mm("<gradient:#ff4d4d:#ffb347><bold>VORTHAK</bold></gradient>"),
+                Text.mm("<gray>El Centinela de Ceniza despierta</gray>"),
+                Title.Times.times(Duration.ofMillis(400), Duration.ofSeconds(3), Duration.ofMillis(800)));
         for (Player p : players(80)) {
             p.showTitle(title);
             p.playSound(p.getLocation(), Sound.ENTITY_WITHER_SPAWN, 1f, 0.7f);
@@ -1916,7 +1939,8 @@ public final class VorthakBoss {
 
         e.getDrops().clear();
         e.setDroppedExp(plugin.getConfig().getInt("vorthak.xp", 4000));
-        e.getDrops().addAll(rollLoot(plugin, manager));
+        boolean inDungeon = plugin.dungeons() != null && plugin.dungeons().byMob(entity.getUniqueId()) != null;
+        if (!inDungeon) e.getDrops().addAll(rollLoot(plugin, manager));   // en la dungeon cada jugador recibe el suyo en su cofre
 
         Location loc = entity.getLocation();
         World w = loc.getWorld();

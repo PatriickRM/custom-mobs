@@ -13,6 +13,11 @@ public final class CustomMobsPlugin extends JavaPlugin {
 
     private BossManager bosses;
     private DungeonManager dungeons;
+
+    public DungeonManager dungeons() {
+        return dungeons;
+    }
+
     private MobVisuals visuals;
     private WaveAbilities abilities;
 

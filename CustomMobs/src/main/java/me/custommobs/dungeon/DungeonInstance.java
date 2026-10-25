@@ -1797,6 +1797,20 @@ public final class DungeonInstance {
         if (vorthakId != null && !vorthakDead) {
             Entity v = Bukkit.getEntity(vorthakId);
             if (v == null || !v.isValid()) {
+                // Respaldo: si el jefe se desregistró por morir (su onDeath corrió) pero el evento no llegó hasta aquí,
+                // la dungeon se completa igualmente en vez de quedarse con el reloj en marcha o reaparecerlo.
+                VorthakBoss gone = bosses.get(vorthakId);
+                if (gone == null || gone.isDead()) {
+                    vorthakDead = true;
+                    manager.unindexMob(vorthakId);
+                    plugin.getLogger().warning("[Dungeon #" + id + "] Vorthak murió sin pasar por el evento de muerte: completando por respaldo.");
+                    try {
+                        complete(new ArrayList<>());
+                    } catch (Throwable t) {
+                        plugin.getLogger().log(java.util.logging.Level.SEVERE, "Error al completar la dungeon #" + id, t);
+                    }
+                    return;
+                }
                 vorthakMissing += 2;
                 if (vorthakMissing > 100) {
                     manager.unindexMob(vorthakId);
@@ -1924,9 +1938,13 @@ public final class DungeonInstance {
 
     private void onVorthakDeath(EntityDeathEvent e) {
         vorthakDead = true;
-        List<ItemStack> drops = new ArrayList<>(e.getDrops());
         e.getDrops().clear();
-        complete(drops);
+        plugin.getLogger().info("[Dungeon #" + id + "] Vorthak ha caído: se completa la dungeon.");
+        try {
+            complete(new ArrayList<>());
+        } catch (Throwable t) {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE, "Error al completar la dungeon #" + id, t);
+        }
     }
 
     // ------------------------------------------------------------------ bendiciones

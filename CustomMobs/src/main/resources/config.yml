@@ -8,7 +8,7 @@ vorthak:
   xp: 4000
   # Música de fondo (bloques de notas) que cambia con cada fase. Cada jugador la controla con su slider de música.
   music: true
-  # Franjas negras de cine durante la entrada (necesita el resource pack; ajustadas para escala de GUI 3-4).
+  # Franjas negras de cine durante la entrada (necesita el resource pack; se adaptan a cualquier pantalla).
   letterbox: true
   # Probabilidad de que suelte la Hoja de Ceniza (0.0 - 1.0). El Corazón de Ceniza es 100%.
   blade-drop-chance: 0.25
@@ -56,5 +56,5 @@ dungeon:
 models:
   enabled: true
   resource-pack-url: "https://raw.githubusercontent.com/PatriickRM/custom-mobs/main/resourcepack/CustomMobsPack.zip"
-  sha1: "59045b18eda90fa73d4f1404021cb0ad64057739"
+  sha1: "e0734ad5f60a00f3804350c9fcdcac33bfb94973"
   required: true

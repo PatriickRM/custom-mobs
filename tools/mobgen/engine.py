@@ -253,21 +253,17 @@ def export(mobs, out):
         d = os.path.join(rp, "assets/%s/textures/entity/equipment/%s" % (NS, layer))
         os.makedirs(d, exist_ok=True)
         Image.new("RGBA", (64, 32), (0, 0, 0, 0)).save(os.path.join(d, "invisible.png"))
-    # franjas de cine: un único glifo gigante (negro arriba y abajo, transparente en medio) que se muestra como título.
-    # Ajustado para escala de GUI 3-4: la franja ocupa ~1/4 de la altura a mitad de pantalla; mayor/menor escala varía el grosor.
-    fd = os.path.join(rp, "assets/%s/font" % NS)
-    td = os.path.join(rp, "assets/%s/textures/font" % NS)
-    os.makedirs(fd, exist_ok=True)
-    os.makedirs(td, exist_ok=True)
-    bar = Image.new("RGBA", (256, 128), (0, 0, 0, 0))
-    for y in range(128):
-        if y < 39 or y >= 128 - 39:
-            for x in range(256):
+    # franjas de cine: textura de "overlay de cámara" (como el borroso de la calabaza). Se estira a toda la pantalla,
+    # así que las franjas quedan arriba y abajo con el mismo grosor relativo en cualquier resolución o escala de GUI.
+    md = os.path.join(rp, "assets/%s/textures/misc" % NS)
+    os.makedirs(md, exist_ok=True)
+    W, H, BAR = 256, 144, 19   # 19/144 = 13 % arriba y abajo (formato ~2,4:1)
+    bar = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    for y in range(H):
+        if y < BAR or y >= H - BAR:
+            for x in range(W):
                 bar.putpixel((x, y), (0, 0, 0, 255))
-    bar.save(os.path.join(td, "letterbox.png"))
-    with open(os.path.join(fd, "cinema.json"), "w") as f:
-        json.dump({"providers": [{"type": "bitmap", "file": f"{NS}:font/letterbox.png", "ascent": 72, "height": 150,
-                                  "chars": ["\ue000"]}]}, f)
+    bar.save(os.path.join(md, "letterbox.png"))
     with open(os.path.join(rp, "pack.mcmeta"), "w") as f:
         json.dump({"pack": {"description": "CustomMobs · Ceniza e Infierno", "min_format": [84, 0],
                             "max_format": [99, 0]}}, f, indent=2)

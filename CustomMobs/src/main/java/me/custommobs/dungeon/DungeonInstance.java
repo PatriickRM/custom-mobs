@@ -1922,9 +1922,12 @@ public final class DungeonInstance {
         double mul = 1 + cfg.d("scaling.vorthak-health-per-extra-player") * (groupSize() - 1);
         boolean fast = elapsed < cfg.i("scaling.fast-bonus-under-seconds");
         if (fast) mul += cfg.d("scaling.fast-bonus-vorthak-health");
+        // Minecraft limita la vida máxima a 1024: sin este tope setHealth lanza
+        // IllegalArgumentException y la dungeon nunca llega a registrar a Vorthak.
+        double hp = Math.min(base * mul, 1024.0);
         AttributeInstance a = ve.getAttribute(Attribute.MAX_HEALTH);
-        if (a != null) a.setBaseValue(base * mul);
-        ve.setHealth(base * mul);
+        if (a != null) a.setBaseValue(hp);
+        ve.setHealth(Math.min(hp, a != null ? a.getValue() : hp));
         vorthakId = ve.getUniqueId();
         arenaNext = tick + 200;
         arenaPhase = -1;

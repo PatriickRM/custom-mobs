@@ -252,7 +252,26 @@ public final class DungeonBuilder {
         }
     }
 
+    /** Bloque de luz invisible (nivel 15): ilumina sin verse. */
+    private void glow(int x, int y, int z) {
+        org.bukkit.block.data.type.Light l = (org.bukkit.block.data.type.Light) Material.LIGHT.createBlockData();
+        l.setLevel(Math.max(1, Math.min(15, cfg.i("lighting.level"))));
+        set(x, y, z, l);
+    }
+
+    /** Rejilla de luz invisible sobre la cabeza de jugadores y jefe: las salas ya no quedan a oscuras. */
+    private void fillLight(Room r) {
+        if (!cfg.b("lighting.enabled")) return;
+        int y = r.floorY + Math.min(5, r.height - 1);
+        for (int x = r.x0 + 1; x <= r.x1 - 1; x += 3) {
+            for (int z = r.z0 + 1; z <= r.z1 - 1; z += 3) {
+                glow(x, y, z);
+            }
+        }
+    }
+
     private void lights(Room r) {
+        fillLight(r);
         int cy = r.floorY + r.height + 1;
         for (int x = r.x0 + 2; x <= r.x1 - 2; x += 6) {
             for (int z = r.z0 + 2; z <= r.z1 - 2; z += 6) {
@@ -287,6 +306,7 @@ public final class DungeonBuilder {
         set(mid, fy + 5, cz, Material.SHROOMLIGHT);
         set(xs + 2, fy + 5, cz, Material.SHROOMLIGHT);
         set(xe - 2, fy + 5, cz, Material.SHROOMLIGHT);
+        if (cfg.b("lighting.enabled")) for (int x = xs + 1; x < xe; x += 3) glow(x, fy + 3, cz);
     }
 
     /** Abre un hueco de 3x3 en una pared y le pone marco. */

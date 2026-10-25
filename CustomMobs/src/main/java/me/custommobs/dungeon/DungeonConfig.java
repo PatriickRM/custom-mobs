@@ -145,6 +145,15 @@ public final class DungeonConfig {
             # Mundo vacío exclusivo (se crea al arrancar y se borra al apagar).
             world: dungeon_world
             build-y: 80
+
+            # --- iluminación y sonido ---
+            # Bloques de luz invisibles en salas y pasillos (0 = apagado). Si las salas te parecen demasiado claras, baja el nivel.
+            lighting:
+              enabled: true
+              level: 15
+            sounds:
+              ambient: true          # ecos/viento de almas/lava de fondo
+              ambient-volume: 0.7
             # Distancia entre instancias (bloques, en el eje Z) y máximo de partidas a la vez.
             instance-spacing: 240
             max-instances: 4

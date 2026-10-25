@@ -30,6 +30,7 @@ import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
 import org.bukkit.event.player.PlayerBucketFillEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -158,6 +159,46 @@ public final class DungeonListener implements Listener {
         if (!inDungeon(p.getWorld())) return;
         DungeonInstance inst = manager.of(p);
         if (inst != null && inst.blessings().tryDash(p)) e.setCancelled(true);
+    }
+
+    /** Cofre de recompensas personal (cada jugador abre su propio menú). */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onRewardChest(PlayerInteractEvent e) {
+        if (e.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK || e.getClickedBlock() == null) return;
+        if (e.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
+        if (!inDungeon(e.getPlayer().getWorld())) return;
+        DungeonInstance inst = manager.of(e.getPlayer());
+        if (inst == null || !inst.isRewardChest(e.getClickedBlock())) return;
+        e.setCancelled(true);
+        inst.openRewards(e.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onRewardClick(InventoryClickEvent e) {
+        if (!(e.getView().getTopInventory().getHolder() instanceof DungeonInstance.RewardMenu menu)) return;
+        if (!(e.getWhoClicked() instanceof Player p)) return;
+        if (!menu.owner().equals(p.getUniqueId())) {
+            e.setCancelled(true);
+            return;
+        }
+        boolean top = e.getClickedInventory() == e.getView().getTopInventory();
+        if (top && e.getSlot() == 44) e.setCancelled(true);
+        // no se pueden meter objetos en el cofre de recompensas
+        if (!top && e.isShiftClick()) e.setCancelled(true);
+        if (top && e.getCursor() != null && !e.getCursor().getType().isAir()) e.setCancelled(true);
+        menu.instance().onRewardClick(p, e.getSlot(), top);
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onRewardDrag(InventoryDragEvent e) {
+        if (e.getView().getTopInventory().getHolder() instanceof DungeonInstance.RewardMenu) {
+            for (int slot : e.getRawSlots()) {
+                if (slot < e.getView().getTopInventory().getSize()) {
+                    e.setCancelled(true);
+                    return;
+                }
+            }
+        }
     }
 
     /** Menú de bendiciones. */

@@ -10,10 +10,12 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
@@ -105,7 +107,11 @@ public final class VorthakBoss {
         AEGIS(3, 900),
         STORM(4, 220),
         METEORS(4, 260),
-        SCYTHE(4, 320);
+        SCYTHE(4, 320),
+        ERUPTION(1, 190),
+        FIREWALL(2, 310),
+        RIFTS(3, 440),
+        SENTENCE(4, 400);
 
         final int minPhase;
         final int cd;
@@ -254,7 +260,24 @@ public final class VorthakBoss {
         }
         setAttr(entity, Attribute.ARMOR, 20.0);
         setAttr(entity, Attribute.ARMOR_TOUGHNESS, 12.0);
-        vis.attach(entity, "vorthak", false);
+        vis.attach(entity, phaseModel(), false);
+    }
+
+    /** Cada fase tiene su propio modelo: vorthak (I), vorthak2 (II), vorthak3 (III), vorthak4 (IV). */
+    private String phaseModel() {
+        MobVisuals vis = plugin.visuals();
+        String id = phase.ordinal() == 0 ? "vorthak" : "vorthak" + (phase.ordinal() + 1);
+        return vis != null && vis.has(id) ? id : "vorthak";
+    }
+
+    /** Cambia el modelo con un destello al transformarse. */
+    private void swapModel() {
+        MobVisuals vis = plugin.visuals();
+        if (vis == null || !vis.has("vorthak")) return;
+        vis.attach(entity, phaseModel(), false);
+        Location l = entity.getLocation().add(0, 2, 0);
+        l.getWorld().spawnParticle(Particle.EXPLOSION_EMITTER, l, 1, 0, 0, 0, 0);
+        l.getWorld().spawnParticle(Particle.END_ROD, l, 60, 1.2, 1.8, 1.2, 0.2);
     }
 
     /** Gesto de ataque del modelo (alza el mandoble) al lanzar una habilidad. */
@@ -471,6 +494,7 @@ public final class VorthakBoss {
         updateBar();
         ambient();
         voiceTick();
+        musicTick();
         if (transitioning) return;
 
         checkPhase();
@@ -702,6 +726,7 @@ public final class VorthakBoss {
             phase = next;
             entity.getPersistentDataContainer().set(manager.phaseKey, PersistentDataType.INTEGER, next.ordinal());
             applyStats();
+            swapModel();
 
             Location loc = entity.getLocation();
             World w = loc.getWorld();
@@ -733,24 +758,198 @@ public final class VorthakBoss {
         });
     }
 
+
+    // ------------------------------------------------------------------ música de fondo por fase
+
+    /*
+     * Música generada con bloques de notas (sin resource pack). Cada fase tiene un patrón de 16 pasos; cada paso es una lista
+     * "letra:tono" separada por comas. B=bajo, D=bombo, S=caja, H=hi-hat, L=campana, P=pling, C=carillón, G=didgeridoo.
+     * Suena en la categoría MÚSICA, así que cada jugador puede bajarla/quitarla con su slider de música.
+     */
+    private static final String[][] SONGS = {
+            // I · Centinela de Ceniza: pulso grave y campanas lejanas
+            {"B:0.5,D:0.7", "", "", "", "L:1.5", "", "", "", "B:0.595,D:0.7", "", "", "", "L:1.19", "", "G:0.5", ""},
+            // II · Furia Infernal: ritmo marcial y riff de bajo
+            {"D:1,B:0.5", "", "B:0.5", "H:2", "S:1,B:0.595", "", "B:0.5", "H:2", "D:1,B:0.667", "", "D:1,B:0.595", "H:2", "S:1,B:0.5", "H:2", "B:0.707", "D:1"},
+            // III · Juicio de los Heraldos: arpegio etéreo sobre un zumbido
+            {"G:0.5,C:1.5", "P:1.19", "C:1.78", "P:1.5", "C:2", "P:1.78", "G:0.56,C:1.5", "P:1.26", "C:1.89", "P:1.59", "C:2", "P:1.89", "G:0.5,C:1.33", "P:1.12", "C:1.68", "P:1.33"},
+            // IV · Último Aliento: latido acelerado y alarma
+            {"D:0.8,B:0.5", "P:2", "D:0.8", "P:2", "S:1,B:0.595", "P:2", "D:0.8,B:0.5", "P:2", "D:0.8,B:0.667", "P:2", "D:0.8", "P:2", "S:1,B:0.707", "P:2", "D:0.8,B:0.595", "P:1.78"},
+    };
+    private static final int[] SONG_STEP = {8, 6, 6, 4};   // ticks por paso (más rápido en cada fase)
+    private int musicStep;
+    private long nextMusic;
+
+    private static Sound instrument(char c) {
+        return switch (c) {
+            case 'B' -> Sound.BLOCK_NOTE_BLOCK_BASS;
+            case 'D' -> Sound.BLOCK_NOTE_BLOCK_BASEDRUM;
+            case 'S' -> Sound.BLOCK_NOTE_BLOCK_SNARE;
+            case 'H' -> Sound.BLOCK_NOTE_BLOCK_HAT;
+            case 'L' -> Sound.BLOCK_NOTE_BLOCK_BELL;
+            case 'P' -> Sound.BLOCK_NOTE_BLOCK_PLING;
+            case 'C' -> Sound.BLOCK_NOTE_BLOCK_CHIME;
+            case 'G' -> Sound.BLOCK_NOTE_BLOCK_DIDGERIDOO;
+            default -> null;
+        };
+    }
+
+    private void musicTick() {
+        if (!plugin.getConfig().getBoolean("vorthak.music", true) || dead || now < nextMusic) return;
+        int ph = phase.ordinal();
+        nextMusic = now + SONG_STEP[ph];
+        String step = SONGS[ph][musicStep++ % 16];
+        if (step.isEmpty()) return;
+        float vol = ph == 3 ? 0.9f : 0.7f;
+        for (Player p : players(60)) {
+            for (String note : step.split(",")) {
+                Sound s = instrument(note.charAt(0));
+                if (s == null) continue;
+                p.playSound(p.getLocation(), s, SoundCategory.MUSIC, vol, Float.parseFloat(note.substring(2)));
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ cámara de la entrada (cinemática)
+
+    private record Cam(Location start, boolean allowFlight, boolean flying) {
+    }
+
+    private final Map<UUID, Cam> cams = new HashMap<>();
+
+    private static double lerp(double a, double b, double t) {
+        return a + (b - a) * t;
+    }
+
+    private static double ease(double x) {
+        x = Math.max(0, Math.min(1, x));
+        return x * x * (3 - 2 * x);
+    }
+
+    /**
+     * Cámara de cine de 4 s sin cambiar el modo de juego (no choca con el sistema de muertes): los jugadores vuelan
+     * por una trayectoria (acercamiento, órbita en contrapicado y empuje final) mirando siempre a la cabeza de Vorthak.
+     * El zoom se logra con el FOV que produce la lentitud, que va subiendo; durante el rugido la cámara tiembla.
+     * Al terminar cada jugador vuelve exactamente a donde estaba.
+     */
+    private void cinematicStart() {
+        cams.clear();
+        for (Player p : players(80)) {
+            cams.put(p.getUniqueId(), new Cam(p.getLocation().clone(), p.getAllowFlight(), p.isFlying()));
+            p.setAllowFlight(true);
+            p.setFlying(true);
+            p.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, 120, 4, false, false, false));
+            p.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 100, 0, false, false, false));
+        }
+        new BukkitRunnable() {
+            int t = 0;
+
+            @Override
+            public void run() {
+                if (t >= 80 || cams.isEmpty() || !entity.isValid()) {
+                    cinematicEnd();
+                    cancel();
+                    return;
+                }
+                Location c = entity.getLocation();
+                Location head = entity.getEyeLocation();
+                ThreadLocalRandom rnd = ThreadLocalRandom.current();
+                for (Map.Entry<UUID, Cam> en : cams.entrySet()) {
+                    Player p = Bukkit.getPlayer(en.getKey());
+                    Location s = en.getValue().start();
+                    if (p == null || !p.isOnline() || s.getWorld() == null || !s.getWorld().equals(c.getWorld())) continue;
+                    double a0 = Math.atan2(s.getZ() - c.getZ(), s.getX() - c.getX());
+                    double r0 = Math.max(7, Math.min(24, Math.hypot(s.getX() - c.getX(), s.getZ() - c.getZ())));
+                    double a = a0, r, y;
+                    if (t < 30) {                       // 1) acercamiento
+                        double e = ease(t / 30.0);
+                        r = lerp(r0, 9, e);
+                        y = lerp(s.getY(), c.getY() + 1.2, e);
+                    } else if (t < 60) {                // 2) órbita en contrapicado (la cámara sube mirando hacia arriba)
+                        double u = ease((t - 30) / 30.0);
+                        a = a0 + u * Math.PI / 2;
+                        r = lerp(9, 6.5, u);
+                        y = c.getY() + 1.2 + u * 1.8;
+                    } else {                            // 3) empuje final durante el rugido
+                        double u = ease((t - 60) / 20.0);
+                        a = a0 + Math.PI / 2;
+                        r = lerp(6.5, 5.2, u);
+                        y = c.getY() + 3.0;
+                    }
+                    Location pos = new Location(c.getWorld(), c.getX() + Math.cos(a) * r, y, c.getZ() + Math.sin(a) * r);
+                    Vector d = head.toVector().subtract(pos.toVector().add(new Vector(0, 1.62, 0)));
+                    float yaw = (float) Math.toDegrees(Math.atan2(-d.getX(), d.getZ()));
+                    float pitch = (float) -Math.toDegrees(Math.atan2(d.getY(), Math.hypot(d.getX(), d.getZ())));
+                    if (t >= 44 && t <= 68) {           // temblor del rugido
+                        yaw += (float) rnd.nextDouble(-1.5, 1.5);
+                        pitch += (float) rnd.nextDouble(-1.0, 1.0);
+                    }
+                    pos.setYaw(yaw);
+                    pos.setPitch(Math.max(-85f, Math.min(85f, pitch)));
+                    p.teleport(pos);
+                    p.setFallDistance(0f);
+                    if (t % 4 == 0) {                   // zoom progresivo (FOV): sube la lentitud sin llegar a bloquear la vista
+                        int amp = t < 30 ? -1 : (t < 60 ? (t - 30) / 8 : 4 + (t - 60) / 10);
+                        if (amp >= 0) {
+                            p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 8, Math.min(amp, 5), false, false, false));
+                        }
+                    }
+                }
+                t++;
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
+    }
+
+    private void cinematicEnd() {
+        for (Map.Entry<UUID, Cam> en : cams.entrySet()) {
+            Player p = Bukkit.getPlayer(en.getKey());
+            if (p == null || !p.isOnline()) continue;
+            Cam cam = en.getValue();
+            p.removePotionEffect(PotionEffectType.SLOWNESS);
+            p.removePotionEffect(PotionEffectType.INVISIBILITY);
+            p.clearTitle();   // quita las franjas de cine
+            p.setFlying(cam.flying());
+            p.setAllowFlight(cam.allowFlight());
+            if (cam.start().getWorld() != null) p.teleport(cam.start());
+            p.setFallDistance(0f);
+        }
+        cams.clear();
+    }
+
     private void intro() {
         transitioning = true;
         entity.setAI(false);
         Location c = entity.getLocation();
-        Title title = Title.title(
-                Text.mm("<gradient:#ff4d4d:#ffb347><bold>VORTHAK</bold></gradient>"),
-                Text.mm("<gray>El Centinela de Ceniza despierta</gray>"),
-                Title.Times.times(Duration.ofMillis(400), Duration.ofSeconds(3), Duration.ofMillis(800)));
+        MobVisuals pack = plugin.visuals();
+        boolean bars = plugin.getConfig().getBoolean("vorthak.letterbox", true) && pack != null && pack.enabled();
+        Title title = bars
+                // franjas de cine (glifo del resource pack) en el título y el nombre en el subtítulo, dentro del encuadre
+                ? Title.title(Component.text("\uE000", NamedTextColor.WHITE).font(net.kyori.adventure.key.Key.key("custommobs", "cinema")),
+                        Text.mm("<gradient:#ff4d4d:#ffb347><bold>VORTHAK</bold></gradient> <dark_gray>·</dark_gray> <gray>El Centinela de Ceniza despierta</gray>"),
+                        Title.Times.times(Duration.ofMillis(300), Duration.ofMillis(3300), Duration.ofMillis(400)))
+                : Title.title(
+                        Text.mm("<gradient:#ff4d4d:#ffb347><bold>VORTHAK</bold></gradient>"),
+                        Text.mm("<gray>El Centinela de Ceniza despierta</gray>"),
+                        Title.Times.times(Duration.ofMillis(400), Duration.ofSeconds(3), Duration.ofMillis(800)));
         for (Player p : players(80)) {
             p.showTitle(title);
             p.playSound(p.getLocation(), Sound.ENTITY_WITHER_SPAWN, 1f, 0.7f);
         }
         c.getWorld().strikeLightningEffect(c);
-        repeat(2, 25, i -> {
+        cinematicStart();
+        repeat(2, 40, i -> {
             Location base = entity.getLocation();
-            ring(base, 1.0 + i * 0.25, 24, Particle.SOUL_FIRE_FLAME);
+            ring(base, 1.0 + i * 0.15, 24, Particle.SOUL_FIRE_FLAME);
             base.getWorld().spawnParticle(Particle.SOUL, base.clone().add(0, 1, 0), 4, 0.6, 1.0, 0.6, 0.03);
+            if (i == 4) sound(base, Sound.BLOCK_BEACON_ACTIVATE, 1.6f, 0.5f);
+            if (i == 20) {
+                sound(base, Sound.ENTITY_RAVAGER_ROAR, 2f, 0.5f);
+                sound(base, Sound.ENTITY_ENDER_DRAGON_GROWL, 1.6f, 0.6f);
+                base.getWorld().spawnParticle(Particle.EXPLOSION_EMITTER, base.clone().add(0, 1, 0), 2, 1, 0.5, 1, 0);
+            }
+            if (i >= 22 && i <= 34 && i % 3 == 0) sound(base, Sound.ENTITY_GENERIC_EXPLODE, 0.6f, 0.5f);
         }, () -> {
+            cinematicEnd();
             entity.setAI(true);
             transitioning = false;
             busyUntil = now + 40;
@@ -1050,11 +1249,163 @@ public final class VorthakBoss {
             case STORM -> storm(near);
             case METEORS -> meteors(near);
             case SCYTHE -> scythe();
+            case ERUPTION -> eruption(near);
+            case FIREWALL -> firewall(near);
+            case RIFTS -> rifts(near);
+            case SENTENCE -> sentence(near);
         };
     }
 
     private double distTo(LivingEntity t) {
         return t.getLocation().distance(entity.getLocation());
+    }
+
+
+    // ------------------------------------------------------------------ habilidades nuevas
+
+    /** Erupciones de Ceniza (I+): marca el suelo bajo hasta 3 jugadores; tras ~1,2 s el suelo estalla. Hay que moverse. */
+    private boolean eruption(List<Player> near) {
+        List<Player> targets = new ArrayList<>(near);
+        if (targets.isEmpty()) return false;
+        Collections.shuffle(targets);
+        if (targets.size() > 3) targets = new ArrayList<>(targets.subList(0, 3));
+        busyUntil = now + 30;
+        sound(entity.getLocation(), Sound.ENTITY_BLAZE_SHOOT, 1.6f, 0.5f);
+        for (Player t : targets) {
+            Location spot = t.getLocation().clone();
+            spot.setY(Math.floor(spot.getY()));
+            repeat(2, 12, i -> {
+                ring(spot, 2.4, 20, Particle.FLAME);
+                ring(spot, 2.4 * (1 - i / 12.0), 12, Particle.SOUL_FIRE_FLAME);
+                if (i % 4 == 0) sound(spot, Sound.BLOCK_FIRE_AMBIENT, 1f, 0.6f + i * 0.05f);
+            }, () -> {
+                World w = spot.getWorld();
+                w.spawnParticle(Particle.LAVA, spot.clone().add(0, 0.5, 0), 40, 1.2, 0.3, 1.2, 0);
+                w.spawnParticle(Particle.EXPLOSION, spot.clone().add(0, 0.5, 0), 2, 0.8, 0.2, 0.8, 0);
+                w.spawnParticle(Particle.FLAME, spot.clone().add(0, 0.3, 0), 80, 1.2, 1.6, 1.2, 0.12);
+                sound(spot, Sound.ENTITY_GENERIC_EXPLODE, 1.4f, 0.8f);
+                sound(spot, Sound.ITEM_FIRECHARGE_USE, 1.2f, 0.7f);
+                for (Player p : playersAt(spot, 2.6)) {
+                    hurt(p, 9);
+                    p.setVelocity(new Vector(0, 0.85, 0));
+                    p.setFireTicks(Math.max(p.getFireTicks(), 40));
+                }
+            });
+        }
+        return true;
+    }
+
+    /** Muralla Ardiente (II+): una línea de fuego barre la sala. Se esquiva SALTANDO (no daña en el aire). */
+    private boolean firewall(List<Player> near) {
+        Player t = nearest(entity.getLocation(), near);
+        if (t == null) return false;
+        Location o = entity.getLocation().clone();
+        Vector dir = t.getLocation().toVector().subtract(o.toVector()).setY(0);
+        if (dir.lengthSquared() < 1.0E-4) return false;
+        dir.normalize();
+        Vector side = new Vector(-dir.getZ(), 0, dir.getX());
+        busyUntil = now + 50;
+        entity.setAI(false);
+        sound(o, Sound.ENTITY_RAVAGER_ROAR, 1.6f, 0.5f);
+        // telegrafía: línea de humo/llama frente al jefe
+        repeat(2, 8, i -> {
+            for (int k = -9; k <= 9; k++) {
+                Location l = o.clone().add(dir.clone().multiply(3)).add(side.clone().multiply(k));
+                l.getWorld().spawnParticle(Particle.SMALL_FLAME, l.add(0, 0.2, 0), 1, 0.1, 0.05, 0.1, 0);
+            }
+        }, () -> {
+            entity.setAI(true);
+            Set<UUID> hit = new HashSet<>();
+            sound(o, Sound.ENTITY_BLAZE_SHOOT, 2f, 0.4f);
+            repeat(1, 26, i -> {
+                double d = 3 + i * 0.9;
+                World w = o.getWorld();
+                for (int k = -9; k <= 9; k++) {
+                    Location l = o.clone().add(dir.clone().multiply(d)).add(side.clone().multiply(k)).add(0, 0.2, 0);
+                    w.spawnParticle(Particle.FLAME, l, 2, 0.1, 0.5, 0.1, 0.01);
+                    if (k % 3 == 0) w.spawnParticle(Particle.LAVA, l, 1, 0.1, 0.1, 0.1, 0);
+                }
+                if (i % 5 == 0) sound(o.clone().add(dir.clone().multiply(d)), Sound.BLOCK_FIRE_AMBIENT, 1.4f, 0.5f);
+                for (Player p : playersAt(o, 40)) {
+                    if (hit.contains(p.getUniqueId())) continue;
+                    Vector rel = p.getLocation().toVector().subtract(o.toVector());
+                    double along = rel.dot(dir);
+                    double across = Math.abs(rel.dot(side));
+                    boolean airborne = p.getLocation().getY() - o.getY() > 0.9;
+                    if (Math.abs(along - d) < 1.4 && across < 9.5 && !airborne) {
+                        hit.add(p.getUniqueId());
+                        hurt(p, 8);
+                        p.setVelocity(dir.clone().multiply(0.8).setY(0.45));
+                        p.setFireTicks(Math.max(p.getFireTicks(), 60));
+                        sound(p.getLocation(), Sound.ENTITY_PLAYER_HURT_ON_FIRE, 1f, 1f);
+                    }
+                }
+            }, null);
+        });
+        return true;
+    }
+
+    /** Grietas del Vacío (III+): zonas que ralentizan y dañan durante 6 s. Obligan a no quedarse quieto. */
+    private boolean rifts(List<Player> near) {
+        if (near.isEmpty()) return false;
+        busyUntil = now + 30;
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        sound(entity.getLocation(), Sound.BLOCK_END_PORTAL_SPAWN, 1.2f, 1.4f);
+        List<Location> spots = new ArrayList<>();
+        for (int i = 0; i < Math.min(3, 1 + near.size()); i++) {
+            Player t = near.get(rnd.nextInt(near.size()));
+            Location l = t.getLocation().clone().add(rnd.nextDouble(-3, 3), 0, rnd.nextDouble(-3, 3));
+            l.setY(Math.floor(t.getLocation().getY()));
+            spots.add(l);
+        }
+        repeat(5, 24, i -> {
+            for (Location s : spots) {
+                World w = s.getWorld();
+                ring(s, 3.0, 24, Particle.REVERSE_PORTAL);
+                ring(s, 1.5, 12, Particle.PORTAL);
+                w.spawnParticle(Particle.SQUID_INK, s.clone().add(0, 0.2, 0), 3, 1.2, 0.1, 1.2, 0.01);
+                if (i % 4 == 0) {
+                    sound(s, Sound.BLOCK_PORTAL_AMBIENT, 0.8f, 1.3f);
+                    for (Player p : playersAt(s, 3.1)) {
+                        p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 30, 1, false, true));
+                        p.damage(2.5 * phase.dmg, entity);
+                    }
+                }
+            }
+        }, null);
+        return true;
+    }
+
+    /** Sentencia (IV): marca a un jugador; a los ~2 s explota donde estaba. Quien no esté cerca de él se salva. */
+    private boolean sentence(List<Player> near) {
+        if (near.isEmpty()) return false;
+        Player t = near.get(ThreadLocalRandom.current().nextInt(near.size()));
+        busyUntil = now + 20;
+        t.showTitle(Title.title(Text.mm("<dark_red><bold>SENTENCIADO</bold></dark_red>"),
+                Text.mm("<gray>¡Aléjate de tus compañeros!</gray>"),
+                Title.Times.times(Duration.ofMillis(100), Duration.ofMillis(1300), Duration.ofMillis(300))));
+        t.addPotionEffect(new PotionEffect(PotionEffectType.GLOWING, 50, 0, false, false));
+        sound(t.getLocation(), Sound.ENTITY_WITHER_SPAWN, 0.7f, 1.8f);
+        Location[] fix = {t.getLocation().clone()};
+        repeat(2, 26, i -> {
+            if (i < 18 && t.isOnline() && !t.isDead()) fix[0] = t.getLocation().clone();   // sigue al objetivo y se fija en los últimos ~0,8 s
+            double r = 4.0;
+            ring(fix[0], r, 28, i < 18 ? Particle.SOUL_FIRE_FLAME : Particle.FLAME);
+            ring(fix[0], r * (1 - i / 26.0), 16, Particle.END_ROD);
+            if (i % 4 == 0) sound(fix[0], Sound.BLOCK_NOTE_BLOCK_BELL, 1.4f, 0.5f + i * 0.04f);
+        }, () -> {
+            Location c = fix[0];
+            World w = c.getWorld();
+            w.spawnParticle(Particle.EXPLOSION_EMITTER, c.clone().add(0, 1, 0), 2, 0.6, 0.4, 0.6, 0);
+            w.spawnParticle(Particle.END_ROD, c.clone().add(0, 1, 0), 120, 2, 1.5, 2, 0.25);
+            sound(c, Sound.ENTITY_GENERIC_EXPLODE, 2f, 0.6f);
+            sound(c, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 1.4f, 1.2f);
+            for (Player p : playersAt(c, 4.2)) {
+                hurt(p, near.size() <= 1 ? 9 : 14);   // en solitario no hay forma de repartirse: menos daño
+                knock(p, c, 1.4, 0.7);
+            }
+        });
+        return true;
     }
 
     /** Golpe de Ceniza: onda cercana con telegrafía de 1s. */
@@ -1514,6 +1865,50 @@ public final class VorthakBoss {
         heralds.clear();
     }
 
+    /** Muerte épica: el cuerpo se deshace en ceniza y una columna de luz sube durante ~4 s. */
+    private void ashFinale(Location base) {
+        World w = base.getWorld();
+        new BukkitRunnable() {
+            int i = 0;
+
+            @Override
+            public void run() {
+                if (i++ >= 40) {
+                    cancel();
+                    return;
+                }
+                double h = i * 0.18;
+                w.spawnParticle(Particle.ASH, base.clone().add(0, 1 + h * 0.4, 0), 40, 1.2, 1.6, 1.2, 0.02);
+                w.spawnParticle(Particle.LARGE_SMOKE, base.clone().add(0, 0.5 + h * 0.3, 0), 6, 0.9, 0.9, 0.9, 0.02);
+                w.spawnParticle(Particle.END_ROD, base.clone().add(0, h, 0), 4, 0.15, 0.4, 0.15, 0.02);
+                w.spawnParticle(Particle.SOUL_FIRE_FLAME, base.clone().add(0, 0.3 + h * 0.5, 0), 5, 0.8, 0.6, 0.8, 0.03);
+                if (i % 8 == 0) {
+                    w.playSound(base, Sound.BLOCK_BEACON_DEACTIVATE, 1.4f, 0.6f + i * 0.015f);
+                    w.playSound(base, Sound.ENTITY_PHANTOM_DEATH, 0.8f, 0.5f);
+                }
+                if (i == 38) w.playSound(base, Sound.BLOCK_BEACON_ACTIVATE, 1.6f, 1.4f);
+            }
+        }.runTaskTimer(plugin, 0L, 2L);
+    }
+
+    /** Botín de Vorthak. En la dungeon se tira una vez POR JUGADOR (cada uno lo recoge de su cofre personal). */
+    public static List<ItemStack> rollLoot(CustomMobsPlugin plugin, BossManager manager) {
+        List<ItemStack> out = new ArrayList<>();
+        out.add(BossItems.heart(manager));
+        out.add(new ItemStack(Material.NETHERITE_SCRAP, ThreadLocalRandom.current().nextInt(4, 9)));
+        out.add(new ItemStack(Material.WITHER_SKELETON_SKULL, 3));
+        out.add(new ItemStack(Material.ENCHANTED_GOLDEN_APPLE, 2));
+        if (ThreadLocalRandom.current().nextDouble() < plugin.getConfig().getDouble("vorthak.blade-drop-chance", 0.25)) {
+            out.add(BossItems.blade(manager));
+        }
+        out.addAll(BossItems.rollBooks(plugin));
+        return out;
+    }
+
+    public boolean isDead() {
+        return dead;
+    }
+
     public void onDeath(EntityDeathEvent e) {
         dead = true;
         stop();
@@ -1521,14 +1916,7 @@ public final class VorthakBoss {
 
         e.getDrops().clear();
         e.setDroppedExp(plugin.getConfig().getInt("vorthak.xp", 4000));
-        e.getDrops().add(BossItems.heart(manager));
-        e.getDrops().add(new ItemStack(Material.NETHERITE_SCRAP, ThreadLocalRandom.current().nextInt(4, 9)));
-        e.getDrops().add(new ItemStack(Material.WITHER_SKELETON_SKULL, 3));
-        e.getDrops().add(new ItemStack(Material.ENCHANTED_GOLDEN_APPLE, 2));
-        if (ThreadLocalRandom.current().nextDouble() < plugin.getConfig().getDouble("vorthak.blade-drop-chance", 0.25)) {
-            e.getDrops().add(BossItems.blade(manager));
-        }
-        e.getDrops().addAll(BossItems.rollBooks(plugin));
+        e.getDrops().addAll(rollLoot(plugin, manager));
 
         Location loc = entity.getLocation();
         World w = loc.getWorld();
@@ -1536,6 +1924,7 @@ public final class VorthakBoss {
         w.spawnParticle(Particle.EXPLOSION_EMITTER, loc.clone().add(0, 1, 0), 3, 1, 1, 1, 0);
         w.spawnParticle(Particle.SOUL, loc.clone().add(0, 1, 0), 200, 2, 2, 2, 0.15);
         sound(loc, Sound.ENTITY_WITHER_DEATH, 2f, 0.7f);
+        ashFinale(loc.clone());
 
         Title title = Title.title(
                 Text.mm("<gradient:#ffd86b:#ff9a3c><bold>VORTHAK HA CAÍDO</bold></gradient>"),

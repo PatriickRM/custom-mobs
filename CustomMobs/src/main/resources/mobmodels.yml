@@ -830,3 +830,1120 @@ mobs:
         hover_speed: 1.6
         spin_axis: "y"
         spin_speed: 120
+  vorthak2:
+    scale: 1.0
+    name: "Vorthak"
+    nodes:
+      - id: legL
+        parent: null
+        pivot: [4.5, 17, 0]
+        rest: [0, 0, 0]
+        model: vorthak2_legl
+        glow: false
+        walk_amp: 24
+        walk_phase: 0
+      - id: legR
+        parent: null
+        pivot: [-4.5, 17, 0]
+        rest: [0, 0, 0]
+        model: vorthak2_legr
+        glow: false
+        walk_amp: 24
+        walk_phase: 180
+      - id: body
+        parent: null
+        pivot: [0, 17, 0]
+        rest: [5, 0, 0]
+        model: vorthak2_body
+        glow: false
+        idle_amp: 1.3
+        idle_axis: "x"
+        idle_speed: 0.9
+      - id: body_glow
+        parent: body
+        pivot: [0, 17, 0]
+        rest: [0, 0, 0]
+        model: vorthak2_body_glow
+        glow: true
+      - id: cape_hi
+        parent: body
+        pivot: [0, 34, -5]
+        rest: [4, 0, 0]
+        model: vorthak2_cape_hi
+        glow: false
+        idle_amp: 2.5
+        idle_axis: "x"
+        idle_speed: 1.1
+      - id: cape_lo
+        parent: cape_hi
+        pivot: [0, 20, -5.4]
+        rest: [0, 0, 0]
+        model: vorthak2_cape_lo
+        glow: false
+        idle_amp: 5.5
+        idle_axis: "x"
+        idle_speed: 1.5
+        idle_phase: 50
+      - id: head
+        parent: body
+        pivot: [0, 36, 0]
+        rest: [0, 0, 0]
+        model: vorthak2_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 36, 0]
+        rest: [0, 0, 0]
+        model: vorthak2_head_glow
+        glow: true
+      - id: halo
+        parent: null
+        pivot: [0, 58, 0]
+        rest: [0, 0, 0]
+        model: vorthak2_halo
+        glow: true
+        hover_amp: 1.2
+        hover_speed: 1.0
+        spin_axis: "y"
+        spin_speed: 40
+      - id: armL
+        parent: body
+        pivot: [11, 32, 0]
+        rest: [-10, 0, -9]
+        model: vorthak2_arml
+        glow: false
+        walk_amp: 12
+        walk_phase: 180
+        atk: 40
+      - id: foreL
+        parent: armL
+        pivot: [11, 20.5, 0]
+        rest: [-22, 0, 0]
+        model: vorthak2_forel
+        glow: false
+        atk: 25
+      - id: armR
+        parent: body
+        pivot: [-11, 32, 0]
+        rest: [-30, 0, 9]
+        model: vorthak2_armr
+        glow: false
+        walk_amp: 7
+        walk_phase: 0
+        atk: 85
+      - id: foreR
+        parent: armR
+        pivot: [-11, 20.5, 0]
+        rest: [-30, 0, 0]
+        model: vorthak2_forer
+        glow: false
+        atk: 40
+      - id: sword
+        parent: foreR
+        pivot: [-11, 15, 0.5]
+        rest: [0, 0, 0]
+        model: vorthak2_sword
+        glow: false
+      - id: sword_glow
+        parent: sword
+        pivot: [-11, 15, 0.5]
+        rest: [0, 0, 0]
+        model: vorthak2_sword_glow
+        glow: true
+      - id: sword2
+        parent: sword
+        pivot: [-11, 38.5, 0.5]
+        rest: [0, 0, 0]
+        model: vorthak2_sword2
+        glow: false
+      - id: sword2_glow
+        parent: sword2
+        pivot: [-11, 38.5, 0.5]
+        rest: [0, 0, 0]
+        model: vorthak2_sword2_glow
+        glow: true
+      - id: soul0
+        parent: body
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: vorthak2_soul0
+        glow: true
+        orbit_r: 15
+        orbit_speed: 75
+        orbit_phase: 0
+        hover_amp: 1.5
+        hover_speed: 1.2
+        spin_axis: "y"
+        spin_speed: 120
+      - id: soul1
+        parent: body
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: vorthak2_soul1
+        glow: true
+        orbit_r: 15
+        orbit_speed: 75
+        orbit_phase: 120
+        hover_amp: 1.5
+        hover_speed: 1.4
+        spin_axis: "y"
+        spin_speed: 120
+      - id: soul2
+        parent: body
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: vorthak2_soul2
+        glow: true
+        orbit_r: 15
+        orbit_speed: 75
+        orbit_phase: 240
+        hover_amp: 1.5
+        hover_speed: 1.6
+        spin_axis: "y"
+        spin_speed: 120
+      - id: crown_fire
+        parent: head
+        pivot: [0, 44, 0]
+        rest: [0, 0, 0]
+        model: vorthak2_crown_fire
+        glow: true
+        hover_amp: 1.0
+        hover_speed: 1.4
+      - id: shfire1
+        parent: body
+        pivot: [11.5, 38, 0]
+        rest: [0, 0, 0]
+        model: vorthak2_shfire1
+        glow: true
+        hover_amp: 0.8
+        hover_speed: 1.6
+      - id: shfire-1
+        parent: body
+        pivot: [-11.5, 38, 0]
+        rest: [0, 0, 0]
+        model: vorthak2_shfire-1
+        glow: true
+        hover_amp: 0.8
+        hover_speed: 1.6
+      - id: ember0
+        parent: body
+        pivot: [0, 28, 0]
+        rest: [0, 0, 0]
+        model: vorthak2_ember0
+        glow: true
+        orbit_r: 13
+        orbit_speed: 90
+        orbit_phase: 0
+        hover_amp: 3
+        hover_speed: 1.5
+      - id: ember1
+        parent: body
+        pivot: [0, 28, 0]
+        rest: [0, 0, 0]
+        model: vorthak2_ember1
+        glow: true
+        orbit_r: 13
+        orbit_speed: 90
+        orbit_phase: 90
+        hover_amp: 3
+        hover_speed: 1.6
+      - id: ember2
+        parent: body
+        pivot: [0, 28, 0]
+        rest: [0, 0, 0]
+        model: vorthak2_ember2
+        glow: true
+        orbit_r: 13
+        orbit_speed: 90
+        orbit_phase: 180
+        hover_amp: 3
+        hover_speed: 1.7
+      - id: ember3
+        parent: body
+        pivot: [0, 28, 0]
+        rest: [0, 0, 0]
+        model: vorthak2_ember3
+        glow: true
+        orbit_r: 13
+        orbit_speed: 90
+        orbit_phase: 270
+        hover_amp: 3
+        hover_speed: 1.8
+  vorthak3:
+    scale: 1.0
+    name: "Vorthak"
+    nodes:
+      - id: legL
+        parent: null
+        pivot: [4.5, 17, 0]
+        rest: [0, 0, 0]
+        model: vorthak3_legl
+        glow: false
+        walk_amp: 24
+        walk_phase: 0
+      - id: legR
+        parent: null
+        pivot: [-4.5, 17, 0]
+        rest: [0, 0, 0]
+        model: vorthak3_legr
+        glow: false
+        walk_amp: 24
+        walk_phase: 180
+      - id: body
+        parent: null
+        pivot: [0, 17, 0]
+        rest: [5, 0, 0]
+        model: vorthak3_body
+        glow: false
+        idle_amp: 1.3
+        idle_axis: "x"
+        idle_speed: 0.9
+      - id: body_glow
+        parent: body
+        pivot: [0, 17, 0]
+        rest: [0, 0, 0]
+        model: vorthak3_body_glow
+        glow: true
+      - id: cape_hi
+        parent: body
+        pivot: [0, 34, -5]
+        rest: [4, 0, 0]
+        model: vorthak3_cape_hi
+        glow: false
+        idle_amp: 2.5
+        idle_axis: "x"
+        idle_speed: 1.1
+      - id: cape_lo
+        parent: cape_hi
+        pivot: [0, 20, -5.4]
+        rest: [0, 0, 0]
+        model: vorthak3_cape_lo
+        glow: false
+        idle_amp: 5.5
+        idle_axis: "x"
+        idle_speed: 1.5
+        idle_phase: 50
+      - id: head
+        parent: body
+        pivot: [0, 36, 0]
+        rest: [0, 0, 0]
+        model: vorthak3_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 36, 0]
+        rest: [0, 0, 0]
+        model: vorthak3_head_glow
+        glow: true
+      - id: halo
+        parent: null
+        pivot: [0, 58, 0]
+        rest: [0, 0, 0]
+        model: vorthak3_halo
+        glow: true
+        hover_amp: 1.2
+        hover_speed: 1.0
+        spin_axis: "y"
+        spin_speed: 40
+      - id: armL
+        parent: body
+        pivot: [11, 32, 0]
+        rest: [-10, 0, -9]
+        model: vorthak3_arml
+        glow: false
+        walk_amp: 12
+        walk_phase: 180
+        atk: 40
+      - id: foreL
+        parent: armL
+        pivot: [11, 20.5, 0]
+        rest: [-22, 0, 0]
+        model: vorthak3_forel
+        glow: false
+        atk: 25
+      - id: armR
+        parent: body
+        pivot: [-11, 32, 0]
+        rest: [-30, 0, 9]
+        model: vorthak3_armr
+        glow: false
+        walk_amp: 7
+        walk_phase: 0
+        atk: 85
+      - id: foreR
+        parent: armR
+        pivot: [-11, 20.5, 0]
+        rest: [-30, 0, 0]
+        model: vorthak3_forer
+        glow: false
+        atk: 40
+      - id: sword
+        parent: foreR
+        pivot: [-11, 15, 0.5]
+        rest: [0, 0, 0]
+        model: vorthak3_sword
+        glow: false
+      - id: sword_glow
+        parent: sword
+        pivot: [-11, 15, 0.5]
+        rest: [0, 0, 0]
+        model: vorthak3_sword_glow
+        glow: true
+      - id: sword2
+        parent: sword
+        pivot: [-11, 38.5, 0.5]
+        rest: [0, 0, 0]
+        model: vorthak3_sword2
+        glow: false
+      - id: sword2_glow
+        parent: sword2
+        pivot: [-11, 38.5, 0.5]
+        rest: [0, 0, 0]
+        model: vorthak3_sword2_glow
+        glow: true
+      - id: soul0
+        parent: body
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: vorthak3_soul0
+        glow: true
+        orbit_r: 15
+        orbit_speed: 75
+        orbit_phase: 0
+        hover_amp: 1.5
+        hover_speed: 1.2
+        spin_axis: "y"
+        spin_speed: 120
+      - id: soul1
+        parent: body
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: vorthak3_soul1
+        glow: true
+        orbit_r: 15
+        orbit_speed: 75
+        orbit_phase: 120
+        hover_amp: 1.5
+        hover_speed: 1.4
+        spin_axis: "y"
+        spin_speed: 120
+      - id: soul2
+        parent: body
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: vorthak3_soul2
+        glow: true
+        orbit_r: 15
+        orbit_speed: 75
+        orbit_phase: 240
+        hover_amp: 1.5
+        hover_speed: 1.6
+        spin_axis: "y"
+        spin_speed: 120
+      - id: wingL
+        parent: body
+        pivot: [5, 34, -5]
+        rest: [0, -14, 0]
+        model: vorthak3_wingl
+        glow: false
+        idle_amp: 9
+        idle_axis: "y"
+        idle_speed: 1.1
+      - id: wingR
+        parent: body
+        pivot: [-5, 34, -5]
+        rest: [0, 14, 0]
+        model: vorthak3_wingr
+        glow: false
+        idle_amp: 9
+        idle_axis: "y"
+        idle_speed: 1.1
+        idle_phase: 180
+      - id: halo2
+        parent: null
+        pivot: [0, 62, 0]
+        rest: [0, 0, 0]
+        model: vorthak3_halo2
+        glow: true
+        hover_amp: 1.5
+        hover_speed: 0.8
+        spin_axis: "y"
+        spin_speed: -35
+      - id: shard0
+        parent: body
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: vorthak3_shard0
+        glow: true
+        orbit_r: 19
+        orbit_speed: -60
+        orbit_phase: 0
+        hover_amp: 3
+        hover_speed: 1.0
+        spin_axis: "y"
+        spin_speed: 150
+      - id: shard1
+        parent: body
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: vorthak3_shard1
+        glow: true
+        orbit_r: 19
+        orbit_speed: -60
+        orbit_phase: 72
+        hover_amp: 3
+        hover_speed: 1.15
+        spin_axis: "y"
+        spin_speed: 150
+      - id: shard2
+        parent: body
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: vorthak3_shard2
+        glow: true
+        orbit_r: 19
+        orbit_speed: -60
+        orbit_phase: 144
+        hover_amp: 3
+        hover_speed: 1.3
+        spin_axis: "y"
+        spin_speed: 150
+      - id: shard3
+        parent: body
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: vorthak3_shard3
+        glow: true
+        orbit_r: 19
+        orbit_speed: -60
+        orbit_phase: 216
+        hover_amp: 3
+        hover_speed: 1.45
+        spin_axis: "y"
+        spin_speed: 150
+      - id: shard4
+        parent: body
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: vorthak3_shard4
+        glow: true
+        orbit_r: 19
+        orbit_speed: -60
+        orbit_phase: 288
+        hover_amp: 3
+        hover_speed: 1.6
+        spin_axis: "y"
+        spin_speed: 150
+  vorthak4:
+    scale: 1.0
+    name: "Vorthak"
+    nodes:
+      - id: legL
+        parent: null
+        pivot: [4.5, 17, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_legl
+        glow: false
+        walk_amp: 24
+        walk_phase: 0
+      - id: legR
+        parent: null
+        pivot: [-4.5, 17, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_legr
+        glow: false
+        walk_amp: 24
+        walk_phase: 180
+      - id: body
+        parent: null
+        pivot: [0, 17, 0]
+        rest: [5, 0, 0]
+        model: vorthak4_body
+        glow: false
+        idle_amp: 1.3
+        idle_axis: "x"
+        idle_speed: 0.9
+      - id: body_glow
+        parent: body
+        pivot: [0, 17, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_body_glow
+        glow: true
+      - id: cape_hi
+        parent: body
+        pivot: [0, 34, -5]
+        rest: [4, 0, 0]
+        model: vorthak4_cape_hi
+        glow: false
+        idle_amp: 2.5
+        idle_axis: "x"
+        idle_speed: 1.1
+      - id: cape_lo
+        parent: cape_hi
+        pivot: [0, 20, -5.4]
+        rest: [0, 0, 0]
+        model: vorthak4_cape_lo
+        glow: false
+        idle_amp: 5.5
+        idle_axis: "x"
+        idle_speed: 1.5
+        idle_phase: 50
+      - id: head
+        parent: body
+        pivot: [0, 36, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 36, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_head_glow
+        glow: true
+      - id: halo
+        parent: null
+        pivot: [0, 58, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_halo
+        glow: true
+        hover_amp: 1.2
+        hover_speed: 1.0
+        spin_axis: "y"
+        spin_speed: 40
+      - id: armL
+        parent: body
+        pivot: [11, 32, 0]
+        rest: [-10, 0, -9]
+        model: vorthak4_arml
+        glow: false
+        walk_amp: 12
+        walk_phase: 180
+        atk: 40
+      - id: foreL
+        parent: armL
+        pivot: [11, 20.5, 0]
+        rest: [-22, 0, 0]
+        model: vorthak4_forel
+        glow: false
+        atk: 25
+      - id: armR
+        parent: body
+        pivot: [-11, 32, 0]
+        rest: [-30, 0, 9]
+        model: vorthak4_armr
+        glow: false
+        walk_amp: 7
+        walk_phase: 0
+        atk: 85
+      - id: foreR
+        parent: armR
+        pivot: [-11, 20.5, 0]
+        rest: [-30, 0, 0]
+        model: vorthak4_forer
+        glow: false
+        atk: 40
+      - id: sword
+        parent: foreR
+        pivot: [-11, 15, 0.5]
+        rest: [0, 0, 0]
+        model: vorthak4_sword
+        glow: false
+      - id: sword_glow
+        parent: sword
+        pivot: [-11, 15, 0.5]
+        rest: [0, 0, 0]
+        model: vorthak4_sword_glow
+        glow: true
+      - id: sword2
+        parent: sword
+        pivot: [-11, 38.5, 0.5]
+        rest: [0, 0, 0]
+        model: vorthak4_sword2
+        glow: false
+      - id: sword2_glow
+        parent: sword2
+        pivot: [-11, 38.5, 0.5]
+        rest: [0, 0, 0]
+        model: vorthak4_sword2_glow
+        glow: true
+      - id: soul0
+        parent: body
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_soul0
+        glow: true
+        orbit_r: 15
+        orbit_speed: 75
+        orbit_phase: 0
+        hover_amp: 1.5
+        hover_speed: 1.2
+        spin_axis: "y"
+        spin_speed: 120
+      - id: soul1
+        parent: body
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_soul1
+        glow: true
+        orbit_r: 15
+        orbit_speed: 75
+        orbit_phase: 120
+        hover_amp: 1.5
+        hover_speed: 1.4
+        spin_axis: "y"
+        spin_speed: 120
+      - id: soul2
+        parent: body
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_soul2
+        glow: true
+        orbit_r: 15
+        orbit_speed: 75
+        orbit_phase: 240
+        hover_amp: 1.5
+        hover_speed: 1.6
+        spin_axis: "y"
+        spin_speed: 120
+      - id: ribs_glow
+        parent: body
+        pivot: [0, 17, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_ribs_glow
+        glow: true
+        idle_amp: 0.6
+        idle_axis: "x"
+        idle_speed: 2.6
+      - id: halo2
+        parent: null
+        pivot: [0, 62, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_halo2
+        glow: true
+        hover_amp: 2
+        hover_speed: 1.4
+        spin_axis: "y"
+        spin_speed: -60
+      - id: flare0
+        parent: body
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_flare0
+        glow: true
+        orbit_r: 16
+        orbit_speed: 130
+        orbit_phase: 0
+        hover_amp: 5
+        hover_speed: 1.8
+        spin_axis: "y"
+        spin_speed: 200
+      - id: flare1
+        parent: body
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_flare1
+        glow: true
+        orbit_r: 16
+        orbit_speed: 130
+        orbit_phase: 60
+        hover_amp: 5
+        hover_speed: 1.9000000000000001
+        spin_axis: "y"
+        spin_speed: 200
+      - id: flare2
+        parent: body
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_flare2
+        glow: true
+        orbit_r: 16
+        orbit_speed: 130
+        orbit_phase: 120
+        hover_amp: 5
+        hover_speed: 2.0
+        spin_axis: "y"
+        spin_speed: 200
+      - id: flare3
+        parent: body
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_flare3
+        glow: true
+        orbit_r: 16
+        orbit_speed: 130
+        orbit_phase: 180
+        hover_amp: 5
+        hover_speed: 2.1
+        spin_axis: "y"
+        spin_speed: 200
+      - id: flare4
+        parent: body
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_flare4
+        glow: true
+        orbit_r: 16
+        orbit_speed: 130
+        orbit_phase: 240
+        hover_amp: 5
+        hover_speed: 2.2
+        spin_axis: "y"
+        spin_speed: 200
+      - id: flare5
+        parent: body
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: vorthak4_flare5
+        glow: true
+        orbit_r: 16
+        orbit_speed: 130
+        orbit_phase: 300
+        hover_amp: 5
+        hover_speed: 2.3
+        spin_axis: "y"
+        spin_speed: 200
+  sombra:
+    scale: 1.0
+    name: "Sombra Veloz"
+    nodes:
+      - id: legL
+        parent: null
+        pivot: [2, 12, 0]
+        rest: [0, 0, 0]
+        model: sombra_legl
+        glow: false
+        walk_amp: 40
+        walk_phase: 0
+      - id: legR
+        parent: null
+        pivot: [-2, 12, 0]
+        rest: [0, 0, 0]
+        model: sombra_legr
+        glow: false
+        walk_amp: 40
+        walk_phase: 180
+      - id: body
+        parent: null
+        pivot: [0, 12, 0]
+        rest: [16, 0, 0]
+        model: sombra_body
+        glow: false
+        idle_amp: 1.8
+        idle_axis: "x"
+        idle_speed: 1.6
+      - id: tailA
+        parent: body
+        pivot: [-2.5, 22, -2.2]
+        rest: [0, 0, 0]
+        model: sombra_taila
+        glow: false
+        idle_amp: 8
+        idle_axis: "x"
+        idle_speed: 1.7
+      - id: tailB
+        parent: body
+        pivot: [2.5, 22, -2.2]
+        rest: [0, 0, 0]
+        model: sombra_tailb
+        glow: false
+        idle_amp: 9
+        idle_axis: "x"
+        idle_speed: 1.5
+        idle_phase: 70
+      - id: head
+        parent: body
+        pivot: [0, 24, 0]
+        rest: [0, 0, 0]
+        model: sombra_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 24, 0]
+        rest: [0, 0, 0]
+        model: sombra_head_glow
+        glow: true
+      - id: armL
+        parent: body
+        pivot: [5, 23, 0]
+        rest: [-70, 0, -6]
+        model: sombra_arml
+        glow: false
+        walk_amp: 14
+        walk_phase: 180
+        atk: 70
+      - id: armL_glow
+        parent: armL
+        pivot: [5, 23, 0]
+        rest: [0, 0, 0]
+        model: sombra_arml_glow
+        glow: true
+      - id: armR
+        parent: body
+        pivot: [-5, 23, 0]
+        rest: [-70, 0, 6]
+        model: sombra_armr
+        glow: false
+        walk_amp: 14
+        walk_phase: 0
+        atk: 70
+      - id: armR_glow
+        parent: armR
+        pivot: [-5, 23, 0]
+        rest: [0, 0, 0]
+        model: sombra_armr_glow
+        glow: true
+      - id: wisp0
+        parent: body
+        pivot: [0, 18, 0]
+        rest: [0, 0, 0]
+        model: sombra_wisp0
+        glow: true
+        orbit_r: 11
+        orbit_speed: 120
+        orbit_phase: 0
+        hover_amp: 3
+        hover_speed: 1.2
+      - id: wisp1
+        parent: body
+        pivot: [0, 18, 0]
+        rest: [0, 0, 0]
+        model: sombra_wisp1
+        glow: true
+        orbit_r: 11
+        orbit_speed: 120
+        orbit_phase: 120
+        hover_amp: 3
+        hover_speed: 1.4
+      - id: wisp2
+        parent: body
+        pivot: [0, 18, 0]
+        rest: [0, 0, 0]
+        model: sombra_wisp2
+        glow: true
+        orbit_r: 11
+        orbit_speed: 120
+        orbit_phase: 240
+        hover_amp: 3
+        hover_speed: 1.6
+  guardian:
+    scale: 1.0
+    name: "Guardián de Brasas"
+    nodes:
+      - id: legL
+        parent: null
+        pivot: [4, 15, 0]
+        rest: [0, 0, 0]
+        model: guardian_legl
+        glow: false
+        walk_amp: 22
+        walk_phase: 0
+      - id: legR
+        parent: null
+        pivot: [-4, 15, 0]
+        rest: [0, 0, 0]
+        model: guardian_legr
+        glow: false
+        walk_amp: 22
+        walk_phase: 180
+      - id: body
+        parent: null
+        pivot: [0, 15, 0]
+        rest: [4, 0, 0]
+        model: guardian_body
+        glow: false
+        idle_amp: 1.0
+        idle_axis: "x"
+        idle_speed: 0.9
+      - id: body_glow
+        parent: body
+        pivot: [0, 15, 0]
+        rest: [0, 0, 0]
+        model: guardian_body_glow
+        glow: true
+      - id: head
+        parent: body
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: guardian_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: guardian_head_glow
+        glow: true
+      - id: armL
+        parent: body
+        pivot: [11, 28, 0]
+        rest: [-25, 0, -6]
+        model: guardian_arml
+        glow: false
+        walk_amp: 6
+        walk_phase: 180
+        atk: 30
+      - id: shield
+        parent: armL
+        pivot: [11, 22, 4]
+        rest: [0, 0, 0]
+        model: guardian_shield
+        glow: false
+      - id: shield_glow
+        parent: shield
+        pivot: [11, 22, 4]
+        rest: [0, 0, 0]
+        model: guardian_shield_glow
+        glow: true
+      - id: armR
+        parent: body
+        pivot: [-11, 28, 0]
+        rest: [-62, 0, 6]
+        model: guardian_armr
+        glow: false
+        walk_amp: 5
+        walk_phase: 0
+        atk: 95
+      - id: axe
+        parent: armR
+        pivot: [-11, 26, 0.5]
+        rest: [0, 0, 0]
+        model: guardian_axe
+        glow: false
+      - id: axe_glow
+        parent: axe
+        pivot: [-11, 26, 0.5]
+        rest: [0, 0, 0]
+        model: guardian_axe_glow
+        glow: true
+  nigromante:
+    scale: 1.0
+    name: "Nigromante de Almas"
+    nodes:
+      - id: skirt
+        parent: null
+        pivot: [0, 12, 0]
+        rest: [0, 0, 0]
+        model: nigromante_skirt
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.1
+      - id: body
+        parent: null
+        pivot: [0, 12, 0]
+        rest: [3, 0, 0]
+        model: nigromante_body
+        glow: false
+        idle_amp: 1.2
+        idle_axis: "x"
+        idle_speed: 1.2
+      - id: head
+        parent: body
+        pivot: [0, 28, 0]
+        rest: [0, 0, 0]
+        model: nigromante_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 28, 0]
+        rest: [0, 0, 0]
+        model: nigromante_head_glow
+        glow: true
+      - id: armL
+        parent: body
+        pivot: [5, 26, 0]
+        rest: [-45, 0, -10]
+        model: nigromante_arml
+        glow: false
+        idle_amp: 3
+        idle_axis: "x"
+        idle_speed: 1.3
+        atk: 60
+      - id: armR
+        parent: body
+        pivot: [-5, 26, 0]
+        rest: [-40, 0, 14]
+        model: nigromante_armr
+        glow: false
+        atk: 40
+      - id: staff
+        parent: body
+        pivot: [-10, 28, 7]
+        rest: [0, 0, 0]
+        model: nigromante_staff
+        glow: false
+        idle_amp: 1.0
+        idle_axis: "z"
+        idle_speed: 1.0
+      - id: orb
+        parent: staff
+        pivot: [-10, 28, 7]
+        rest: [0, 0, 0]
+        model: nigromante_orb
+        glow: true
+        hover_amp: 1.2
+        hover_speed: 1.3
+        spin_axis: "y"
+        spin_speed: 60
+      - id: skull0
+        parent: body
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: nigromante_skull0
+        glow: false
+        orbit_r: 13
+        orbit_speed: 70
+        orbit_phase: 0
+        hover_amp: 1.5
+        hover_speed: 1.1
+        spin_axis: "y"
+        spin_speed: 90
+      - id: skull0_glow
+        parent: skull0
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: nigromante_skull0_glow
+        glow: true
+      - id: skull1
+        parent: body
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: nigromante_skull1
+        glow: false
+        orbit_r: 13
+        orbit_speed: 70
+        orbit_phase: 120
+        hover_amp: 1.5
+        hover_speed: 1.3
+        spin_axis: "y"
+        spin_speed: 90
+      - id: skull1_glow
+        parent: skull1
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: nigromante_skull1_glow
+        glow: true
+      - id: skull2
+        parent: body
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: nigromante_skull2
+        glow: false
+        orbit_r: 13
+        orbit_speed: 70
+        orbit_phase: 240
+        hover_amp: 1.5
+        hover_speed: 1.5
+        spin_axis: "y"
+        spin_speed: 90
+      - id: skull2_glow
+        parent: skull2
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: nigromante_skull2_glow
+        glow: true

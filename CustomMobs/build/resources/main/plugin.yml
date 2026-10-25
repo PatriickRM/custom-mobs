@@ -13,7 +13,7 @@ commands:
   
   dungeon:
     description: Dungeon de Vorthak
-    usage: /dungeon <join|start|leave|status|top>
+    usage: /dungeon <join|start|leave|status|top|bless|path>
 
 permissions:
   custommobs.admin:

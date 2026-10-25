@@ -320,19 +320,23 @@ def bestia():
 
 
 # ============================================================================= 8. VORTHAK (jefe final)
-def vorthak():
+def _vorthak(ph):
     """Centinela de Ceniza: caballero colosal de obsidiana con capa carmesi, cuernos, halo ardiente y mandoble de lava.
     Se dibuja con SCALE 1.7 (el del jefe), asi que aqui mide ~40 px de alto sin cuernos."""
-    plate = S(OBS, bias=1.7, spread=0.9, rivets=True)
+    GA, GB, GE = {1: (G_LAVA, G_EMBER, G_RED), 2: (G_LAVA, G_LAVA, G_RED),
+                  3: (G_VIOLET, G_VIOLET, G_VIOLET), 4: (G_WHITE, G_WHITE, G_WHITE)}[ph]
+    plate = S(OBS, bias=1.7, spread=0.9, rivets=True, cracks=(2, 4, '#ff5a1a') if ph == 2 else None)
     plate_g = S(OBS, bias=2.3, spread=0.8, rivets=True, trim='#b08a26')
     dark = S(OBS, bias=0.9, spread=0.7)
     gold = S(GOLD, bias=2.0, spread=0.8)
     skull = S(['#0d0b0e', '#1b181d', '#2c282f', '#413c46', '#5a5460'], bias=2.1, spread=0.8)
     bone = S(BONE, bias=2.6, spread=0.7)
     steel = S(['#1d1f26', '#30333d', '#4a4e5c', '#757a8c', '#a9aebf'], bias=2.2, spread=0.9)
-    cape = S(CRIM, bias=1.5, spread=1.0, stripes=True)
-    cape_e = S(CRIM, bias=2.6, spread=0.7, trim='#d9b640')
-    chest_cr = S(OBS, bias=1.8, spread=0.9, rivets=True, cracks=(3, 5, '#ff5a1a'))
+    CP = CLOAK if ph == 3 else CRIM
+    cape = S(CP, bias=1.5, spread=1.0, stripes=True)
+    cape_e = S(CP, bias=2.6, spread=0.7, trim='#d58cff' if ph == 3 else '#d9b640')
+    chest_cr = S(OBS, bias=1.8, spread=0.9, rivets=True,
+                 cracks=(3, 5, {1: '#ff5a1a', 2: '#ff7a1a', 3: '#b050ff', 4: '#ffffff'}[ph]) if ph != 4 else (6, 3, '#ffffff'))
     grip = S(LEATHER, bias=1.5, spread=1.0, rows=2)
 
     leg = lambda sx: [B(1.5 * sx, 7.2 * sx, 3, 17, -3.2, 3.4, plate), B(1.2 * sx, 7.5 * sx, 8, 12, -3.6, 3.8, dark),
@@ -359,9 +363,9 @@ def vorthak():
             B(-6.5, 6.5, 12, 17.5, -4.2, 4.4, dark), B(-5.4, -1.2, 9, 17, 4.2, 4.9, plate), B(1.2, 5.4, 9, 17, 4.2, 4.9, plate)],
              rest=(5, 0, 0), idle_amp=1.3, idle_axis='x', idle_speed=0.9),
         Node('body_glow', (0, 17, 0), [
-            B(-2.4, 2.4, 25.5, 31.5, 5.4, 5.6, glow(G_LAVA)), B(-0.7, 0.7, 20.5, 25.5, 5.2, 5.4, glow(G_LAVA)),
-            B(-7.2, -6.4, 24, 32, 4.7, 4.85, glow(G_EMBER)), B(6.4, 7.2, 24, 32, 4.7, 4.85, glow(G_EMBER)),
-            B(-0.4, 0.4, 30, 36, -8.7, -8.55, glow(G_LAVA))], parent='body', glow=True),
+            B(-2.4, 2.4, 25.5, 31.5, 5.4, 5.6, glow(GA)), B(-0.7, 0.7, 20.5, 25.5, 5.2, 5.4, glow(GA)),
+            B(-7.2, -6.4, 24, 32, 4.7, 4.85, glow(GB)), B(6.4, 7.2, 24, 32, 4.7, 4.85, glow(GB)),
+            B(-0.4, 0.4, 30, 36, -8.7, -8.55, glow(GA))], parent='body', glow=True),
         Node('cape_hi', (0, 34, -5), [B(-7, 7, 20, 34, -5.7, -5.05, cape), B(-7.4, 7.4, 33, 34.6, -5.9, -4.9, cape_e)],
              parent='body', rest=(4, 0, 0), idle_amp=2.5, idle_axis='x', idle_speed=1.1),
         Node('cape_lo', (0, 20, -5.4), [B(-7.6, 7.6, 7, 20, -6.0, -5.4, cape), B(-7.9, -5.6, 2, 7, -6.0, -5.4, cape_e),
@@ -373,14 +377,14 @@ def vorthak():
             B(-4.9, 4.9, 43.6, 44.4, -4.9, 4.9, gold), B(-0.9, 0.9, 44.5, 51, -4.3, 2.6, gold), B(-0.7, 0.7, 40, 43, 4.6, 5.0, steel),
             B(-3.5, 3.5, 38, 41, -5.2, -4, dark), B(-2.5, 2.5, 41, 46, -5.2, -4, dark)] + horn(1) + horn(-1),
              parent='body', look=True),
-        Node('head_glow', (0, 36, 0), [B(1, 3.2, 39.6, 41.8, 4.0, 4.18, glow(G_RED)), B(-3.2, -1, 39.6, 41.8, 4.0, 4.18, glow(G_RED)),
-                                       B(-2, 2, 36.6, 37.6, 3.9, 4.0, glow(G_EMBER)), B(-0.5, 0.5, 51, 56, -0.5, 0.5, glow(G_LAVA))],
+        Node('head_glow', (0, 36, 0), [B(1, 3.2, 39.6, 41.8, 4.0, 4.18, glow(GE)), B(-3.2, -1, 39.6, 41.8, 4.0, 4.18, glow(GE)),
+                                       B(-2, 2, 36.6, 37.6, 3.9, 4.0, glow(GB)), B(-0.5, 0.5, 51, 56, -0.5, 0.5, glow(GA))],
              parent='head', glow=True),
         Node('halo', (0, 58, 0), [
-            B(-1, 1, 56, 59, 7, 9, glow(G_EMBER)), B(-1, 1, 56, 59, -9, -7, glow(G_EMBER)),
-            B(7, 9, 56, 59, -1, 1, glow(G_EMBER)), B(-9, -7, 56, 59, -1, 1, glow(G_EMBER)),
-            B(4.6, 6.6, 56, 59, 4.6, 6.6, glow(G_LAVA)), B(-6.6, -4.6, 56, 59, 4.6, 6.6, glow(G_LAVA)),
-            B(4.6, 6.6, 56, 59, -6.6, -4.6, glow(G_LAVA)), B(-6.6, -4.6, 56, 59, -6.6, -4.6, glow(G_LAVA))],
+            B(-1, 1, 56, 59, 7, 9, glow(GB)), B(-1, 1, 56, 59, -9, -7, glow(GB)),
+            B(7, 9, 56, 59, -1, 1, glow(GB)), B(-9, -7, 56, 59, -1, 1, glow(GB)),
+            B(4.6, 6.6, 56, 59, 4.6, 6.6, glow(GA)), B(-6.6, -4.6, 56, 59, 4.6, 6.6, glow(GA)),
+            B(4.6, 6.6, 56, 59, -6.6, -4.6, glow(GA)), B(-6.6, -4.6, 56, 59, -6.6, -4.6, glow(GA))],
              glow=True, hover_amp=1.2, hover_speed=1.0, spin_axis='y', spin_speed=40),
         Node('armL', (11, 32, 0), arm(1), parent='body', rest=(-10, 0, -9), walk_amp=12, walk_phase=180, atk=40),
         Node('foreL', (11, 20.5, 0), fore(1), parent='armL', rest=(-22, 0, 0), atk=25),
@@ -390,19 +394,216 @@ def vorthak():
             B(-11.9, -10.1, 9, 19, -1, 2, grip), B(-12.2, -9.8, 7.5, 9.5, -1.6, 2.6, gold),
             B(-15.5, -6.5, 19, 21.5, -1.6, 1.6, gold), B(-12.6, -9.4, 21.5, 38.5, -0.9, 0.9, steel),
             B(-14.2, -13, 21.5, 26, -1.2, 1.2, steel), B(-9, -7.8, 21.5, 26, -1.2, 1.2, steel)], parent='foreR'),
-        Node('sword_glow', (-11, 15, 0.5), [B(-11.3, -10.7, 23, 38, 0.9, 1.05, glow(G_LAVA)), B(-11.3, -10.7, 23, 38, -1.05, -0.9, glow(G_LAVA)),
-                                            B(-11.6, -10.4, 19.2, 21.2, 1.6, 1.75, glow(G_EMBER))], parent='sword', glow=True),
+        Node('sword_glow', (-11, 15, 0.5), [B(-11.3, -10.7, 23, 38, 0.9, 1.05, glow(GA)), B(-11.3, -10.7, 23, 38, -1.05, -0.9, glow(GA)),
+                                            B(-11.6, -10.4, 19.2, 21.2, 1.6, 1.75, glow(GB))], parent='sword', glow=True),
         Node('sword2', (-11, 38.5, 0.5), [B(-12.8, -9.2, 38.5, 52, -0.9, 0.9, steel), B(-12.2, -9.8, 52, 58, -0.8, 0.8, steel),
                                           B(-11.7, -10.3, 58, 62.3, -0.6, 0.6, steel), B(-13.6, -12.8, 38.5, 44, -1.1, 1.1, steel),
                                           B(-9.2, -8.4, 38.5, 44, -1.1, 1.1, steel)], parent='sword'),
-        Node('sword2_glow', (-11, 38.5, 0.5), [B(-11.3, -10.7, 38.5, 55, 0.9, 1.05, glow(G_LAVA)), B(-11.3, -10.7, 38.5, 55, -1.05, -0.9, glow(G_LAVA)),
-                                               B(-11.2, -10.8, 55, 61.5, 0.7, 0.85, glow(G_EMBER))], parent='sword2', glow=True),
+        Node('sword2_glow', (-11, 38.5, 0.5), [B(-11.3, -10.7, 38.5, 55, 0.9, 1.05, glow(GA)), B(-11.3, -10.7, 38.5, 55, -1.05, -0.9, glow(GA)),
+                                               B(-11.2, -10.8, 55, 61.5, 0.7, 0.85, glow(GB))], parent='sword2', glow=True),
     ]
     for i in range(3):
         nodes.append(Node('soul%d' % i, (0, 30, 0), [B(-1.6, 1.6, 28.4, 31.6, -1.6, 1.6, glow(G_SOUL))], parent='body', glow=True,
                           orbit_r=15, orbit_speed=75, orbit_phase=120 * i, hover_amp=1.5, hover_speed=1.2 + 0.2 * i,
                           spin_axis='y', spin_speed=120))
-    return Mob('vorthak', 'Vorthak', nodes)
+    nodes += _vorthak_extras(ph, plate, bone, steel, GA, GB)
+    if ph == 4:
+        # armadura rota: la cabeza queda sin yelmo ornamental (cuernos rotos) y la capa hecha jirones
+        for n in nodes:
+            if n.id == 'cape_lo':
+                n.boxes = [B(-7.6, 7.6, 11, 20, -6.0, -5.4, cape), B(-6, -3, 6, 11, -6.0, -5.4, cape_e), B(2, 5, 8, 11, -6.0, -5.4, cape_e)]
+    return Mob('vorthak' if ph == 1 else 'vorthak%d' % ph, 'Vorthak', nodes)
 
 
-ALL = [cenizo, calcinado, marchito, bruto, espectro, sacerdote, bestia, vorthak]
+G_WHITE = ['#ff9a30', '#ffd070', '#fff0b8', '#ffffff']
+
+
+def _vorthak_extras(ph, plate, bone, steel, GA, GB):
+    """Piezas que se suman en cada fase (Vorthak crece y se transforma)."""
+    out = []
+    if ph == 2:   # FURIA INFERNAL: corona de llamas, pinchos ardientes en los hombros y brasas
+        out.append(Node('crown_fire', (0, 44, 0), [B(-4, -3, 44, 52, -0.6, 0.6, glow(GA)), B(3, 4, 44, 52, -0.6, 0.6, glow(GA)),
+                                                    B(-0.6, 0.6, 44, 57, -4, -3, glow(GA)), B(-0.6, 0.6, 44, 56, 3, 4, glow(GB))],
+                        parent='head', glow=True, hover_amp=1.0, hover_speed=1.4))
+        for sx in (1, -1):
+            out.append(Node('shfire%d' % sx, (11.5 * sx, 38, 0), [B(10.4 * sx if sx > 0 else -13, 13 if sx > 0 else -10.4, 41, 50, -0.8, 0.8, glow(GA)),
+                                                                  B(7.6 * sx if sx > 0 else -9.2, 9.2 if sx > 0 else -7.6, 38, 45, 3, 4.4, glow(GB))],
+                            parent='body', glow=True, hover_amp=0.8, hover_speed=1.6))
+        for i in range(4):
+            out.append(Node('ember%d' % i, (0, 28, 0), [B(-0.9, 0.9, 27, 29, -0.9, 0.9, glow(GB))], parent='body', glow=True,
+                            orbit_r=13, orbit_speed=90, orbit_phase=90 * i, hover_amp=3, hover_speed=1.5 + 0.1 * i))
+    elif ph == 3:  # ASCENSIÓN DEL VACÍO: alas de vacío, esquirlas orbitando, segundo halo
+        wing = lambda sx: [B(4 * sx if sx > 0 else -7, 7 if sx > 0 else -4, 28, 38, -7.4, -5.2, plate),
+                           B(7 * sx if sx > 0 else -26, 26 if sx > 0 else -7, 36, 38.4, -7.4, -5.8, plate),
+                           B(12 * sx if sx > 0 else -28, 28 if sx > 0 else -12, 44, 46, -7, -6, plate),
+                           B(8 * sx if sx > 0 else -24, 24 if sx > 0 else -8, 28, 36, -6.8, -6.5, glow(GA)),
+                           B(14 * sx if sx > 0 else -28, 28 if sx > 0 else -14, 34, 43, -6.8, -6.5, glow(GB))]
+        out.append(Node('wingL', (5, 34, -5), wing(1), parent='body', rest=(0, -14, 0), idle_amp=9, idle_axis='y', idle_speed=1.1))
+        out.append(Node('wingR', (-5, 34, -5), wing(-1), parent='body', rest=(0, 14, 0), idle_amp=9, idle_axis='y', idle_speed=1.1, idle_phase=180))
+        out.append(Node('halo2', (0, 62, 0), [B(-14, -12, 60, 63, -1, 1, glow(GA)), B(12, 14, 60, 63, -1, 1, glow(GA)),
+                                              B(-1, 1, 60, 63, -14, -12, glow(GA)), B(-1, 1, 60, 63, 12, 14, glow(GA))],
+                        glow=True, hover_amp=1.5, hover_speed=0.8, spin_axis='y', spin_speed=-35))
+        for i in range(5):
+            out.append(Node('shard%d' % i, (0, 30, 0), [B(-1.1, 1.1, 27, 33, -1.1, 1.1, glow(GA))], parent='body', glow=True,
+                            orbit_r=19, orbit_speed=-60, orbit_phase=72 * i, hover_amp=3, hover_speed=1.0 + 0.15 * i,
+                            spin_axis='y', spin_speed=150))
+    elif ph == 4:  # ÚLTIMO ALIENTO: costillas al descubierto ardiendo en blanco, columna de luz y aro de fuego
+        out.append(Node('ribs_glow', (0, 17, 0), [B(-5.2, 5.2, y, y + 0.9, 5.45, 5.7, glow(GA)) for y in (24, 26.2, 28.4, 30.6, 32.8)] +
+                        [B(-0.5, 0.5, 23.5, 34, 5.6, 5.85, glow(GB)), B(-0.6, 0.6, 28, 40, -8.8, -8.5, glow(GB))],
+                        parent='body', glow=True, idle_amp=0.6, idle_axis='x', idle_speed=2.6))
+        out.append(Node('halo2', (0, 62, 0), [B(-14, -12, 60, 64, -1, 1, glow(GA)), B(12, 14, 60, 64, -1, 1, glow(GA)),
+                                              B(-1, 1, 60, 64, -14, -12, glow(GA)), B(-1, 1, 60, 64, 12, 14, glow(GA)),
+                                              B(9, 11, 60, 64, 9, 11, glow(GB)), B(-11, -9, 60, 64, 9, 11, glow(GB)),
+                                              B(9, 11, 60, 64, -11, -9, glow(GB)), B(-11, -9, 60, 64, -11, -9, glow(GB))],
+                        glow=True, hover_amp=2, hover_speed=1.4, spin_axis='y', spin_speed=-60))
+        for i in range(6):
+            out.append(Node('flare%d' % i, (0, 26, 0), [B(-1.2, 1.2, 24, 29, -1.2, 1.2, glow(GA))], parent='body', glow=True,
+                            orbit_r=16, orbit_speed=130, orbit_phase=60 * i, hover_amp=5, hover_speed=1.8 + 0.1 * i,
+                            spin_axis='y', spin_speed=200))
+    return out
+
+
+def vorthak():
+    return _vorthak(1)
+
+
+def vorthak2():
+    return _vorthak(2)
+
+
+def vorthak3():
+    return _vorthak(3)
+
+
+def vorthak4():
+    return _vorthak(4)
+
+
+
+# ============================================================================= MINIJEFES
+STEEL = ['#1d1f26', '#30333d', '#4a4e5c', '#757a8c', '#a9aebf']
+
+
+def sombra():
+    """Sombra Veloz: asesina encapuchada de vacío con dos dagas, jirones de capa y fuegos fatuos."""
+    cl = S(CLOAK, bias=1.3, spread=1.0, stripes=True)
+    cl_d = S(OBS, bias=1.2, spread=0.9)
+    wrap = S(['#120d1c', '#1c1430', '#2a1f48'], bias=1.5, spread=1.0, rows=3)
+    steel = S(STEEL, bias=2.2, spread=0.9)
+    face = S(['#050407', '#0b0910', '#14111c'], bias=1.0, spread=0.5)
+    leg = lambda sx: [B(0.4 * sx, 3.4 * sx, 1.5, 12, -1.5, 1.5, wrap), B(0.2 * sx, 3.6 * sx, 0, 2.5, -1.7, 3.2, cl_d),
+                      B(0.3 * sx, 3.5 * sx, 6, 8, -1.8, 1.8, cl_d)]
+    arm = lambda sx: [B(3.4 * sx, 5.6 * sx, 12, 23, -1.3, 1.3, cl), B(3.2 * sx, 5.8 * sx, 10, 12.5, -1.6, 1.6, wrap)]
+    dagger = lambda sx: [B(3.8 * sx, 5.2 * sx, 8, 10.4, -0.9, 0.9, cl_d), B(4.1 * sx, 4.9 * sx, 1, 8, -0.7, 0.7, steel),
+                         B(4.3 * sx, 4.7 * sx, 0, 1, -0.4, 0.4, steel)]
+    dagger_g = lambda sx: [B(4.45 * sx, 4.55 * sx, 1.5, 7.5, 0.7, 0.85, glow(G_VIOLET)), B(4.45 * sx, 4.55 * sx, 1.5, 7.5, -0.85, -0.7, glow(G_VIOLET))]
+    nodes = [
+        Node('legL', (2, 12, 0), leg(1), walk_amp=40, walk_phase=0),
+        Node('legR', (-2, 12, 0), mirror(leg(1)), walk_amp=40, walk_phase=180),
+        Node('body', (0, 12, 0), [B(-3.6, 3.6, 12, 24, -2, 2, cl), B(-4, 4, 12, 14, -2.4, 2.4, wrap), B(-3.8, 3.8, 21, 25, -2.4, 2.4, cl_d),
+                                  B(-4.2, 4.2, 12, 13, -2.6, 2.6, S(['#2a1f48', '#4d3680'], bias=1.2))],
+             rest=(16, 0, 0), idle_amp=1.8, idle_axis='x', idle_speed=1.6),
+        Node('tailA', (-2.5, 22, -2.2), [B(-5, -0.5, 4, 22, -3.2, -2.3, cl), B(-4.4, -1, 0, 4, -3.2, -2.4, cl_d)],
+             parent='body', idle_amp=8, idle_axis='x', idle_speed=1.7),
+        Node('tailB', (2.5, 22, -2.2), [B(0.5, 5, 2, 22, -3.2, -2.3, cl), B(1, 4.4, -1, 2, -3.2, -2.4, cl_d)],
+             parent='body', idle_amp=9, idle_axis='x', idle_speed=1.5, idle_phase=70),
+        Node('head', (0, 24, 0), [B(-4, 4, 24.5, 32.5, -4, 4, cl), B(-1.2, 1.2, 32.5, 37.5, -4.4, -0.5, cl_d),
+                                  B(-3.2, 3.2, 25.5, 31, 4, 4.4, face), B(-4.6, 4.6, 24, 25, -4.6, 4.2, cl_d)],
+             parent='body', look=True),
+        Node('head_glow', (0, 24, 0), [B(-2.8, -0.9, 28, 29.8, 4.4, 4.55, glow(G_VIOLET)), B(0.9, 2.8, 28, 29.8, 4.4, 4.55, glow(G_VIOLET))],
+             parent='head', glow=True),
+        Node('armL', (5, 23, 0), arm(1) + dagger(1), parent='body', rest=(-70, 0, -6), walk_amp=14, walk_phase=180, atk=70),
+        Node('armL_glow', (5, 23, 0), dagger_g(1), parent='armL', glow=True),
+        Node('armR', (-5, 23, 0), mirror(arm(1) + dagger(1)), parent='body', rest=(-70, 0, 6), walk_amp=14, walk_phase=0, atk=70),
+        Node('armR_glow', (-5, 23, 0), mirror(dagger_g(1)), parent='armR', glow=True),
+    ]
+    for i in range(3):
+        nodes.append(Node('wisp%d' % i, (0, 18, 0), [B(-1, 1, 17, 19, -1, 1, glow(G_VIOLET))], parent='body', glow=True,
+                          orbit_r=11, orbit_speed=120, orbit_phase=120 * i, hover_amp=3, hover_speed=1.2 + 0.2 * i))
+    return Mob('sombra', 'Sombra Veloz', nodes)
+
+
+def guardian():
+    """Guardián de Brasas: coloso de obsidiana con escudo rúnico, hacha de lava y respiraderos ardiendo en la espalda."""
+    plate = S(OBS, bias=1.8, spread=0.9, rivets=True)
+    plate_c = S(OBS, bias=1.5, spread=0.9, rivets=True, cracks=(3, 5, '#ff5a1a'))
+    brass = S(GOLD, bias=1.7, spread=0.8)
+    iron = S(ASH, bias=1.6, spread=0.9, rivets=True)
+    steel = S(STEEL, bias=2.2, spread=0.9)
+    wood = S(WOOD, bias=1.6, spread=1.0, stripes=True)
+    leg = lambda sx: [B(1 * sx, 7 * sx, 3, 15, -3, 3, plate), B(0.8 * sx, 7.2 * sx, 7, 10, -3.4, 3.4, iron),
+                      B(0.8 * sx, 7.2 * sx, 0, 3.2, -3.2, 5.5, plate), B(2 * sx, 6 * sx, 9, 12, 3.2, 4.2, brass)]
+    pauld = lambda sx: [B(7.5 * sx, 15 * sx, 27, 32, -5, 5, plate), B(7.3 * sx, 15.2 * sx, 29, 30, -5.2, 5.2, brass),
+                        B(10 * sx, 11.4 * sx, 32, 38, -0.7, 0.7, brass), B(13 * sx, 14.2 * sx, 32, 36, -0.7, 0.7, brass)]
+    nodes = [
+        Node('legL', (4, 15, 0), leg(1), walk_amp=22, walk_phase=0),
+        Node('legR', (-4, 15, 0), mirror(leg(1)), walk_amp=22, walk_phase=180),
+        Node('body', (0, 15, 0), [B(-7.5, 7.5, 15, 29, -4.5, 4.5, plate_c), B(-8, 8, 14, 16.5, -5, 5, brass), B(-5.5, 5.5, 19, 28, 4.5, 5.3, plate),
+                                  B(-8, 8, 28, 30, -5, 5, iron), B(-6.5, 6.5, 10, 15, -4.2, 4.2, iron)],
+             rest=(4, 0, 0), idle_amp=1.0, idle_axis='x', idle_speed=0.9),
+        Node('body_glow', (0, 15, 0), [B(-2, 2, 21, 26, 5.35, 5.5, glow(G_LAVA)), B(-5, -2, 18, 28, -4.7, -4.55, glow(G_LAVA)),
+                                       B(2, 5, 18, 28, -4.7, -4.55, glow(G_LAVA)), B(-0.5, 0.5, 14.5, 19, 5.1, 5.25, glow(G_EMBER))],
+             parent='body', glow=True),
+        Node('head', (0, 30, 0), [B(-4.5, 4.5, 30, 39, -4.5, 4.5, plate), B(-0.8, 0.8, 39, 46, -4, 2, brass), B(-5, 5, 29, 31, -5, 5, iron),
+                                  B(-6.5, -4.5, 36, 42, -1, 1, iron), B(4.5, 6.5, 36, 42, -1, 1, iron)],
+             parent='body', look=True),
+        Node('head_glow', (0, 30, 0), [B(-3.6, 3.6, 34, 35.5, 4.5, 4.65, glow(G_LAVA)), B(-0.5, 0.5, 31, 34, 4.5, 4.65, glow(G_EMBER))],
+             parent='head', glow=True),
+        Node('armL', (11, 28, 0), [B(8, 13, 15, 28, -2.8, 2.8, plate), B(7.8, 13.2, 13, 15.5, -3.3, 3.3, brass)] + pauld(1),
+             parent='body', rest=(-25, 0, -6), walk_amp=6, walk_phase=180, atk=30),
+        Node('shield', (11, 22, 4), [B(5.5, 16.5, 6, 28, 5.6, 7.6, iron), B(5.1, 16.9, 27, 29, 5.4, 7.8, brass), B(5.1, 16.9, 5, 7, 5.4, 7.8, brass),
+                                     B(5.1, 6.9, 7, 27, 5.4, 7.8, brass), B(15.1, 16.9, 7, 27, 5.4, 7.8, brass), B(8, 14, 12, 22, 7.5, 8.2, plate_c)],
+             parent='armL'),
+        Node('shield_glow', (11, 22, 4), [B(9.6, 12.4, 14, 20, 8.2, 8.35, glow(G_EMBER)), B(10.6, 11.4, 12, 22, 8.2, 8.35, glow(G_LAVA))],
+             parent='shield', glow=True),
+        Node('armR', (-11, 28, 0), mirror([B(8, 13, 15, 28, -2.8, 2.8, plate), B(7.8, 13.2, 13, 15.5, -3.3, 3.3, brass)] + pauld(1)),
+             parent='body', rest=(-62, 0, 6), walk_amp=5, walk_phase=0, atk=95),
+        Node('axe', (-11, 26, 0.5), [B(-11.8, -10.4, 4, 40, -1, 1, wood), B(-12.2, -10, 12, 16, -1.5, 1.5, brass),
+                                     B(-19, -10.4, 32, 42, -0.9, 0.9, steel), B(-20.4, -19, 33, 41, -0.9, 0.9, steel), B(-11.6, -10.6, 40, 45, -0.6, 0.6, steel)],
+             parent='armR'),
+        Node('axe_glow', (-11, 26, 0.5), [B(-20.4, -19.2, 33.5, 40.5, 0.9, 1.05, glow(G_LAVA)), B(-20.4, -19.2, 33.5, 40.5, -1.05, -0.9, glow(G_LAVA)),
+                                          B(-19, -12, 36, 38, 0.9, 1.05, glow(G_EMBER))],
+             parent='axe', glow=True),
+    ]
+    return Mob('guardian', 'Guardián de Brasas', nodes)
+
+
+def nigromante():
+    """Nigromante de Almas: hechicero con túnica, cráneo con cuernos, bastón con orbe de almas y cráneos orbitando."""
+    robe = S(CLOAK, bias=1.3, spread=1.0, stripes=True)
+    robe_d = S(OBS, bias=1.3, spread=0.9)
+    trim = S(['#0b4a5c', '#106f92', '#27b3d6'], bias=1.5, spread=0.8)
+    bone = S(BONE_CLEAN, bias=2.0, spread=0.8)
+    wood = S(WOOD, bias=1.6, spread=1.0, stripes=True)
+    arm = lambda sx: [B(4.5 * sx, 7.5 * sx, 12, 26, -1.8, 1.8, robe), B(4.3 * sx, 7.7 * sx, 12, 14.2, -2, 2, trim), B(5 * sx, 6.5 * sx, 8.5, 12, -0.8, 0.8, bone)]
+    nodes = [
+        Node('skirt', (0, 12, 0), [B(-6, 6, 2, 12, -4, 4, robe), B(-6.4, 6.4, 1, 2.6, -4.4, 4.4, trim), B(-5, 5, 0, 1.2, -3.4, 3.4, robe_d)],
+             idle_amp=3, idle_axis='z', idle_speed=1.1),
+        Node('body', (0, 12, 0), [B(-4.5, 4.5, 12, 26, -2.8, 2.8, robe), B(-4.9, 4.9, 12, 13.6, -3.1, 3.1, trim), B(-5.6, 5.6, 26, 28.2, -3.6, 3.6, robe_d),
+                                  B(-1, 1, 14, 26, 2.8, 3.1, trim)],
+             rest=(3, 0, 0), idle_amp=1.2, idle_axis='x', idle_speed=1.2),
+        Node('head', (0, 28, 0), [B(-4.6, 4.6, 28, 36, -4.6, 4.6, robe), B(-3, 3, 29, 35, 4.5, 5.2, bone), B(-2.2, 2.2, 28.4, 30, 4.6, 5.4, bone),
+                                  B(-1.6, -0.6, 36, 42, -0.5, 0.5, bone), B(0.6, 1.6, 36, 42, -0.5, 0.5, bone),
+                                  B(-3.6, -2.4, 40, 45, -0.5, 0.5, bone), B(2.4, 3.6, 40, 45, -0.5, 0.5, bone), B(-1.2, 1.2, 36, 38, -4.9, -4.6, trim)],
+             parent='body', look=True),
+        Node('head_glow', (0, 28, 0), [B(-2.4, -0.9, 31.6, 33.2, 5.2, 5.35, glow(G_SOUL)), B(0.9, 2.4, 31.6, 33.2, 5.2, 5.35, glow(G_SOUL))],
+             parent='head', glow=True),
+        Node('armL', (5, 26, 0), arm(1), parent='body', rest=(-45, 0, -10), idle_amp=3, idle_axis='x', idle_speed=1.3, atk=60),
+        Node('armR', (-5, 26, 0), mirror(arm(1)), parent='body', rest=(-40, 0, 14), atk=40),
+        Node('staff', (-10, 28, 7), [B(-10.6, -9.4, 4, 46, 6.4, 7.6, wood), B(-12, -8, 44, 47, 5.8, 8.2, bone), B(-12, -11, 46, 52, 6, 8, bone),
+                                     B(-9, -8, 46, 52, 6, 8, bone), B(-10.6, -9.4, 18, 20, 6, 8, trim)],
+             parent='body', idle_amp=1.0, idle_axis='z', idle_speed=1.0),
+        Node('orb', (-10, 28, 7), [B(-11.6, -8.4, 46.5, 50.5, 5.4, 8.6, glow(G_SOUL))], parent='staff', glow=True,
+             hover_amp=1.2, hover_speed=1.3, spin_axis='y', spin_speed=60),
+    ]
+    for i in range(3):
+        nodes.append(Node('skull%d' % i, (0, 26, 0), [B(-2, 2, 24, 28, -2, 2, bone), B(-1.3, 1.3, 22.4, 24, -1.5, 1.5, bone)], parent='body',
+                          orbit_r=13, orbit_speed=70, orbit_phase=120 * i, hover_amp=1.5, hover_speed=1.1 + 0.2 * i,
+                          spin_axis='y', spin_speed=90))
+        nodes.append(Node('skull%d_glow' % i, (0, 26, 0), [B(-1.6, -0.3, 25.4, 26.8, 2.0, 2.15, glow(G_SOUL)), B(0.3, 1.6, 25.4, 26.8, 2.0, 2.15, glow(G_SOUL))],
+                          parent='skull%d' % i, glow=True))
+    return Mob('nigromante', 'Nigromante de Almas', nodes)
+
+
+ALL = [cenizo, calcinado, marchito, bruto, espectro, sacerdote, bestia, vorthak, vorthak2, vorthak3, vorthak4,
+       sombra, guardian, nigromante]

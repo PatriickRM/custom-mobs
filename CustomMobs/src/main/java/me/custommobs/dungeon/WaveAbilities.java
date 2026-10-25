@@ -3,6 +3,7 @@ package me.custommobs.dungeon;
 import me.custommobs.Sfx;
 import me.custommobs.Text;
 import me.custommobs.model.MobVisuals;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.World;
@@ -306,8 +307,7 @@ public final class WaveAbilities implements Listener {
         for (int i = -1; i <= 1; i++) {
             Vector vel = dir.clone().rotateAroundY(Math.toRadians(i * 11.0)).multiply(1.9);
             Arrow a = shooter.launchProjectile(Arrow.class, vel);
-            a.setFireTicks(200);
-            a.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
+            quiet(a);
         }
         Sfx.play(eye, "entity.blaze.shoot", 1.0f, 1.2f);
     }
@@ -517,8 +517,31 @@ public final class WaveAbilities implements Listener {
     public void onShoot(EntityShootBowEvent e) {
         String k = kindOf(e.getEntity());
         if (!CALCINADO.equals(k)) return;
-        e.getProjectile().setFireTicks(200);
-        if (e.getProjectile() instanceof AbstractArrow a) a.setDamage(a.getDamage() + 0.5);
+        // sin llama en la flecha (molestaba a la vista): el fuego se aplica al impactar, ver onHit
+        if (e.getProjectile() instanceof AbstractArrow a) {
+            a.setDamage(a.getDamage() + 0.5);
+            quiet(a);
+        }
+    }
+
+    /** La flecha del Calcinado no arde, no se puede recoger y desaparece al impactar (no queda clavada). */
+    private static void quiet(AbstractArrow a) {
+        a.setFireTicks(0);
+        a.setVisualFire(false);
+        a.setPickupStatus(AbstractArrow.PickupStatus.DISALLOWED);
+        a.setPierceLevel(0);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onArrowLand(org.bukkit.event.entity.ProjectileHitEvent e) {
+        if (!(e.getEntity() instanceof AbstractArrow a)) return;
+        if (!(a.getShooter() instanceof Entity sh) || !CALCINADO.equals(kindOf(sh))) return;
+        Location at = a.getLocation();
+        if (at.getWorld() != null) at.getWorld().spawnParticle(Particle.SMOKE, at, 4, 0.05, 0.05, 0.05, 0.01);
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            a.remove();
+            if (e.getHitEntity() instanceof Player p) p.setArrowsInBody(0);
+        });
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)

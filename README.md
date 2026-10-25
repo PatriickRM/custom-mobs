@@ -96,3 +96,9 @@ los enemigos vuelven a ser los vanilla.
 **Regenerar el pack**: `pip install pillow numpy pyyaml` y `python3 tools/mobgen/build.py`
 (edita los diseños en `tools/mobgen/defs.py`; genera el zip, `mobmodels.yml` y una vista previa en
 `tools/mobgen/out/preview.png`). Después actualiza el `sha1` de la config.
+
+## Novedades (parte 2)
+- **Minijefes con modelo 3D**: Sombra Veloz (asesina de vacío), Guardián de Brasas (coloso con escudo y hacha) y Nigromante de Almas (hechicero con cráneos orbitando). Voces y pasos propios.
+- **Vorthak cambia de aspecto en cada fase** (`vorthak`, `vorthak2`, `vorthak3`, `vorthak4`) y gana 4 habilidades: *Erupciones de Ceniza* (I), *Muralla Ardiente* (II, se esquiva saltando), *Grietas del Vacío* (III) y *Sentencia* (IV).
+- **Cofre de recompensas personal** al vencer a Vorthak, reloj detenido al caer, luz invisible en las salas y sonidos de ambiente/eventos.
+- Los modelos se regeneran con `python3 tools/mobgen/build.py` (actualiza `resourcepack/CustomMobsPack.zip` y `mobmodels.yml`). Tras subir el pack nuevo, reinicia el servidor para que los jugadores lo descarguen.

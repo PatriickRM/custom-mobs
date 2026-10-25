@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -118,6 +119,13 @@ public final class DungeonInstance {
     private BukkitTask task;
     private long tick;
     private long runStart;
+    /** Instante en que cayó Vorthak: congela el reloj de la run. */
+    private long runEnd;
+    private long nextAmbient;
+    /** Botín personal de cada jugador (se recoge en el cofre de recompensas, nunca cae al suelo). */
+    private final Map<UUID, List<ItemStack>> rewards = new LinkedHashMap<>();
+    private final Map<UUID, Inventory> rewardInvs = new HashMap<>();
+    private Location rewardChest;
     private long completedTick;
     private long emptySince = -1;
     private int active;
@@ -338,7 +346,9 @@ public final class DungeonInstance {
     }
 
     public long elapsedSeconds() {
-        return runStart == 0 ? 0 : (System.currentTimeMillis() - runStart) / 1000;
+        if (runStart == 0) return 0;
+        long end = runEnd > 0 ? runEnd : System.currentTimeMillis();
+        return Math.max(0, (end - runStart) / 1000);
     }
 
     public String describe() {
@@ -424,6 +434,65 @@ public final class DungeonInstance {
         Title t = Title.title(Text.mm(title), Text.mm(subtitle),
                 Title.Times.times(Duration.ofMillis(300), Duration.ofSeconds(2), Duration.ofMillis(600)));
         for (Player p : onlineMembers()) p.showTitle(t);
+        eventSound(title);
+    }
+
+    /** Sonido de ambiente/aviso según el evento anunciado (se deduce del título para cubrir todas las salas). */
+    private void eventSound(String title) {
+        String s = title.toUpperCase(java.util.Locale.ROOT);
+        float[] v = {1f, 1f};
+        String key;
+        if (s.contains("DERROTADO") || s.contains("SUPERADA") || s.contains("RELIQUIA PURA")) {
+            key = "ui.toast.challenge_complete";
+        } else if (s.contains("DERROTA")) {
+            key = "entity.wither.death";
+            v[1] = 0.7f;
+        } else if (s.contains("OLEADA")) {
+            key = "event.raid.horn";
+            v[0] = 2.5f;
+            v[1] = 1.3f;
+        } else if (s.contains("MINI JEFE") || s.contains("SOMBRA") || s.contains("GUARDI") || s.contains("NIGROMANTE")) {
+            key = "entity.wither.spawn";
+            v[1] = 0.6f;
+        } else if (s.contains("VORTHAK")) {
+            key = "entity.ender_dragon.growl";
+            v[1] = 0.55f;
+        } else if (s.contains("TRAMPA") || s.contains("EMBOSCADA") || s.contains("MALDICI")) {
+            key = "entity.warden.nearby_close";
+        } else if (s.contains("CAMINO")) {
+            key = "block.bell.use";
+            v[1] = 0.8f;
+        } else if (s.contains("ALTAR") || s.contains("RELIQUIAS") || s.contains("FARO")) {
+            key = "block.beacon.activate";
+            v[1] = 0.7f;
+        } else if (s.contains("DESCANSO")) {
+            key = "block.respawn_anchor.charge";
+            v[1] = 1.2f;
+        } else if (s.trim().matches("<[^>]*>+\\s*<bold>\\s*\\d+.*") || s.matches(".*<BOLD>\\d+</BOLD>.*")) {
+            key = "block.note_block.hat";   // cuenta atrás
+            v[1] = 1.4f;
+        } else {
+            return;
+        }
+        for (Player p : onlineMembers()) {
+            p.playSound(p.getLocation(), key, org.bukkit.SoundCategory.MASTER, v[0], v[1]);
+        }
+    }
+
+    /** Ambiente de la dungeon: ecos lejanos, viento de almas y lava cada ~10-25 s. */
+    private void ambientSounds() {
+        if (tick < nextAmbient || !cfg.b("sounds.ambient")) return;
+        java.util.concurrent.ThreadLocalRandom rnd = java.util.concurrent.ThreadLocalRandom.current();
+        nextAmbient = tick + 200 + rnd.nextInt(300);
+        String[] pool = {"ambient.cave", "ambient.soul_sand_valley.mood", "ambient.nether_wastes.additions", "ambient.basalt_deltas.additions",
+                "block.lava.ambient", "entity.wither.ambient", "block.portal.ambient", "ambient.crimson_forest.additions"};
+        String key = pool[rnd.nextInt(pool.length)];
+        for (Player p : onlineMembers()) {
+            Location l = p.getLocation().add(rnd.nextDouble(-14, 14), rnd.nextDouble(0, 6), rnd.nextDouble(-14, 14));
+            float base = (float) cfg.d("sounds.ambient-volume");
+            float vol = key.equals("entity.wither.ambient") ? base * 0.35f : base;
+            p.playSound(l, key, org.bukkit.SoundCategory.AMBIENT, vol, 0.7f + (float) rnd.nextDouble(0.5));
+        }
     }
 
     void soundAll(Sound s, float vol, float pitch) {
@@ -555,6 +624,7 @@ public final class DungeonInstance {
         bless.tick(tick);
         if (tick % 40 == 0) keepSpectators();
         if (state == State.RUNNING) {
+            ambientSounds();
             runRooms();
             if (mini != null) mini.tick();
         } else if (state == State.COMPLETED) {
@@ -855,6 +925,9 @@ public final class DungeonInstance {
         if (!quiet) {
             world.playSound(new Location(world, r.westWall + 0.5, r.floorY + 2, r.cz + 0.5),
                     open ? Sound.BLOCK_IRON_DOOR_OPEN : Sound.BLOCK_IRON_DOOR_CLOSE, 2f, 0.6f);
+            Location gl = new Location(world, r.westWall + 0.5, r.floorY + 2, r.cz + 0.5);
+            world.playSound(gl, open ? "block.chain.break" : "block.chain.place", 1.6f, 0.6f);
+            world.playSound(gl, open ? "block.piston.extend" : "block.anvil.land", 1.0f, open ? 0.5f : 0.7f);
         }
     }
 
@@ -2258,7 +2331,8 @@ public final class DungeonInstance {
 
     // ------------------------------------------------------------------ victoria
 
-    private void complete(List<ItemStack> drops) {
+    private void complete(List<ItemStack> ignoredVanillaDrops) {
+        runEnd = System.currentTimeMillis(); // el reloj se detiene aquí
         state = State.COMPLETED;
         completedTick = tick;
         hint = "";
@@ -2284,21 +2358,24 @@ public final class DungeonInstance {
             }
         }
 
-        // cofre de botín en el centro
+        // botín personal: cada jugador tira su propio loot y lo recoge en SU cofre (no cae nada al suelo)
+        for (UUID u : members.keySet()) {
+            List<ItemStack> mine = new ArrayList<>(VorthakBoss.rollLoot(plugin, bosses));
+            mine.addAll(cfg.rollLoot("rewards.loot"));
+            rewards.put(u, mine);
+        }
         int cx = r.cx();
         int cy = r.floorY + 1;
         int cz = r.cz;
-        Block cb = world.getBlockAt(cx, cy, cz);
-        cb.setType(Material.CHEST, false);
+        world.getBlockAt(cx, cy, cz).setType(Material.ENDER_CHEST, false);
         builder.track(cx, cy, cz);
-        if (cb.getState() instanceof org.bukkit.block.Chest chest) {
-            Inventory inv = chest.getBlockInventory();
-            for (ItemStack it : drops) {
-                for (ItemStack left : inv.addItem(it).values()) {
-                    world.dropItemNaturally(cb.getLocation().add(0.5, 1, 0.5), left);
-                }
-            }
-        }
+        rewardChest = new Location(world, cx + 0.5, cy, cz + 0.5);
+        world.spawn(rewardChest.clone().add(0, 1.6, 0), TextDisplay.class, td -> {
+            td.text(Text.mm("<gradient:#ffd86b:#ff9a3c><bold>✦ Cofre de Recompensas ✦</bold></gradient>\n<gray>Clic derecho: cada jugador ve su botín</gray>"));
+            td.setBillboard(Display.Billboard.CENTER);
+            td.setSeeThrough(false);
+            td.setPersistent(false);
+        });
         // portal de salida (decorativo + detección por cercanía)
         int px = cx;
         int pz = cz + 9;
@@ -2325,7 +2402,7 @@ public final class DungeonInstance {
                 p.sendMessage(Text.mm("<dark_gray>▸</dark_gray> <white>" + s.name + "</white> <gray>daño <red>" + (int) Math.round(s.damage)
                         + "</red> · bajas <white>" + s.kills + "</white> · muertes <red>" + s.deaths + "</red></gray>"));
             }
-            p.sendMessage(Text.mm("<gray>Abre el <gold>cofre</gold> del centro y cruza el <light_purple>portal</light_purple> para salir (o <white>/dungeon leave</white>)."));
+            p.sendMessage(Text.mm("<gray>Abre el <gold>Cofre de Recompensas</gold> del centro (tu botín es personal) y cruza el <light_purple>portal</light_purple> para salir (o <white>/dungeon leave</white>)."));
         }
         for (Map.Entry<UUID, PState> en : members.entrySet()) {
             PState s = en.getValue();
@@ -2336,15 +2413,85 @@ public final class DungeonInstance {
             if (p == null) continue;
             int xp = cfg.i("rewards.xp");
             if (xp > 0) p.giveExp(xp);
-            for (ItemStack it : cfg.rollLoot("rewards.loot")) {
-                for (ItemStack left : p.getInventory().addItem(it).values()) {
-                    p.getWorld().dropItemNaturally(p.getLocation(), left);
-                }
-            }
             for (String cmd : cfg.list("rewards.commands")) {
                 Bukkit.dispatchCommand(Bukkit.getConsoleSender(), cmd.replace("%player%", s.name));
             }
         }
+    }
+
+    // ------------------------------------------------------------------ cofre de recompensas personal
+
+    /** Menú personal de recompensas (el holder lo identifica en el listener). */
+    public static final class RewardMenu implements InventoryHolder {
+        private final DungeonInstance inst;
+        private final UUID owner;
+        Inventory inv;
+
+        RewardMenu(DungeonInstance inst, UUID owner) {
+            this.inst = inst;
+            this.owner = owner;
+        }
+
+        public DungeonInstance instance() {
+            return inst;
+        }
+
+        public UUID owner() {
+            return owner;
+        }
+
+        @Override
+        public Inventory getInventory() {
+            return inv;
+        }
+    }
+
+    private static final int REWARD_SIZE = 45;
+    private static final int TAKE_ALL = REWARD_SIZE - 1;
+
+    public boolean isRewardChest(Block b) {
+        return state == State.COMPLETED && rewardChest != null && b.getType() == Material.ENDER_CHEST
+                && b.getX() == rewardChest.getBlockX() && b.getY() == rewardChest.getBlockY()
+                && b.getZ() == rewardChest.getBlockZ();
+    }
+
+    public void openRewards(Player p) {
+        List<ItemStack> mine = rewards.get(p.getUniqueId());
+        if (mine == null) {
+            p.sendMessage(Text.mm(DungeonManager.PREFIX + "<gray>No tienes recompensas en esta dungeon.</gray>"));
+            return;
+        }
+        Inventory inv = rewardInvs.get(p.getUniqueId());
+        if (inv == null) {
+            RewardMenu holder = new RewardMenu(this, p.getUniqueId());
+            inv = Bukkit.createInventory(holder, REWARD_SIZE, Text.mm("<gradient:#ffd86b:#ff9a3c><bold>Tu recompensa</bold></gradient>"));
+            holder.inv = inv;
+            for (ItemStack it : mine) {
+                for (ItemStack left : inv.addItem(it).values()) p.getInventory().addItem(left).values()
+                        .forEach(x -> p.getWorld().dropItemNaturally(p.getLocation(), x));
+            }
+            ItemStack all = new ItemStack(Material.HOPPER);
+            ItemMeta m = all.getItemMeta();
+            m.displayName(Text.mm("<green><bold>Recoger todo</bold></green>"));
+            all.setItemMeta(m);
+            inv.setItem(TAKE_ALL, all);
+            rewardInvs.put(p.getUniqueId(), inv);
+        }
+        p.openInventory(inv);
+        p.playSound(p.getLocation(), Sound.BLOCK_ENDER_CHEST_OPEN, 1f, 1f);
+    }
+
+    public void onRewardClick(Player p, int slot, boolean top) {
+        if (!top || slot != TAKE_ALL) return;
+        Inventory inv = rewardInvs.get(p.getUniqueId());
+        if (inv == null) return;
+        for (int i = 0; i < TAKE_ALL; i++) {
+            ItemStack it = inv.getItem(i);
+            if (it == null || it.getType().isAir()) continue;
+            Map<Integer, ItemStack> left = p.getInventory().addItem(it);
+            inv.setItem(i, left.isEmpty() ? null : left.values().iterator().next());
+        }
+        p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 1f, 1.1f);
     }
 
     private void completedTick() {
@@ -2398,6 +2545,29 @@ public final class DungeonInstance {
 
     // ------------------------------------------------------------------ salir / cerrar
 
+    /** Entrega el botín no recogido (ya fuera de la dungeon, en el inventario del jugador). */
+    private void giveUnclaimed(Player p) {
+        List<ItemStack> mine = rewards.remove(p.getUniqueId());
+        Inventory inv = rewardInvs.remove(p.getUniqueId());
+        List<ItemStack> pending = new ArrayList<>();
+        if (inv != null) {
+            for (int i = 0; i < TAKE_ALL; i++) {
+                ItemStack it = inv.getItem(i);
+                if (it != null && !it.getType().isAir()) pending.add(it);
+            }
+        } else if (mine != null && state == State.COMPLETED) {
+            pending.addAll(mine);
+        }
+        for (ItemStack it : pending) {
+            for (ItemStack left : p.getInventory().addItem(it).values()) {
+                p.getWorld().dropItemNaturally(p.getLocation(), left);
+            }
+        }
+        if (!pending.isEmpty()) {
+            p.sendMessage(Text.mm(DungeonManager.PREFIX + "<gray>Se te entregó el botín que no habías recogido.</gray>"));
+        }
+    }
+
     private void restore(Player p, PState s) {
         p.hideBossBar(bar);
         clearBlessingAttributes(p);
@@ -2417,6 +2587,7 @@ public final class DungeonInstance {
         manager.unmapPlayer(p.getUniqueId());
         removeTombOf(p.getUniqueId());
         restore(p, s);
+        giveUnclaimed(p);
         if (!s.completed) {
             manager.applyCooldown(p.getUniqueId(), cfg.i("cooldown.fail-minutes"));
             p.sendMessage(Text.mm(DungeonManager.PREFIX + "<gray>Has abandonado la dungeon.</gray>"));
@@ -2449,8 +2620,10 @@ public final class DungeonInstance {
         restoreHazards();
         for (Map.Entry<UUID, PState> en : new ArrayList<>(members.entrySet())) {
             Player p = Bukkit.getPlayer(en.getKey());
-            if (p != null) restore(p, en.getValue());
-            else manager.addPending(en.getKey(), en.getValue().returnLoc, en.getValue().prevMode);
+            if (p != null) {
+                restore(p, en.getValue());
+                giveUnclaimed(p);
+            } else manager.addPending(en.getKey(), en.getValue().returnLoc, en.getValue().prevMode);
             manager.unmapPlayer(en.getKey());
         }
         members.clear();

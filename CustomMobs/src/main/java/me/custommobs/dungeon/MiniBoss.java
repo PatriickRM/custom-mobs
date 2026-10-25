@@ -1,5 +1,6 @@
 package me.custommobs.dungeon;
 
+import me.custommobs.Sfx;
 import me.custommobs.Text;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
@@ -155,6 +156,31 @@ public final class MiniBoss {
             eq.setItemInOffHandDropChance(0f);
         }
 
+        // modelo 3D (resource pack): el mob real queda invisible y sin voz; su protección pasa a atributos
+        me.custommobs.model.MobVisuals vis = inst.plugin().visuals();
+        if (vis != null && vis.has(kind.key)) {
+            e.setSilent(true);
+            e.setGlowing(false);
+            if (eq != null) {
+                eq.setHelmet(null);
+                eq.setChestplate(null);
+                eq.setLeggings(null);
+                eq.setBoots(null);
+                eq.setItemInOffHand(null);
+                if (kind != Kind.NIGROMANTE) {
+                    eq.setItemInMainHand(vis.invisibleItem(kind == Kind.GUARDIAN ? Material.NETHERITE_AXE : Material.NETHERITE_SWORD));
+                }
+            }
+            if (kind == Kind.GUARDIAN) {
+                attr(e, Attribute.ARMOR, 20.0);
+                attr(e, Attribute.ARMOR_TOUGHNESS, 12.0);
+            } else if (kind == Kind.SOMBRA) {
+                attr(e, Attribute.ARMOR, 3.0);
+                attr(e, Attribute.ARMOR_TOUGHNESS, 3.0);
+            }
+            vis.attach(e, kind.key, false);
+        }
+
         MiniBoss mb = new MiniBoss(inst, kind, e, hp, dmg);
         if (kind == Kind.GUARDIAN) {
             mb.shieldMax = hp * inst.cfg().d("miniboss.guardian-shield-percent");
@@ -206,6 +232,7 @@ public final class MiniBoss {
     /** Llamado antes de aplicar el daño al jefe (prioridad alta en el listener). */
     public void onDamage(EntityDamageEvent e) {
         long t = inst.tick();
+        if (!(kind == Kind.GUARDIAN && shield > 0 && t >= brokenUntil)) hurtVoice(t);
         Location at = entity.getLocation().add(0, entity.getHeight() * 0.6, 0);
         World w = at.getWorld();
         if (kind == Kind.GUARDIAN) {
@@ -322,7 +349,51 @@ public final class MiniBoss {
                 + "</white><gray>/</gray><white>" + (int) maxHp + "</white><dark_gray>]</dark_gray>" + status));
     }
 
+    // ---- voz propia (con modelo 3D el mob real va en silencio)
+    private long nextVoice;
+    private long lastHurtFx;
+    private Location lastStep;
+    private double stepAcc;
+
+    private String[] voiceKeys() {
+        return switch (kind) {
+            case SOMBRA -> new String[]{"entity.vex.ambient", "entity.vex.hurt", "entity.vex.death", "0.55"};
+            case GUARDIAN -> new String[]{"entity.ravager.ambient", "entity.iron_golem.hurt", "entity.iron_golem.death", "0.6"};
+            case NIGROMANTE -> new String[]{"entity.evoker.ambient", "entity.evoker.hurt", "entity.evoker.death", "0.7"};
+        };
+    }
+
+    private void voice(long t) {
+        java.util.concurrent.ThreadLocalRandom rnd = java.util.concurrent.ThreadLocalRandom.current();
+        String[] k = voiceKeys();
+        Location l = entity.getLocation();
+        if (t >= nextVoice) {
+            Sfx.play(l, k[0], 1.4f, Float.parseFloat(k[3]) + (float) rnd.nextDouble(-0.08, 0.08));
+            if (kind == Kind.NIGROMANTE) Sfx.play(l, "particle.soul_escape", 1.0f, 0.8f);
+            nextVoice = t + 110 + rnd.nextInt(140);
+        }
+        if (kind == Kind.GUARDIAN) {   // pasos pesados cada ~2 bloques
+            if (lastStep != null && lastStep.getWorld() != null && lastStep.getWorld().equals(l.getWorld())) {
+                stepAcc += Math.hypot(l.getX() - lastStep.getX(), l.getZ() - lastStep.getZ());
+                if (stepAcc > 2.0) {
+                    stepAcc = 0;
+                    Sfx.play(l, "entity.iron_golem.step", 1.5f, 0.55f);
+                    Sfx.play(l, "block.anvil.land", 0.25f, 0.5f);
+                }
+            }
+            lastStep = l.clone();
+        }
+    }
+
+    private void hurtVoice(long t) {
+        if (t - lastHurtFx < 8) return;
+        lastHurtFx = t;
+        String[] k = voiceKeys();
+        Sfx.play(entity.getLocation(), k[1], 1.3f, Float.parseFloat(k[3]) + 0.1f);
+    }
+
     private void ambient(long t) {
+        voice(t);
         if (t % 6 != 0) return;
         World w = entity.getWorld();
         Location c = entity.getLocation().add(0, entity.getHeight() * 0.5, 0);
@@ -535,6 +606,8 @@ public final class MiniBoss {
 
     public void onDeath() {
         dead = true;
+        Sfx.play(entity.getLocation(), voiceKeys()[2], 1.6f, Float.parseFloat(voiceKeys()[3]));
+        Sfx.play(entity.getLocation(), "entity.wither.death", 0.8f, 1.2f);
         removeMinions();
     }
 

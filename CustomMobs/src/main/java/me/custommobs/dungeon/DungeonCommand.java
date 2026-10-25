@@ -82,7 +82,7 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
                 }
             }
             case "status" -> status(sender);
-            case "top" -> top(sender);
+            case "top" -> top(sender, args.length > 1 && args[1].equalsIgnoreCase("time"));
             case "list" -> {
                 if (!admin(sender)) return true;
                 List<DungeonInstance> list = manager.instances();
@@ -159,13 +159,20 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
         }
     }
 
-    private void top(CommandSender s) {
-        List<DungeonData.Record> top = manager.data().top(5);
+    private void top(CommandSender s, boolean byTime) {
+        List<DungeonData.Record> top = manager.data().top(byTime ? 1000 : 5);
+        if (byTime) {
+            top = new ArrayList<>(top);
+            top.removeIf(r -> r.bestTimeSeconds() <= 0);
+            top.sort(java.util.Comparator.comparingInt(DungeonData.Record::bestTimeSeconds));
+            if (top.size() > 5) top = new ArrayList<>(top.subList(0, 5));
+        }
         if (top.isEmpty()) {
             send(s, "<gray>Aún no hay récords.</gray>");
             return;
         }
-        send(s, "<gradient:#ffd86b:#ff9a3c><bold>Mejores puntajes</bold></gradient>");
+        send(s, byTime ? "<gradient:#7be6f4:#27b3d6><bold>Más rápidos</bold></gradient> <gray>(/dungeon top)</gray>"
+                : "<gradient:#ffd86b:#ff9a3c><bold>Mejores puntajes</bold></gradient> <gray>(/dungeon top time)</gray>");
         int i = 1;
         for (DungeonData.Record r : top) {
             s.sendMessage(Text.mm("<gold>#" + i++ + "</gold> <white>" + r.name() + "</white> <gray>— <white>" + r.bestScore()

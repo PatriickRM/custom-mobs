@@ -201,6 +201,7 @@ public final class DungeonBuilder {
             shell(r);
             lights(r);
             decorate(r);
+            style(r);
         }
         // pasillos
         for (int i = 0; i < rooms.size() - 1; i++) {
@@ -558,6 +559,173 @@ public final class DungeonBuilder {
                 cobwebs(r, 14);
             }
         }
+    }
+
+    // ------------------------------------------------------------------ diseño (molduras, pilastras, arañas, coliseo, trono)
+
+    private void stair(int x, int y, int z, Material m, BlockFace facing, boolean top) {
+        org.bukkit.block.data.type.Stairs d = (org.bukkit.block.data.type.Stairs) m.createBlockData();
+        d.setFacing(facing);
+        d.setHalf(top ? org.bukkit.block.data.Bisected.Half.TOP : org.bukkit.block.data.Bisected.Half.BOTTOM);
+        set(x, y, z, d);
+    }
+
+    private void slab(int x, int y, int z, Material m, boolean top) {
+        org.bukkit.block.data.type.Slab d = (org.bukkit.block.data.type.Slab) m.createBlockData();
+        d.setType(top ? org.bukkit.block.data.type.Slab.Type.TOP : org.bukkit.block.data.type.Slab.Type.BOTTOM);
+        set(x, y, z, d);
+    }
+
+    private void hangingLantern(int x, int y, int z) {
+        org.bukkit.block.data.type.Lantern l = (org.bukkit.block.data.type.Lantern) Material.SOUL_LANTERN.createBlockData();
+        l.setHanging(true);
+        set(x, y, z, l);
+    }
+
+    /** Pasada final de diseño de cada sala (se coloca después de la decoración y por tanto manda sobre ella). */
+    private void style(Room r) {
+        cornice(r);
+        ribs(r);
+        pilasters(r);
+        banners(r);
+        chandeliers(r);
+        switch (r.type) {
+            case WAVES -> coliseum(r);
+            case VORTHAK -> throne(r);
+            default -> { }
+        }
+    }
+
+    /** Moldura de escaleras invertidas donde la pared se une con el techo. */
+    private void cornice(Room r) {
+        if (r.height < 6) return;
+        int top = r.floorY + r.height;
+        Material m = Material.DEEPSLATE_BRICK_STAIRS;
+        for (int x = r.x0; x <= r.x1; x++) {
+            stair(x, top, r.z0, m, BlockFace.NORTH, true);
+            stair(x, top, r.z1, m, BlockFace.SOUTH, true);
+        }
+        for (int z = r.z0 + 1; z <= r.z1 - 1; z++) {
+            stair(r.x0, top, z, m, BlockFace.WEST, true);
+            stair(r.x1, top, z, m, BlockFace.EAST, true);
+        }
+    }
+
+    /** Nervaduras de losas que cruzan el techo cada 6 bloques (no se solapan con las luces). */
+    private void ribs(Room r) {
+        if (r.height < 6) return;
+        int top = r.floorY + r.height;
+        for (int x = r.x0 + 2; x <= r.x1 - 2; x += 6) {
+            for (int z = r.z0 + 1; z <= r.z1 - 1; z++) {
+                slab(x, top, z, Material.DEEPSLATE_BRICK_SLAB, true);
+            }
+        }
+    }
+
+    /** Pilastras de basalto pegadas a las paredes (dejan libres las puertas y el cofre de descanso). */
+    private void pilasters(Room r) {
+        for (int x = r.x0 + 2; x <= r.x1 - 2; x += 4) {
+            for (int z : new int[]{r.z0, r.z1}) {
+                if (r.chest != null && r.chest[0] == x && r.chest[2] == z) continue;   // no tapar el cofre
+                pillar(x, z, r);
+            }
+        }
+        for (int z = r.z0 + 2; z <= r.z1 - 2; z += 4) {
+            if (Math.abs(z - r.cz) <= 3) continue;                                      // hueco de las puertas
+            pillar(r.x0, z, r);
+            pillar(r.x1, z, r);
+        }
+    }
+
+    /** Estandartes carmesí colgados entre las pilastras de las paredes norte y sur. */
+    private void banners(Room r) {
+        if (r.height < 8) return;
+        int fy = r.floorY;
+        for (int x = r.x0 + 4; x <= r.x1 - 4; x += 4) {
+            for (int z : new int[]{r.z0, r.z1}) {
+                if (r.chest != null && r.chest[0] == x && r.chest[2] == z) continue;
+                set(x, fy + 4, z, Material.GILDED_BLACKSTONE);
+                for (int y = fy + 5; y <= fy + 7; y++) set(x, y, z, Material.RED_WOOL);
+                set(x, fy + 8, z, Material.GILDED_BLACKSTONE);
+            }
+        }
+    }
+
+    /** Araña de almas: cadena de muro, cruz de losas y cinco linternas de fuego de alma colgando. */
+    private void chandelier(Room r, int x, int z) {
+        int top = r.floorY + r.height;
+        set(x, top, z, Material.POLISHED_BLACKSTONE_WALL);
+        set(x, top - 1, z, Material.POLISHED_BLACKSTONE_WALL);
+        set(x, top - 2, z, Material.POLISHED_BLACKSTONE_BRICKS);
+        hangingLantern(x, top - 3, z);
+        int[][] arms = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] a : arms) {
+            slab(x + a[0], top - 2, z + a[1], Material.POLISHED_BLACKSTONE_BRICK_SLAB, true);
+            hangingLantern(x + a[0], top - 3, z + a[1]);
+        }
+    }
+
+    private void chandeliers(Room r) {
+        if (r.height < 8) return;
+        int cx = r.cx();
+        if (r.type == RoomType.START || r.type == RoomType.REST) {
+            chandelier(r, cx, r.cz);
+            return;
+        }
+        int q = Math.max(3, r.half() / 2);
+        for (int sx = -1; sx <= 1; sx += 2) {
+            for (int sz = -1; sz <= 1; sz += 2) {
+                chandelier(r, cx + sx * q, r.cz + sz * q);
+            }
+        }
+    }
+
+    /** Sala de oleadas: arena de coliseo con anillos rúnicos en el suelo y bancos de piedra en las gradas. */
+    private void coliseum(Room r) {
+        emblem(r, 4.5, 9.0);
+        int fy = r.floorY;
+        for (int x = r.x0 + 1; x <= r.x1 - 1; x++) {
+            if ((x - r.x0 - 2) % 4 == 0) continue;           // ahí van las pilastras
+            stair(x, fy + 1, r.z0, Material.BLACKSTONE_STAIRS, BlockFace.NORTH, false);
+            stair(x, fy + 1, r.z1, Material.BLACKSTONE_STAIRS, BlockFace.SOUTH, false);
+        }
+    }
+
+    /** Sala de Vorthak: rosetón exterior de runas y un trono de obsidiana contra la pared este. */
+    private void throne(Room r) {
+        int cx = r.cx();
+        int fy = r.floorY;
+        // anillo exterior de runas
+        for (int x = r.x0; x <= r.x1; x++) {
+            for (int z = r.z0; z <= r.z1; z++) {
+                double d = Math.hypot(x - cx, z - r.cz);
+                if (Math.abs(d - 17.0) < 0.7) set(x, fy, z, Material.CRYING_OBSIDIAN);
+                else if (Math.abs(d - 16.0) < 0.5) set(x, fy, z, Material.GILDED_BLACKSTONE);
+            }
+        }
+        // estrado bajo
+        int tx = r.x1;
+        for (int x = tx - 4; x <= tx; x++) {
+            for (int dz = -4; dz <= 4; dz++) {
+                slab(x, fy + 1, r.cz + dz, Material.POLISHED_BLACKSTONE_BRICK_SLAB, false);
+            }
+        }
+        // respaldo con forma de cuernos
+        for (int dz = -2; dz <= 2; dz++) {
+            int topY = fy + 11 - 2 * Math.abs(dz);
+            for (int y = fy + 1; y <= topY; y++) {
+                set(tx, y, r.cz + dz, y == topY ? Material.CRYING_OBSIDIAN : Material.POLISHED_BLACKSTONE_BRICKS);
+            }
+        }
+        set(tx, fy + 8, r.cz - 1, Material.GILDED_BLACKSTONE);
+        set(tx, fy + 8, r.cz + 1, Material.GILDED_BLACKSTONE);
+        // asiento y reposabrazos
+        stair(tx - 1, fy + 1, r.cz, Material.POLISHED_BLACKSTONE_BRICK_STAIRS, BlockFace.EAST, false);
+        set(tx - 1, fy + 1, r.cz - 1, Material.POLISHED_BLACKSTONE_BRICKS);
+        set(tx - 1, fy + 1, r.cz + 1, Material.POLISHED_BLACKSTONE_BRICKS);
+        // braseros de fuego de alma flanqueando el trono
+        brazier(tx - 1, r.cz - 4, r);
+        brazier(tx - 1, r.cz + 4, r);
     }
 
     // ------------------------------------------------------------------ chunks y ejecución

@@ -4,7 +4,7 @@ Espacio del mob (píxeles; 16 = 1 bloque): origen en el suelo bajo el centro, +Y
 +X es la IZQUIERDA del mob. Rotaciones: R = Rx * Ry * Rz (igual que JOML rotateX().rotateY().rotateZ()).
 Un nodo con rx>0 inclina su "arriba" hacia delante (+Z); un miembro que cuelga con rx<0 se levanta hacia delante.
 """
-import json, math, os, random, zipfile, hashlib
+import json, math, os, random, zipfile, hashlib, zlib
 import numpy as np
 from PIL import Image
 
@@ -111,7 +111,7 @@ def paint(mob):
     for n in mob.nodes:
         for bi, b in enumerate(n.boxes):
             st = b.style
-            rng = random.Random(hash((mob.id, n.id, bi, st.seed)) & 0xFFFFFFFF)
+            rng = random.Random(zlib.crc32(f"{mob.id}|{n.id}|{bi}|{st.seed}".encode()))  # determinista
             for face, (u, v, w, h) in faces_of(b).items():
                 paint_face(img, u, v, w, h, face, st, rng)
     return Image.fromarray(img, "RGBA")
@@ -226,7 +226,7 @@ def export(mobs, out):
         yml += [f"  {mob.id}:", f"    scale: {mob.scale}", f"    name: \"{mob.name}\"", "    nodes:"]
         for n in mob.nodes:
             has = bool(n.boxes)
-            key = f"{mob.id}_{n.id}"
+            key = f"{mob.id}_{n.id}".lower()  # Minecraft solo admite [a-z0-9/._-] en rutas
             if has:
                 with open(os.path.join(rp, "assets/%s/models/item/%s.json" % (NS, key)), "w") as f:
                     json.dump(model_json(mob, n), f, separators=(",", ":"))

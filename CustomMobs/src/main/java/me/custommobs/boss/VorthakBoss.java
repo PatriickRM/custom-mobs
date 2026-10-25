@@ -1,7 +1,9 @@
 package me.custommobs.boss;
 
 import me.custommobs.CustomMobsPlugin;
+import me.custommobs.Sfx;
 import me.custommobs.Text;
+import me.custommobs.model.MobVisuals;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -229,6 +231,71 @@ public final class VorthakBoss {
 
     private void start() {
         task = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 2L, 2L);
+        applyModel();
+    }
+
+    /**
+     * Vorthak se dibuja con su modelo 3D propio (resource pack): el Wither Skeleton real queda invisible y sin voz.
+     * Como la invisibilidad no oculta armadura ni objeto en mano, el equipo vanilla se retira y su protección
+     * (netherita completa) se pasa a atributos para no cambiar el equilibrio del combate.
+     */
+    private void applyModel() {
+        entity.setSilent(true);
+        MobVisuals vis = plugin.visuals();
+        if (vis == null || !vis.has("vorthak")) return;
+        EntityEquipment eq = entity.getEquipment();
+        if (eq != null) {
+            eq.setHelmet(null);
+            eq.setChestplate(null);
+            eq.setLeggings(null);
+            eq.setBoots(null);
+            eq.setItemInMainHand(vis.invisibleItem(Material.NETHERITE_SWORD));
+            eq.setItemInMainHandDropChance(0f);
+        }
+        setAttr(entity, Attribute.ARMOR, 20.0);
+        setAttr(entity, Attribute.ARMOR_TOUGHNESS, 12.0);
+        vis.attach(entity, "vorthak", false);
+    }
+
+    /** Gesto de ataque del modelo (alza el mandoble) al lanzar una habilidad. */
+    private void swing() {
+        MobVisuals vis = plugin.visuals();
+        if (vis != null) vis.attack(entity.getUniqueId(), 10);
+    }
+
+    // ---- voz propia (el Wither Skeleton real va en silencio)
+    private long nextVoice;
+    private Location lastStep;
+    private double stepAcc;
+    private long lastHurtFx;
+
+    private void voiceTick() {
+        Location l = entity.getLocation();
+        if (lastStep != null && lastStep.getWorld() != null && lastStep.getWorld().equals(l.getWorld())) {
+            double dx = l.getX() - lastStep.getX();
+            double dz = l.getZ() - lastStep.getZ();
+            double d = Math.sqrt(dx * dx + dz * dz);
+            if (d < 3.0) stepAcc += d;
+            if (stepAcc >= 2.6) {
+                stepAcc = 0;
+                Sfx.play(l, "entity.iron_golem.step", 1.6f, 0.5f);
+                Sfx.play(l, "block.netherite_block.step", 1.2f, 0.6f);
+            }
+        }
+        lastStep = l;
+        if (now >= nextVoice) {
+            nextVoice = now + 120 + ThreadLocalRandom.current().nextInt(140);
+            Sfx.play(l, "entity.wither.ambient", 1.6f, 0.45f);
+        }
+    }
+
+    /** Quejido al recibir un golpe (con un pequeño freno para no saturar). */
+    public void hurtFx() {
+        long t = System.currentTimeMillis();
+        if (t - lastHurtFx < 350) return;
+        lastHurtFx = t;
+        Sfx.play(entity.getLocation(), "entity.iron_golem.hurt", 1.5f, 0.5f);
+        Sfx.play(entity.getLocation(), "entity.wither.hurt", 1.0f, 0.6f);
     }
 
     /** Se detiene sin matar a la entidad (descarga de chunk, apagado). */
@@ -403,6 +470,7 @@ public final class VorthakBoss {
         now += 2;
         updateBar();
         ambient();
+        voiceTick();
         if (transitioning) return;
 
         checkPhase();
@@ -963,6 +1031,12 @@ public final class VorthakBoss {
     }
 
     private boolean cast(Ability a, List<Player> near) {
+        boolean ok = castAbility(a, near);
+        if (ok) swing();
+        return ok;
+    }
+
+    private boolean castAbility(Ability a, List<Player> near) {
         return switch (a) {
             case SLAM -> slam();
             case SUMMON -> summon(false);
@@ -1045,6 +1119,14 @@ public final class VorthakBoss {
                 eq.setLeggingsDropChance(0f);
                 eq.setBootsDropChance(0f);
             });
+            MobVisuals vis = plugin.visuals();
+            if (vis != null && vis.has("espectro")) {
+                // las Almas Cautivas se ven como Espectros (silenciosas, sin espada visible)
+                m.setSilent(true);
+                EntityEquipment meq = m.getEquipment();
+                if (meq != null) meq.setItemInMainHand(vis.invisibleItem(Material.STONE_SWORD));
+                vis.attach(m, "espectro", false);
+            }
             LivingEntity t = entity.getTarget();
             if (t != null) m.setTarget(t);
             minions.add(m.getUniqueId());

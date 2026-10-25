@@ -85,6 +85,8 @@ public final class MobVisuals implements Listener {
     public void attach(LivingEntity e, String modelId, boolean elite) {
         ModelDefs.Def def = defs.get(modelId);
         if (!enabled || def == null) return;
+        Visual previous = visuals.remove(e.getUniqueId());   // re-adopción tras recarga: no duplicar piezas
+        if (previous != null) previous.removeDisplays();
         e.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, PotionEffect.INFINITE_DURATION, 0, false, false));
         Visual v = new Visual(e, def, elite);
         v.build();

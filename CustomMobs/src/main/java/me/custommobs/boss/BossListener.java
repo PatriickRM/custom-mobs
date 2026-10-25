@@ -143,6 +143,7 @@ public final class BossListener implements Listener {
         if (e instanceof EntityDamageByEntityEvent byEntity && byEntity.getDamager() instanceof Player p) {
             boss.recordDamage(p, e.getFinalDamage());
         }
+        if (e.getFinalDamage() > 0) boss.hurtFx();
         Bukkit.getScheduler().runTask(plugin, boss::checkPhase);
     }
 

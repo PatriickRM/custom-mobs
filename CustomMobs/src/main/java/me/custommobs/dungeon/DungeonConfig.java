@@ -171,10 +171,10 @@ public final class DungeonConfig {
               success-minutes: 30
               fail-minutes: 5
 
-            # Orden de las salas. Tipos: WAVES, TRAP, PUZZLE, MINIBOSS, REST, ALTAR, VAULT, SWEEP
+            # Orden de las salas. Tipos: WAVES, TRAP, PUZZLE, MINIBOSS, REST, ALTAR, VAULT, SWEEP, MERCHANT, EVENT
             # (la sala de entrada y la de VORTHAK se añaden solas).
             # Escribe "A|B" para que el grupo ELIJA entre dos salas (voto). Ej: "ALTAR|TRAP".
-            rooms: [WAVES, "ALTAR|TRAP", "VAULT|PUZZLE", WAVES, "SWEEP|PUZZLE", MINIBOSS, REST]
+            rooms: [WAVES, "ALTAR|TRAP", "VAULT|PUZZLE", "WAVES|EVENT", "SWEEP|MERCHANT", MINIBOSS, REST]
 
             path:
               # Segundos que tiene el grupo para votar el camino (si nadie vota, se elige al azar).
@@ -191,6 +191,8 @@ public final class DungeonConfig {
               ALTAR:    {size: 29, height: 10}
               VAULT:    {size: 25, height: 9}
               SWEEP:    {size: 31, height: 8}
+              MERCHANT: {size: 21, height: 9}
+              EVENT:    {size: 21, height: 9}
               VORTHAK:  {size: 37, height: 20}
 
             players:
@@ -320,6 +322,37 @@ public final class DungeonConfig {
                 - "EXPERIENCE_BOTTLE:4:10:0.90"
                 - "POTION_HEAL:1:1:0.50"
                 - "NETHERITE_SCRAP:1:1:0.10"
+
+            event:
+              # Sala de Evento: cada jugador elige una opción (riesgo y recompensa).
+              # Los eventos están definidos en EventSystem.java (son datos: añadir uno es copiar un bloque).
+              # Tiempo máximo para decidir (quien no elija se marcha sin más).
+              seconds: 60
+
+            merchant:
+              # Mercader Fantasma: gasta ALMAS (se ganan matando) o VIDAS. Las almas duran toda la partida.
+              enabled: true
+              # Tiempo máximo en la tienda (se abre antes si todos pulsan "Listo").
+              seconds: 90
+              souls-per-kill: 1
+              souls-per-elite: 4
+              # Almas que recibe cada jugador al matar un mini jefe.
+              souls-miniboss: 12
+              # Precio en almas de la reliquia según su rareza.
+              price-common: 12
+              price-rare: 20
+              price-cursed: 10
+              price-legendary: 32
+              # Vidas que cuesta la segunda reliquia (precio de sangre).
+              blood-relic-lives: 1
+              # Esencia Espectral: cura (en puntos de vida, 2 = 1 corazón), compras máximas por visita.
+              heal-cost: 6
+              heal-amount: 8.0
+              max-heals: 3
+              # Vida Prestada: compra 1 vida (una por visita).
+              life-cost: 40
+              # Pacto de Sangre: entregas 1 vida y recibes estas almas (uno por visita).
+              pact-souls: 25
 
             sweep:
               # Faro Giratorio: recoge las 4 llaves esquivando los rayos (salta por encima o rodéalos).

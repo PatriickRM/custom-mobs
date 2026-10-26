@@ -168,6 +168,8 @@ public final class DungeonInstance {
     private final Map<UUID, Long> sweepHit = new java.util.HashMap<>();
     private final BlessingSystem bless;
     private final RelicSystem relics;
+    private final MerchantSystem merchant;
+    private final EventSystem events;
     private final CombatFx fx;
     private final RoomAmbience ambience;
     private final Puzzles puzzles;
@@ -232,6 +234,8 @@ public final class DungeonInstance {
 
         this.bless = new BlessingSystem(plugin, this, cfg, world, id);
         this.relics = new RelicSystem(plugin, this, cfg, world);
+        this.merchant = new MerchantSystem(this, cfg, world);
+        this.events = new EventSystem(this, cfg, world);
         this.fx = new CombatFx(plugin, cfg, world);
         this.ambience = new RoomAmbience(plugin, this, cfg, world);
         this.puzzles = new Puzzles(this);
@@ -471,6 +475,12 @@ public final class DungeonInstance {
         } else if (s.contains("ALTAR") || s.contains("RELIQUIAS") || s.contains("FARO")) {
             key = "block.beacon.activate";
             v[1] = 0.7f;
+        } else if (s.contains("MERCADER")) {
+            key = "block.amethyst_block.chime";
+            v[1] = 0.6f;
+        } else if (s.contains("EVENTO")) {
+            key = "block.end_portal_frame.fill";
+            v[1] = 0.7f;
         } else if (s.contains("DESCANSO")) {
             key = "block.respawn_anchor.charge";
             v[1] = 1.2f;
@@ -708,6 +718,8 @@ public final class DungeonInstance {
             case PUZZLE -> puzzles.tick(r);
             case ALTAR -> altarTick(r);
             case VAULT -> vaultTick(r);
+            case MERCHANT -> merchantTick(r);
+            case EVENT -> eventTick(r);
             case SWEEP -> sweepTick(r);
             case MINIBOSS -> miniTick(r);
             case REST -> restTick(r);
@@ -774,6 +786,17 @@ public final class DungeonInstance {
             case PUZZLE -> puzzles.start(r);
             case ALTAR -> startAltar(r);
             case VAULT -> startVault(r);
+            case MERCHANT -> {
+                titleAll("<dark_aqua><bold>MERCADER FANTASMA</bold></dark_aqua>",
+                        "<gray>Paga con almas... o con sangre</gray>");
+                merchant.start(r, tick);
+            }
+            case EVENT -> {
+                titleAll("<light_purple><bold>EVENTO</bold></light_purple>", "<gray>Cada uno elige su destino</gray>");
+                wave = 1;
+                totalWaves = 99;
+                events.start(r, tick);
+            }
             case SWEEP -> startSweep(r);
             case MINIBOSS -> {
                 miniSpawnTick = tick + 60;
@@ -1616,6 +1639,36 @@ public final class DungeonInstance {
         }
     }
 
+    // --- Mercader Fantasma ---
+
+    private void merchantTick(DungeonBuilder.Room r) {
+        hint = merchant.hint(tick);
+        merchant.ambient(r, tick);
+        if (merchant.finished(tick)) {
+            merchant.finish();
+            clearRoom(active);
+        }
+    }
+
+    // --- Sala de Evento ---
+
+    private void eventTick(DungeonBuilder.Room r) {
+        if (pendingSpawns > 0) spawnPending(r);
+        if (tick % 10 == 0) cleanMobs();
+        boolean busy = !mobs.isEmpty() || pendingSpawns > 0 || heavyPending();
+        hint = events.hint(tick, busy);
+        events.ambient(r, tick);
+        if (events.finished(tick) && !busy) {
+            events.finish();
+            clearRoom(active);
+        }
+    }
+
+    /** Encola enemigos de emboscada (los usan los eventos). */
+    void queueAmbush(int n) {
+        pendingSpawns += Math.max(0, n);
+    }
+
     // --- Faro Giratorio: llaves y rayos ---
 
     private void startSweep(DungeonBuilder.Room r) {
@@ -1991,6 +2044,18 @@ public final class DungeonInstance {
         return relics;
     }
 
+    MerchantSystem merchant() {
+        return merchant;
+    }
+
+    EventSystem events() {
+        return events;
+    }
+
+    int maxLives() {
+        return maxLives;
+    }
+
     CombatFx fx() {
         return fx;
     }
@@ -2105,9 +2170,12 @@ public final class DungeonInstance {
                 bless.onKill(e.getEntity(), killer);
                 relics.onKill(e.getEntity(), killer,
                         e.getEntity().getPersistentDataContainer().has(manager.eliteKey, PersistentDataType.BYTE));
+                merchant.onKill(killer,
+                        e.getEntity().getPersistentDataContainer().has(manager.eliteKey, PersistentDataType.BYTE));
             }
         }
         if (mini != null && mini.owns(u)) {
+            merchant.grantAll(cfg.i("merchant.souls-miniboss"));
             mini.onDeath();
             e.getDrops().clear();
             e.getDrops().addAll(cfg.rollLoot("miniboss.loot"));
@@ -2347,6 +2415,8 @@ public final class DungeonInstance {
         startEnd = tick + cfg.i("players.start-countdown-seconds") * 20L;
         bless.resetAll();
         relics.resetAll();
+        merchant.resetAll();
+        events.resetAll();
         ambience.clear();
         for (UUID u : members.keySet()) {
             PState s = members.get(u);
@@ -2603,6 +2673,8 @@ public final class DungeonInstance {
                     + "❤".repeat(Math.max(0, maxLives + s.bonusLives - s.lives)) + "</dark_gray>";
             String bl = bless.hudLine(p);
             String rl = relics.hudLine(p);
+            String ml = merchant.hudLine(p);
+            if (!ml.isEmpty()) rl = rl.isEmpty() ? ml : rl + " <dark_gray>·</dark_gray> " + ml;
             if (!rl.isEmpty()) bl = bl.isEmpty() ? rl : bl + " <dark_gray>·</dark_gray> " + rl;
             p.sendActionBar(Text.mm(hearts + (bl.isEmpty() ? "" : " <dark_gray>·</dark_gray> " + bl)
                     + (hint.isEmpty() ? "" : " <dark_gray>·</dark_gray> <gray>" + hint + "</gray>")));

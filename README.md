@@ -131,3 +131,23 @@ Opciones en `dungeon.yml` → `relics`: `enabled`, `every`, `choices`.
 - **Números de daño flotantes** sobre los enemigos (color según el daño, críticos grandes y dorados).
 - **Ambiente por sala**: cristales/bloques flotantes que giran y respiran, y partículas propias de cada tipo de sala
   (ceniza en oleadas, chispas rojas en trampas, almas en el altar, oro en la cámara de reliquias...).
+
+## Novedades (parte 4): Mercader Fantasma y salas de Evento
+
+Dos tipos de sala nuevos (`MERCHANT` y `EVENT` en `rooms:` de `dungeon.yml`; se pueden usar con el voto `"A|B"`).
+**Ojo:** si tu `dungeon.yml` ya existe, el nuevo orden por defecto no se aplica solo: añade `MERCHANT` / `EVENT` a tu lista `rooms:`
+(por ejemplo `rooms: [WAVES, "ALTAR|TRAP", "VAULT|PUZZLE", "WAVES|EVENT", "SWEEP|MERCHANT", MINIBOSS, REST]`).
+
+### Mercader Fantasma (`/dungeon shop`)
+Sala sin combate. Se gastan **almas**, que se ganan matando (1 por enemigo, 4 por élite, 12 al vencer al mini jefe) y duran toda la partida.
+Cada jugador ve su propia tienda:
+- **Reliquia por almas** (el precio depende de la rareza) y **reliquia por sangre** (cuesta vidas, nunca tu última).
+- **Esencia Espectral**: te cura (hasta 3 por visita). **Vida Prestada**: recupera 1 vida (una por visita).
+- **Pacto de Sangre**: entregas 1 vida y recibes almas.
+La sala se abre cuando todos pulsan «Listo» o se acaba el tiempo. Todos los precios están en `dungeon.yml` → `merchant`.
+
+### Salas de Evento (`/dungeon event`)
+Un texto y tres decisiones por jugador (seguras, con azar o con coste en almas/vidas). Hay 5 eventos
+(Altar Sangrante, Fuente Maldita, Cofre Trampa, Susurro del Vacío, Mendigo Espectral) y no se repiten en una misma partida.
+Algunas salidas provocan una **emboscada**, que hay que superar antes de seguir. Los eventos son datos en `EventSystem.java`:
+añadir uno es copiar un bloque `new Event(...)`. Tiempo para decidir en `dungeon.yml` → `event.seconds`.

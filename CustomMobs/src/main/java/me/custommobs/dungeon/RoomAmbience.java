@@ -102,6 +102,8 @@ final class RoomAmbience {
             case PUZZLE -> Material.SEA_LANTERN;
             case ALTAR -> Material.AMETHYST_BLOCK;
             case VAULT -> Material.GOLD_BLOCK;
+            case MERCHANT -> Material.SCULK_CATALYST;
+            case EVENT -> Material.RESPAWN_ANCHOR;
             case MINIBOSS -> Material.RED_NETHER_BRICKS;
             case REST -> Material.SHROOMLIGHT;
             case VORTHAK -> Material.CRYING_OBSIDIAN;
@@ -162,6 +164,16 @@ final class RoomAmbience {
             case VAULT -> world.spawnParticle(Particle.DUST, x, y, z, 2, 0.3, 0.3, 0.3, 0,
                     new Particle.DustOptions(Color.fromRGB(255, 205, 70), 0.9f));
             case SWEEP -> world.spawnParticle(Particle.ELECTRIC_SPARK, x, y, z, 1, 0.3, 0.3, 0.3, 0.02);
+            case EVENT -> {
+                world.spawnParticle(Particle.ENCHANT, x, y - 0.5, z, 2, 0.4, 0.4, 0.4, 0.4);
+                world.spawnParticle(Particle.DUST, x, y, z, 1, 0.2, 0.2, 0.2, 0,
+                        new Particle.DustOptions(Color.fromRGB(170, 40, 90), 1.0f));
+            }
+            case MERCHANT -> {
+                world.spawnParticle(Particle.SOUL, x, y - 0.5, z, 1, 0.2, 0.3, 0.2, 0.01);
+                world.spawnParticle(Particle.DUST, x, y, z, 1, 0.2, 0.2, 0.2, 0,
+                        new Particle.DustOptions(Color.fromRGB(90, 220, 255), 1.0f));
+            }
             case MINIBOSS -> {
                 world.spawnParticle(Particle.ASH, x, y, z, 2, 0.3, 0.2, 0.3, 0);
                 world.spawnParticle(Particle.DUST, x, y, z, 1, 0.2, 0.2, 0.2, 0,

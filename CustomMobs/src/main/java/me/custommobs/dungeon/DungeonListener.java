@@ -237,6 +237,38 @@ public final class DungeonListener implements Listener {
         if (e.getView().getTopInventory().getHolder() instanceof RelicSystem.Menu) e.setCancelled(true);
     }
 
+    /** Menú del Mercader Fantasma. */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onMerchantMenuClick(InventoryClickEvent e) {
+        if (!(e.getView().getTopInventory().getHolder() instanceof MerchantSystem.Menu)) return;
+        e.setCancelled(true);
+        if (!(e.getWhoClicked() instanceof Player p)) return;
+        if (e.getClickedInventory() != e.getView().getTopInventory()) return;
+        DungeonInstance inst = manager.of(p);
+        if (inst != null) inst.merchant().click(p, e.getSlot());
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onMerchantMenuDrag(InventoryDragEvent e) {
+        if (e.getView().getTopInventory().getHolder() instanceof MerchantSystem.Menu) e.setCancelled(true);
+    }
+
+    /** Menú de las salas de Evento. */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onEventMenuClick(InventoryClickEvent e) {
+        if (!(e.getView().getTopInventory().getHolder() instanceof EventSystem.Menu)) return;
+        e.setCancelled(true);
+        if (!(e.getWhoClicked() instanceof Player p)) return;
+        if (e.getClickedInventory() != e.getView().getTopInventory()) return;
+        DungeonInstance inst = manager.of(p);
+        if (inst != null) inst.events().click(p, e.getSlot());
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onEventMenuDrag(InventoryDragEvent e) {
+        if (e.getView().getTopInventory().getHolder() instanceof EventSystem.Menu) e.setCancelled(true);
+    }
+
     /** Cuenta el daño infligido por cada jugador (para el puntaje). */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onDamageDealt(EntityDamageByEntityEvent e) {

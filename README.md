@@ -197,3 +197,11 @@ Se gastan en el **Santuario de Ecos** (`/dungeon meta` o el botón del menú del
 
 Se guarda en `dungeon-data.yml` (`echoes`, `perks`). Valores en `dungeon.yml` → `meta` (`enabled`, `per-room`, `win-bonus`, `per-heat-level`);
 precios en `MetaSystem.Perk`. Los Ecos de una derrota con reinicio no se dan hasta el final definitivo de la partida.
+
+## Novedades (parte 8): biomas
+
+Cada partida se construye en un **bioma** distinto, con su paleta de bloques y partículas propias:
+Catacumbas de Ceniza (clásico), Cripta Helada, Santuario del Vacío y Forja Carmesí. Se anuncia al abrirse las puertas.
+En `dungeon.yml` → `biome`: `random` (por defecto), `ashen`, `frost`, `void` o `crimson`. Las paletas están en `Biome.java`
+(solo se sustituyen bloques por otros de la misma forma: bloque, escalera, losa, muro). Las salas ya tenían ramas: en los pasos con
+varias opciones (`"A|B"`) el grupo vota el camino.

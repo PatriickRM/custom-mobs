@@ -145,6 +145,8 @@ public final class DungeonConfig {
             # Mundo vacío exclusivo (se crea al arrancar y se borra al apagar).
             world: dungeon_world
             build-y: 80
+            # Bioma visual: ashen, frost, void, crimson o random (uno al azar por partida).
+            biome: random
 
             # --- iluminación y sonido ---
             # Bloques de luz invisibles en salas y pasillos (0 = apagado). Si las salas te parecen demasiado claras, baja el nivel.

@@ -172,6 +172,7 @@ public final class DungeonInstance {
     private final EventSystem events;
     private final ClassSystem classes;
     private final MetaSystem meta;
+    private final Biome biome;
     private final HeatSystem heat;
     private final CombatFx fx;
     private final RoomAmbience ambience;
@@ -226,7 +227,8 @@ public final class DungeonInstance {
         for (int st = 0; st < steps.size(); st++) {
             for (int ri : steps.get(st)) stepOfRoom[ri] = st;
         }
-        this.builder = new DungeonBuilder(plugin, world, cfg, types, 16, cfg.i("build-y"), oz, System.nanoTime());
+        this.biome = Biome.of(cfg.s("biome"));
+        this.builder = new DungeonBuilder(plugin, world, cfg, types, 16, cfg.i("build-y"), oz, System.nanoTime(), biome);
         this.rooms = builder.rooms();
         int maxHalf = 0;
         for (DungeonBuilder.Room r : rooms) maxHalf = Math.max(maxHalf, r.half());
@@ -707,7 +709,7 @@ public final class DungeonInstance {
                     heat.lock();
                     classes.apply();
                     meta.applyStart(this);
-                    titleAll("<gradient:#ff4d4d:#ffb347><bold>¡ADELANTE!</bold></gradient>", "<gray>Las puertas se abren</gray>");
+                    titleAll("<gradient:#ff4d4d:#ffb347><bold>¡ADELANTE!</bold></gradient>", biome.color + biome.title + "</" + biome.color.substring(1));
                     soundAll(Sound.ENTITY_ENDER_DRAGON_GROWL, 0.8f, 1.2f);
                     clearRoom(0);
                 }
@@ -716,7 +718,7 @@ public final class DungeonInstance {
             long left = startEnd - tick;
             if (left <= 0) {
                 meta.applyStart(this);
-                titleAll("<gradient:#ff4d4d:#ffb347><bold>¡ADELANTE!</bold></gradient>", "<gray>Las puertas se abren</gray>");
+                titleAll("<gradient:#ff4d4d:#ffb347><bold>¡ADELANTE!</bold></gradient>", biome.color + biome.title + "</" + biome.color.substring(1));
                 soundAll(Sound.ENTITY_ENDER_DRAGON_GROWL, 0.8f, 1.2f);
                 clearRoom(0);
             } else if (left % 20 == 0) {
@@ -2071,6 +2073,10 @@ public final class DungeonInstance {
 
     EventSystem events() {
         return events;
+    }
+
+    Biome biome() {
+        return biome;
     }
 
     MetaSystem meta() {

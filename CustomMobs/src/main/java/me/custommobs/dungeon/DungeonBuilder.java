@@ -100,6 +100,7 @@ public final class DungeonBuilder {
     private final World world;
     private final DungeonConfig cfg;
     private final Random rnd;
+    private final Biome biome;
     private final List<Room> rooms = new ArrayList<>();
     private final List<Op> ops = new ArrayList<>();
     private final Set<Long> ticketed = new HashSet<>();
@@ -111,7 +112,8 @@ public final class DungeonBuilder {
     private boolean planned;
 
     public DungeonBuilder(CustomMobsPlugin plugin, World world, DungeonConfig cfg, List<RoomType> types,
-                          int ox, int oy, int oz, long seed) {
+                          int ox, int oy, int oz, long seed, Biome biome) {
+        this.biome = biome == null ? Biome.ASHEN : biome;
         this.plugin = plugin;
         this.world = world;
         this.cfg = cfg;
@@ -147,11 +149,24 @@ public final class DungeonBuilder {
     // ------------------------------------------------------------------ colocación de bloques
 
     private void set(int x, int y, int z, Material m) {
-        ops.add(new Op(x, y, z, m.createBlockData(), false));
+        ops.add(new Op(x, y, z, biome.map(m).createBlockData(), false));
     }
 
     private void set(int x, int y, int z, BlockData d) {
-        ops.add(new Op(x, y, z, d, false));
+        ops.add(new Op(x, y, z, themed(d), false));
+    }
+
+    /** Aplica la paleta del bioma conservando el estado del bloque (orientación, mitad...). */
+    private BlockData themed(BlockData d) {
+        Material to = biome.map(d.getMaterial());
+        if (to == d.getMaterial()) return d;
+        try {
+            String s = d.getAsString();
+            int i = s.indexOf('[');
+            return Bukkit.createBlockData(to.getKey() + (i >= 0 ? s.substring(i) : ""));
+        } catch (IllegalArgumentException ex) {
+            return d;
+        }
     }
 
     private void fill(int x1, int y1, int z1, int x2, int y2, int z2, Material m) {

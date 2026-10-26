@@ -140,6 +140,9 @@ final class RoomAmbience {
                 double y = base.getY() + r.nextDouble(0.3, 5.0);
                 double z = base.getZ() + r.nextDouble(-9, 9);
                 spawnFor(room.type, x, y, z);
+                if (inst.biome().particle != null && i == 0) {
+                    world.spawnParticle(inst.biome().particle, x, y, z, 2, 0.4, 0.3, 0.4, 0.01);
+                }
             }
         }
     }

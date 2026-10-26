@@ -123,6 +123,7 @@ public final class DungeonListener implements Listener {
         if (e.getEntity() instanceof Player p) {
             DungeonInstance inst = manager.of(p);
             if (inst != null) {
+                if (inst.relics().onHurt(p, e)) return;
                 double m = inst.damageTakenMultiplier(p);
                 if (inst.modifier() == Modifier.GLASS) m *= 1.3;
                 if (m != 1.0) e.setDamage(e.getDamage() * m);
@@ -149,7 +150,10 @@ public final class DungeonListener implements Listener {
         if (p == null) return;
         DungeonInstance inst = manager.of(p);
         if (inst == null) return;
-        if (e.getEntity() instanceof LivingEntity target) inst.blessings().modifyDealt(p, target, e);
+        if (e.getEntity() instanceof LivingEntity target) {
+            inst.blessings().modifyDealt(p, target, e);
+            inst.relics().modifyDealt(p, target, e);
+        }
     }
 
     /** Bendición Paso del Vacío: la tecla de cambiar de mano (F) hace un dash. */
@@ -217,6 +221,22 @@ public final class DungeonListener implements Listener {
         if (e.getView().getTopInventory().getHolder() instanceof DungeonInstance.BlessingMenu) e.setCancelled(true);
     }
 
+    /** Menú de reliquias: elegir con clic. */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onRelicMenuClick(InventoryClickEvent e) {
+        if (!(e.getView().getTopInventory().getHolder() instanceof RelicSystem.Menu)) return;
+        e.setCancelled(true);
+        if (!(e.getWhoClicked() instanceof Player p)) return;
+        if (e.getClickedInventory() != e.getView().getTopInventory()) return;
+        DungeonInstance inst = manager.of(p);
+        if (inst != null) inst.chooseRelicBySlot(p, e.getSlot());
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onRelicMenuDrag(InventoryDragEvent e) {
+        if (e.getView().getTopInventory().getHolder() instanceof RelicSystem.Menu) e.setCancelled(true);
+    }
+
     /** Cuenta el daño infligido por cada jugador (para el puntaje). */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onDamageDealt(EntityDamageByEntityEvent e) {
@@ -228,6 +248,11 @@ public final class DungeonListener implements Listener {
             inst.addDamage(p, e.getFinalDamage());
             if (e.getEntity() instanceof LivingEntity target) {
                 inst.blessings().afterDealt(p, target, e.getFinalDamage());
+                inst.relics().afterDealt(p, target, e.getFinalDamage());
+                boolean crit = e.getDamager() instanceof Player && p.getFallDistance() > 0.0f && !p.isOnGround()
+                        && !p.isSprinting() && !p.isInWater();
+                inst.fx().damage(target, e.getFinalDamage(), crit);
+                inst.fx().heavyHit(target.getLocation().add(0, target.getHeight() * 0.6, 0), e.getFinalDamage());
             }
         }
     }

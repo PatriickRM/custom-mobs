@@ -102,3 +102,32 @@ los enemigos vuelven a ser los vanilla.
 - **Vorthak cambia de aspecto en cada fase** (`vorthak`, `vorthak2`, `vorthak3`, `vorthak4`) y gana 4 habilidades: *Erupciones de Ceniza* (I), *Muralla Ardiente* (II, se esquiva saltando), *Grietas del Vacío* (III) y *Sentencia* (IV).
 - **Cofre de recompensas personal** al vencer a Vorthak, reloj detenido al caer, luz invisible en las salas y sonidos de ambiente/eventos.
 - Los modelos se regeneran con `python3 tools/mobgen/build.py` (actualiza `resourcepack/CustomMobsPack.zip` y `mobmodels.yml`). Tras subir el pack nuevo, reinicia el servidor para que los jugadores lo descarguen.
+
+## Novedades (parte 3): reliquias y feedback visual
+
+### Reliquias (`/dungeon relic`)
+Objetos pasivos que **cambian las reglas** de la partida. Se ofrecen en las salas intermedias, **alternando con las bendiciones**
+(cada jugador elige una entre 3 en un menú; si no eliges, se te da una al azar al entrar en la siguiente sala). No se repiten.
+
+| Reliquia | Rareza | Efecto |
+|---|---|---|
+| Corazón de Brasa | Común | Los enemigos que matas estallan en llamas y prenden a los cercanos |
+| Linterna de Almas | Común | +2,5% de daño por alma (máx. 12, una por muerte); si te hieren pierdes la mitad |
+| Cáliz Carmesí | Común | Cada muerte te cura (más si es élite) |
+| Tambor de Guerra | Común | Cada muerte da velocidad; encadena kills para correr más |
+| Sello del Cazador | Común | El primer golpe a un enemigo con vida casi llena hace +60% |
+| Máscara del Verdugo | Rara | +80% de daño contra enemigos con <30% de vida |
+| Aguja del Vacío | Rara | 18% de lanzar un rayo del vacío a otro enemigo cercano |
+| Égida de Ceniza | Rara | Cada 15 s recuperas 2 corazones de absorción |
+| Anillo de Espejo | Rara | 12% de anular por completo un golpe enemigo |
+| Colmillo de Cristal | Maldita | +35% de daño infligido, +25% de daño recibido |
+| Segador de Almas | Legendaria | Cada 8ª muerte desata una onda de almas |
+| Pluma de Fénix | Legendaria | Una vida extra permanente |
+
+Como las bendiciones, el daño "extra" de las reliquias **no afecta a Vorthak ni a sus heraldos**.
+Opciones en `dungeon.yml` → `relics`: `enabled`, `every`, `choices`.
+
+### Feedback visual (`dungeon.yml` → `fx`)
+- **Números de daño flotantes** sobre los enemigos (color según el daño, críticos grandes y dorados).
+- **Ambiente por sala**: cristales/bloques flotantes que giran y respiran, y partículas propias de cada tipo de sala
+  (ceniza en oleadas, chispas rojas en trampas, almas en el altar, oro en la cámara de reliquias...).

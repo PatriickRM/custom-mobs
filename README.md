@@ -166,3 +166,55 @@ se le asigna una clase al azar. Con `classes.enabled: false` vuelve la cuenta at
 | Guardián | Aguanta y devuelve el golpe | Piel de Obsidiana II, Espinas de Sangre, Aliento de Vida · Égida de Ceniza · **+1 vida** |
 
 Las clases son datos en `StartClass.java`: añadir una es copiar un bloque.
+
+## Novedades (parte 6): niveles de Calor
+
+Dificultad opcional estilo «ascensión». Cada jugador elige su nivel en el menú del Heraldo (botón de la hoguera). Los niveles se suman:
+
+| Calor | Efecto |
+|---|---|
+| 1 · Marea de Ceniza | Enemigos con +15% de vida |
+| 2 · Colmillos Afilados | Enemigos con +15% de daño |
+| 3 · Élites Voraces | x2 de probabilidad de élites |
+| 4 · Vidas Contadas | Una vida menos para todos |
+| 5 · Sin Tregua | +1 oleada en las salas de oleadas |
+
+Se desbloquean de uno en uno al **completar la dungeon** con el Calor anterior (se guarda por jugador en `dungeon-data.yml`).
+El grupo juega con la media redondeada de las elecciones y el puntaje sube un 10% por nivel. Todo se ajusta en `dungeon.yml` → `heat`.
+Requiere `classes.enabled: true`, porque el botón vive en el menú del Heraldo.
+
+## Novedades (parte 7): Ecos y mejoras permanentes (`/dungeon meta`)
+
+Meta-progresión: cada partida, **ganes o pierdas**, da **Ecos** (3 por sala superada; +25 por victoria y +8 por nivel de Calor).
+Se gastan en el **Santuario de Ecos** (`/dungeon meta` o el botón del menú del Heraldo) en mejoras que valen para todas tus partidas futuras:
+
+| Mejora | Niveles | Efecto |
+|---|---|---|
+| Bolsa de Brasas | 3 | +10 brasas iniciales por nivel |
+| Fortuna | 3 | +1 relanzamiento de bendiciones por nivel |
+| Segundo Aliento | 1 | +1 vida al empezar |
+| Legado | 1 | Reliquia común al azar al empezar |
+
+Se guarda en `dungeon-data.yml` (`echoes`, `perks`). Valores en `dungeon.yml` → `meta` (`enabled`, `per-room`, `win-bonus`, `per-heat-level`);
+precios en `MetaSystem.Perk`. Los Ecos de una derrota con reinicio no se dan hasta el final definitivo de la partida.
+
+## Novedades (parte 8): biomas
+
+Cada partida se construye en un **bioma** distinto, con su paleta de bloques y partículas propias:
+Catacumbas de Ceniza (clásico), Cripta Helada, Santuario del Vacío y Forja Carmesí. Se anuncia al abrirse las puertas.
+En `dungeon.yml` → `biome`: `random` (por defecto), `ashen`, `frost`, `void` o `crimson`. Las paletas están en `Biome.java`
+(solo se sustituyen bloques por otros de la misma forma: bloque, escalera, losa, muro). Las salas ya tenían ramas: en los pasos con
+varias opciones (`"A|B"`) el grupo vota el camino.
+
+## Novedades (parte 9): Hub de la dungeon y registro de jefes
+
+Una **isla flotante decorada** (mundo vacío propio `dungeon_lobby`, se construye al arrancar y se borra al apagar) que hace de lobby:
+- **Pedestales de jefe:** uno por cada entrada de `BossDef.ALL`. Clic derecho abre un menú para entrar en la cola, salirse o adelantar el inicio. Los jefes no disponibles aparecen **sellados**.
+- **Santuario de Ecos** (clic derecho) y **Salón de la Fama** (top 3 de puntajes), más un cristal central que muestra la cola.
+- Protegido: no se rompe ni se coloca nada, sin daño ni hambre, sin mobs (los admins en creativo pueden editar).
+
+Comandos: `/dungeon hub` (ir al hub). Sin `/dungeon setlobby`, el lobby de la dungeon **es** el hub; si ya tenías uno fijado sigue mandando:
+usa `/dungeon setlobby hub` para volver al hub. Config en `dungeon.yml` → `hub` (`enabled`, `world`).
+
+**Añadir un jefe nuevo:** copia una línea de `BossDef.ALL` (id, nombre, color, icono, descripción, `available`). Su pedestal aparece solo en el hub
+(hasta 5) y la cola ya es por jefe. El combate de cada jefe se implementa aparte: hoy solo Vorthak tiene combate (`DungeonInstance.spawnVorthak`).

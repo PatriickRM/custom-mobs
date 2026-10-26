@@ -95,9 +95,13 @@ public final class MiniBoss {
     public static MiniBoss spawn(DungeonInstance inst, Kind kind, Location loc) {
         DungeonConfig cfg = inst.cfg();
         World w = loc.getWorld();
-        double hp = cfg.d("miniboss." + kind.key + ".health")
-                * (1 + cfg.d("scaling.vorthak-health-per-extra-player") * 0.8 * (inst.groupSize() - 1));
-        double dmg = cfg.d("miniboss." + kind.key + ".damage") * (1 + 0.05 * Math.max(0, inst.roomOrdinal() - 1));
+        // Minecraft limita la vida máxima a 1024: sin el tope, setHealth lanza IllegalArgumentException
+        // (pasaba con el Guardián de Brasas a partir de 3 jugadores).
+        double hp = Math.min(1024.0, cfg.d("miniboss." + kind.key + ".health")
+                * (1 + cfg.d("scaling.vorthak-health-per-extra-player") * 0.8 * (inst.groupSize() - 1))
+                * inst.heat().hpMul());
+        double dmg = cfg.d("miniboss." + kind.key + ".damage") * (1 + 0.05 * Math.max(0, inst.roomOrdinal() - 1))
+                * inst.heat().dmgMul();
 
         LivingEntity e = switch (kind) {
             case SOMBRA -> w.spawn(loc, WitherSkeleton.class);

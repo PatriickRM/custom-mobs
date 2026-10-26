@@ -171,6 +171,10 @@ public final class DungeonInstance {
     private final MerchantSystem merchant;
     private final EventSystem events;
     private final ClassSystem classes;
+    private final MetaSystem meta;
+    private final Biome biome;
+    private final BossDef boss;
+    private final HeatSystem heat;
     private final CombatFx fx;
     private final RoomAmbience ambience;
     private final Puzzles puzzles;
@@ -198,7 +202,7 @@ public final class DungeonInstance {
     private final List<Hazard> hazards = new ArrayList<>();
 
     public DungeonInstance(CustomMobsPlugin plugin, DungeonManager manager, int id, int slot,
-                           List<Player> players, Modifier modifier) {
+                           List<Player> players, Modifier modifier, BossDef boss) {
         this.plugin = plugin;
         this.manager = manager;
         this.cfg = manager.cfg();
@@ -207,6 +211,7 @@ public final class DungeonInstance {
         this.slot = slot;
         this.world = manager.world();
         this.modifier = modifier;
+        this.boss = boss == null ? BossDef.DEFAULT : boss;
         this.oz = slot * cfg.i("instance-spacing");
 
         List<RoomType> types = new ArrayList<>();
@@ -224,7 +229,8 @@ public final class DungeonInstance {
         for (int st = 0; st < steps.size(); st++) {
             for (int ri : steps.get(st)) stepOfRoom[ri] = st;
         }
-        this.builder = new DungeonBuilder(plugin, world, cfg, types, 16, cfg.i("build-y"), oz, System.nanoTime());
+        this.biome = Biome.of(cfg.s("biome"));
+        this.builder = new DungeonBuilder(plugin, world, cfg, types, 16, cfg.i("build-y"), oz, System.nanoTime(), biome);
         this.rooms = builder.rooms();
         int maxHalf = 0;
         for (DungeonBuilder.Room r : rooms) maxHalf = Math.max(maxHalf, r.half());
@@ -238,6 +244,8 @@ public final class DungeonInstance {
         this.merchant = new MerchantSystem(this, cfg, world);
         this.events = new EventSystem(this, cfg, world);
         this.classes = new ClassSystem(this, cfg, world);
+        this.heat = new HeatSystem(this, cfg);
+        this.meta = new MetaSystem(manager);
         this.fx = new CombatFx(plugin, cfg, world);
         this.ambience = new RoomAmbience(plugin, this, cfg, world);
         this.puzzles = new Puzzles(this);
@@ -700,8 +708,10 @@ public final class DungeonInstance {
                 hint = classes.hint(tick);
                 classes.ambient(tick);
                 if (classes.shouldStart(tick)) {
+                    heat.lock();
                     classes.apply();
-                    titleAll("<gradient:#ff4d4d:#ffb347><bold>¡ADELANTE!</bold></gradient>", "<gray>Las puertas se abren</gray>");
+                    meta.applyStart(this);
+                    titleAll("<gradient:#ff4d4d:#ffb347><bold>¡ADELANTE!</bold></gradient>", biome.color + biome.title + "</" + biome.color.substring(1));
                     soundAll(Sound.ENTITY_ENDER_DRAGON_GROWL, 0.8f, 1.2f);
                     clearRoom(0);
                 }
@@ -709,7 +719,8 @@ public final class DungeonInstance {
             }
             long left = startEnd - tick;
             if (left <= 0) {
-                titleAll("<gradient:#ff4d4d:#ffb347><bold>¡ADELANTE!</bold></gradient>", "<gray>Las puertas se abren</gray>");
+                meta.applyStart(this);
+                titleAll("<gradient:#ff4d4d:#ffb347><bold>¡ADELANTE!</bold></gradient>", biome.color + biome.title + "</" + biome.color.substring(1));
                 soundAll(Sound.ENTITY_ENDER_DRAGON_GROWL, 0.8f, 1.2f);
                 clearRoom(0);
             } else if (left % 20 == 0) {
@@ -783,7 +794,7 @@ public final class DungeonInstance {
         ambience.enter(r);
         switch (r.type) {
             case WAVES -> {
-                totalWaves = cfg.i("waves.count");
+                totalWaves = cfg.i("waves.count") + heat.extraWaves();
                 nextWaveTick = tick + 50;
                 titleAll("<gold><bold>SALA " + curStep + "</bold></gold>", "<gray>Sobrevive a las oleadas</gray>");
             }
@@ -1020,9 +1031,9 @@ public final class DungeonInstance {
         int ordinal = roomOrdinal();
         int tier = Math.min(3, WaveMobs.tierFor(ordinal) + (wave == totalWaves ? 1 : 0));
         double hpMul = (1 + cfg.d("scaling.health-per-extra-player") * (groupSize() - 1))
-                * (1 + cfg.d("scaling.health-per-room") * (ordinal - 1));
-        double dmgMul = 1 + cfg.d("scaling.damage-per-room") * (ordinal - 1);
-        double eliteChance = cfg.d("waves.elite-chance") * (modifier == Modifier.ELITE ? 4 : 1);
+                * (1 + cfg.d("scaling.health-per-room") * (ordinal - 1)) * heat.hpMul();
+        double dmgMul = (1 + cfg.d("scaling.damage-per-room") * (ordinal - 1)) * heat.dmgMul();
+        double eliteChance = cfg.d("waves.elite-chance") * (modifier == Modifier.ELITE ? 4 : 1) * heat.eliteMul();
         int n = Math.min(pendingSpawns, 3);
         for (int i = 0; i < n; i++) {
             Location l = randomSpot(r);
@@ -2066,8 +2077,38 @@ public final class DungeonInstance {
         return events;
     }
 
+    BossDef bossDef() {
+        return boss;
+    }
+
+    Biome biome() {
+        return biome;
+    }
+
+    MetaSystem meta() {
+        return meta;
+    }
+
+    int clearedRooms() {
+        int c = 0;
+        for (int i = 1; i < rooms.size(); i++) if (roomStates[i] == RoomState.CLEARED) c++;
+        return c;
+    }
+
     ClassSystem classes() {
         return classes;
+    }
+
+    HeatSystem heat() {
+        return heat;
+    }
+
+    int heatUnlocked(UUID u) {
+        return manager.data().heatUnlocked(u);
+    }
+
+    void unlockHeat(UUID u, int level) {
+        manager.data().unlockHeat(u, level);
     }
 
     int activeRoomIndex() {
@@ -2394,7 +2435,10 @@ public final class DungeonInstance {
             later(80, this::restart);
         } else {
             titleAll("<dark_red><bold>DERROTA</bold></dark_red>", "<gray>La dungeon ha terminado.</gray>");
-            for (UUID u : members.keySet()) manager.applyCooldown(u, cfg.i("cooldown.fail-minutes"));
+            for (UUID u : members.keySet()) {
+                manager.applyCooldown(u, cfg.i("cooldown.fail-minutes"));
+                meta.award(u, clearedRooms(), false, heat.level());
+            }
             later(100, this::close);
         }
     }
@@ -2439,6 +2483,7 @@ public final class DungeonInstance {
         relics.resetAll();
         merchant.resetAll();
         events.resetAll();
+        heat.resetAll();
         classes.begin(rooms.get(0), tick);
         ambience.clear();
         for (UUID u : members.keySet()) {
@@ -2503,7 +2548,7 @@ public final class DungeonInstance {
         int timeBonus = (int) Math.max(0, cfg.i("score.max-time-bonus") - secs * cfg.d("score.time-points-per-second"));
         int score = cfg.i("score.base") + timeBonus - totalDeaths * cfg.i("score.death-penalty")
                 + (totalDeaths == 0 ? cfg.i("score.no-death-bonus") : 0);
-        finalScore = Math.max(0, score);
+        finalScore = Math.max(0, (int) Math.round(score * heat.scoreMul()));
         finalRank = finalScore >= cfg.i("score.rank-s") ? "S" : finalScore >= cfg.i("score.rank-a") ? "A"
                 : finalScore >= cfg.i("score.rank-b") ? "B" : finalScore >= cfg.i("score.rank-c") ? "C" : "D";
 
@@ -2553,7 +2598,8 @@ public final class DungeonInstance {
             p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
             p.sendMessage(Text.mm("<dark_gray>━━━━━━━━ <gradient:#ffd86b:#ff9a3c><bold>RESULTADOS</bold></gradient> <dark_gray>━━━━━━━━"));
             p.sendMessage(Text.mm("<gray>Tiempo: <aqua>" + clock(secs) + "</aqua>  <dark_gray>·</dark_gray>  Muertes: <red>" + totalDeaths
-                    + "</red>  <dark_gray>·</dark_gray>  Puntaje: <white>" + finalScore + "</white> <gold>[" + finalRank + "]</gold>"));
+                    + "</red>  <dark_gray>·</dark_gray>  Puntaje: <white>" + finalScore + "</white> <gold>[" + finalRank + "]</gold>"
+                    + (heat.level() > 0 ? "  <dark_gray>·</dark_gray>  <red>Calor " + heat.level() + "</red>" : "")));
             for (Map.Entry<UUID, PState> en : ranking) {
                 PState s = en.getValue();
                 p.sendMessage(Text.mm("<dark_gray>▸</dark_gray> <white>" + s.name + "</white> <gray>daño <red>" + (int) Math.round(s.damage)
@@ -2566,6 +2612,8 @@ public final class DungeonInstance {
             s.completed = true;
             manager.applyCooldown(en.getKey(), cfg.i("cooldown.success-minutes"));
             manager.data().recordRun(en.getKey(), s.name, finalScore, (int) secs);
+            heat.onComplete(en.getKey());
+            meta.award(en.getKey(), clearedRooms(), true, heat.level());
             Player p = Bukkit.getPlayer(en.getKey());
             if (p == null) continue;
             int xp = cfg.i("rewards.xp");
@@ -2685,10 +2733,11 @@ public final class DungeonInstance {
         for (int i = 1; i < rooms.size(); i++) if (roomStates[i] == RoomState.CLEARED) cleared++;
         if (state == State.COMPLETED) cleared = total;
         bar.progress((float) Math.max(0.0, Math.min(1.0, cleared / (double) total)));
-        bar.name(Text.mm("<gradient:#ff4d4d:#ffb347><bold>Dungeon de Vorthak</bold></gradient> <dark_gray>·</dark_gray> <gray>Sala <white>"
+        bar.name(Text.mm("<gradient:#ff4d4d:#ffb347><bold>Dungeon de " + boss.title() + "</bold></gradient> <dark_gray>·</dark_gray> <gray>Sala <white>"
                 + Math.max(0, Math.min(curStep, total)) + "/" + total + "</white></gray> <dark_gray>·</dark_gray> <aqua>"
                 + clock(elapsedSeconds()) + "</aqua>"
-                + (modifier != null ? " <dark_gray>·</dark_gray> <light_purple>" + modifier.title + "</light_purple>" : "")));
+                + (modifier != null ? " <dark_gray>·</dark_gray> <light_purple>" + modifier.title + "</light_purple>" : "")
+                + (heat.level() > 0 ? " <dark_gray>·</dark_gray> <red>Calor " + heat.level() + "</red>" : "")));
         for (Player p : onlineMembers()) {
             PState s = members.get(p.getUniqueId());
             if (s == null) continue;

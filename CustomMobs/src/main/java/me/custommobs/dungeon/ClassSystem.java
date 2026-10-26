@@ -45,6 +45,8 @@ final class ClassSystem {
     private static final int[] SLOTS = {10, 12, 14, 16};
     private static final int SLOT_INFO = 4;
     private static final int SLOT_READY = 22;
+    private static final int SLOT_HEAT = 24;
+    private static final int SLOT_META = 20;
 
     private static final class St {
         StartClass pick;
@@ -221,13 +223,13 @@ final class ClassSystem {
         Inventory inv = Bukkit.createInventory(menu, 27,
                 Text.mm("<gradient:#c471ed:#7f7fd5><bold>⚔ Elige tu clase ⚔</bold></gradient>"));
         menu.inv = inv;
-        render(inv, s);
+        render(inv, s, p);
         p.openInventory(inv);
         p.playSound(p.getLocation(), Sound.BLOCK_ENCHANTMENT_TABLE_USE, 0.8f, 1.2f);
         return true;
     }
 
-    private void render(Inventory inv, St s) {
+    private void render(Inventory inv, St s, Player viewer) {
         ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
         ItemMeta fm = filler.getItemMeta();
         fm.displayName(Component.space());
@@ -251,6 +253,8 @@ final class ClassSystem {
         for (int i = 0; i < all.length && i < SLOTS.length; i++) {
             inv.setItem(SLOTS[i], classItem(all[i], s.pick == all[i]));
         }
+        if (inst.heat().enabled()) inv.setItem(SLOT_HEAT, inst.heat().item(viewer));
+        if (inst.meta().enabled()) inv.setItem(SLOT_META, inst.meta().button(viewer));
         boolean can = s.pick != null;
         inv.setItem(SLOT_READY, item(s.ready ? Material.LIME_DYE : Material.GRAY_DYE,
                 s.ready ? "<green><bold>Listo ✔</bold></green>" : "<yellow><bold>Estoy listo</bold></yellow>", List.of(
@@ -305,6 +309,14 @@ final class ClassSystem {
             p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.3f);
             changed = true;
         }
+        if (slot == SLOT_META && inst.meta().enabled()) {
+            inst.later(1, () -> inst.meta().open(p));
+            return;
+        }
+        if (slot == SLOT_HEAT && inst.heat().enabled()) {
+            inst.heat().cycle(p);
+            changed = true;
+        }
         if (slot == SLOT_READY) {
             if (s.pick == null) {
                 p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.8f, 0.9f);
@@ -323,6 +335,6 @@ final class ClassSystem {
         }
         if (!changed) return;
         Inventory top = p.getOpenInventory().getTopInventory();
-        if (top.getHolder() instanceof Menu) render(top, s);
+        if (top.getHolder() instanceof Menu) render(top, s, p);
     }
 }

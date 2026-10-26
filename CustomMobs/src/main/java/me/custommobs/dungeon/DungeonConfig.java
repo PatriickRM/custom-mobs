@@ -145,6 +145,8 @@ public final class DungeonConfig {
             # Mundo vacío exclusivo (se crea al arrancar y se borra al apagar).
             world: dungeon_world
             build-y: 80
+            # Bioma visual: ashen, frost, void, crimson o random (uno al azar por partida).
+            biome: random
 
             # --- iluminación y sonido ---
             # Bloques de luz invisibles en salas y pasillos (0 = apagado). Si las salas te parecen demasiado claras, baja el nivel.
@@ -322,6 +324,33 @@ public final class DungeonConfig {
                 - "EXPERIENCE_BOTTLE:4:10:0.90"
                 - "POTION_HEAL:1:1:0.50"
                 - "NETHERITE_SCRAP:1:1:0.10"
+
+            heat:
+              # Niveles de Calor (dificultad opcional). Se elige en el menú del Heraldo de las Sombras
+              # (requiere classes.enabled) y se desbloquean uno a uno al completar la dungeon.
+              # El grupo juega con la media de lo que elijan los jugadores. Los niveles se acumulan:
+              #   1 más vida de enemigos · 2 más daño · 3 más élites · 4 una vida menos · 5 oleadas extra
+              enabled: true
+              health-bonus: 0.15
+              damage-bonus: 0.15
+              elite-multiplier: 2.0
+              extra-waves: 1
+              # Cada nivel de Calor suma este % al puntaje final (0.10 = +10% por nivel).
+              score-bonus-per-level: 0.10
+
+            hub:
+              # Hub: isla decorada (mundo vacío propio, se construye al arrancar) con un pedestal por jefe,
+              # el Santuario de Ecos y el Salón de la Fama. Sin /dungeon setlobby, el lobby es el hub.
+              enabled: true
+              world: dungeon_lobby
+
+            meta:
+              # Ecos: moneda permanente. Se gana en cada partida (aunque pierdas) y se gasta en mejoras
+              # permanentes con /dungeon meta o desde el Heraldo de las Sombras.
+              enabled: true
+              per-room: 3
+              win-bonus: 25
+              per-heat-level: 8
 
             classes:
               # Clases de inicio: en la sala de inicio habla con el Heraldo de las Sombras (clic derecho),

@@ -22,6 +22,8 @@ public final class DungeonData {
     private final Map<UUID, Long> cooldowns = new HashMap<>();
     private final Map<UUID, Record> records = new HashMap<>();
     private final Map<UUID, Integer> heat = new HashMap<>();
+    private final Map<UUID, Integer> echoes = new HashMap<>();
+    private final Map<UUID, Map<String, Integer>> perks = new HashMap<>();
     private String lobby = "";
 
     public DungeonData(CustomMobsPlugin plugin) {
@@ -54,6 +56,30 @@ public final class DungeonData {
                 }
             }
         }
+        ConfigurationSection ec = y.getConfigurationSection("echoes");
+        if (ec != null) {
+            for (String k : ec.getKeys(false)) {
+                try {
+                    echoes.put(UUID.fromString(k), ec.getInt(k));
+                } catch (IllegalArgumentException ignored) {
+                    // clave inválida
+                }
+            }
+        }
+        ConfigurationSection pc = y.getConfigurationSection("perks");
+        if (pc != null) {
+            for (String k : pc.getKeys(false)) {
+                try {
+                    ConfigurationSection s = pc.getConfigurationSection(k);
+                    if (s == null) continue;
+                    Map<String, Integer> m = new HashMap<>();
+                    for (String pk : s.getKeys(false)) m.put(pk, s.getInt(pk));
+                    perks.put(UUID.fromString(k), m);
+                } catch (IllegalArgumentException ignored) {
+                    // clave inválida
+                }
+            }
+        }
         ConfigurationSection rc = y.getConfigurationSection("records");
         if (rc != null) {
             for (String k : rc.getKeys(false)) {
@@ -78,6 +104,14 @@ public final class DungeonData {
         }
         for (Map.Entry<UUID, Integer> e : heat.entrySet()) {
             if (e.getValue() > 0) y.set("heat." + e.getKey(), e.getValue());
+        }
+        for (Map.Entry<UUID, Integer> e : echoes.entrySet()) {
+            if (e.getValue() > 0) y.set("echoes." + e.getKey(), e.getValue());
+        }
+        for (Map.Entry<UUID, Map<String, Integer>> e : perks.entrySet()) {
+            for (Map.Entry<String, Integer> pe : e.getValue().entrySet()) {
+                if (pe.getValue() > 0) y.set("perks." + e.getKey() + "." + pe.getKey(), pe.getValue());
+            }
         }
         for (Map.Entry<UUID, Record> e : records.entrySet()) {
             Record r = e.getValue();
@@ -140,6 +174,26 @@ public final class DungeonData {
     public void unlockHeat(UUID id, int level) {
         if (level <= heatUnlocked(id)) return;
         heat.put(id, level);
+        save();
+    }
+
+    /** Ecos: moneda permanente que se gana en cada partida y se gasta en mejoras. */
+    public int echoes(UUID id) {
+        return echoes.getOrDefault(id, 0);
+    }
+
+    public void addEchoes(UUID id, int n) {
+        echoes.put(id, Math.max(0, echoes(id) + n));
+        save();
+    }
+
+    public int perkLevel(UUID id, String key) {
+        Map<String, Integer> m = perks.get(id);
+        return m == null ? 0 : m.getOrDefault(key, 0);
+    }
+
+    public void setPerkLevel(UUID id, String key, int level) {
+        perks.computeIfAbsent(id, k -> new HashMap<>()).put(key, level);
         save();
     }
 

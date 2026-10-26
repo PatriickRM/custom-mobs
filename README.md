@@ -182,3 +182,18 @@ Dificultad opcional estilo «ascensión». Cada jugador elige su nivel en el men
 Se desbloquean de uno en uno al **completar la dungeon** con el Calor anterior (se guarda por jugador en `dungeon-data.yml`).
 El grupo juega con la media redondeada de las elecciones y el puntaje sube un 10% por nivel. Todo se ajusta en `dungeon.yml` → `heat`.
 Requiere `classes.enabled: true`, porque el botón vive en el menú del Heraldo.
+
+## Novedades (parte 7): Ecos y mejoras permanentes (`/dungeon meta`)
+
+Meta-progresión: cada partida, **ganes o pierdas**, da **Ecos** (3 por sala superada; +25 por victoria y +8 por nivel de Calor).
+Se gastan en el **Santuario de Ecos** (`/dungeon meta` o el botón del menú del Heraldo) en mejoras que valen para todas tus partidas futuras:
+
+| Mejora | Niveles | Efecto |
+|---|---|---|
+| Bolsa de Brasas | 3 | +10 brasas iniciales por nivel |
+| Fortuna | 3 | +1 relanzamiento de bendiciones por nivel |
+| Segundo Aliento | 1 | +1 vida al empezar |
+| Legado | 1 | Reliquia común al azar al empezar |
+
+Se guarda en `dungeon-data.yml` (`echoes`, `perks`). Valores en `dungeon.yml` → `meta` (`enabled`, `per-room`, `win-bonus`, `per-heat-level`);
+precios en `MetaSystem.Perk`. Los Ecos de una derrota con reinicio no se dan hasta el final definitivo de la partida.

@@ -46,6 +46,7 @@ final class ClassSystem {
     private static final int SLOT_INFO = 4;
     private static final int SLOT_READY = 22;
     private static final int SLOT_HEAT = 24;
+    private static final int SLOT_META = 20;
 
     private static final class St {
         StartClass pick;
@@ -253,6 +254,7 @@ final class ClassSystem {
             inv.setItem(SLOTS[i], classItem(all[i], s.pick == all[i]));
         }
         if (inst.heat().enabled()) inv.setItem(SLOT_HEAT, inst.heat().item(viewer));
+        if (inst.meta().enabled()) inv.setItem(SLOT_META, inst.meta().button(viewer));
         boolean can = s.pick != null;
         inv.setItem(SLOT_READY, item(s.ready ? Material.LIME_DYE : Material.GRAY_DYE,
                 s.ready ? "<green><bold>Listo ✔</bold></green>" : "<yellow><bold>Estoy listo</bold></yellow>", List.of(
@@ -306,6 +308,10 @@ final class ClassSystem {
             s.ready = false;
             p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.7f, 1.3f);
             changed = true;
+        }
+        if (slot == SLOT_META && inst.meta().enabled()) {
+            inst.later(1, () -> inst.meta().open(p));
+            return;
         }
         if (slot == SLOT_HEAT && inst.heat().enabled()) {
             inst.heat().cycle(p);

@@ -171,6 +171,7 @@ public final class DungeonInstance {
     private final MerchantSystem merchant;
     private final EventSystem events;
     private final ClassSystem classes;
+    private final MetaSystem meta;
     private final HeatSystem heat;
     private final CombatFx fx;
     private final RoomAmbience ambience;
@@ -240,6 +241,7 @@ public final class DungeonInstance {
         this.events = new EventSystem(this, cfg, world);
         this.classes = new ClassSystem(this, cfg, world);
         this.heat = new HeatSystem(this, cfg);
+        this.meta = new MetaSystem(manager);
         this.fx = new CombatFx(plugin, cfg, world);
         this.ambience = new RoomAmbience(plugin, this, cfg, world);
         this.puzzles = new Puzzles(this);
@@ -704,6 +706,7 @@ public final class DungeonInstance {
                 if (classes.shouldStart(tick)) {
                     heat.lock();
                     classes.apply();
+                    meta.applyStart(this);
                     titleAll("<gradient:#ff4d4d:#ffb347><bold>¡ADELANTE!</bold></gradient>", "<gray>Las puertas se abren</gray>");
                     soundAll(Sound.ENTITY_ENDER_DRAGON_GROWL, 0.8f, 1.2f);
                     clearRoom(0);
@@ -712,6 +715,7 @@ public final class DungeonInstance {
             }
             long left = startEnd - tick;
             if (left <= 0) {
+                meta.applyStart(this);
                 titleAll("<gradient:#ff4d4d:#ffb347><bold>¡ADELANTE!</bold></gradient>", "<gray>Las puertas se abren</gray>");
                 soundAll(Sound.ENTITY_ENDER_DRAGON_GROWL, 0.8f, 1.2f);
                 clearRoom(0);
@@ -2069,6 +2073,16 @@ public final class DungeonInstance {
         return events;
     }
 
+    MetaSystem meta() {
+        return meta;
+    }
+
+    int clearedRooms() {
+        int c = 0;
+        for (int i = 1; i < rooms.size(); i++) if (roomStates[i] == RoomState.CLEARED) c++;
+        return c;
+    }
+
     ClassSystem classes() {
         return classes;
     }
@@ -2409,7 +2423,10 @@ public final class DungeonInstance {
             later(80, this::restart);
         } else {
             titleAll("<dark_red><bold>DERROTA</bold></dark_red>", "<gray>La dungeon ha terminado.</gray>");
-            for (UUID u : members.keySet()) manager.applyCooldown(u, cfg.i("cooldown.fail-minutes"));
+            for (UUID u : members.keySet()) {
+                manager.applyCooldown(u, cfg.i("cooldown.fail-minutes"));
+                meta.award(u, clearedRooms(), false, heat.level());
+            }
             later(100, this::close);
         }
     }
@@ -2584,6 +2601,7 @@ public final class DungeonInstance {
             manager.applyCooldown(en.getKey(), cfg.i("cooldown.success-minutes"));
             manager.data().recordRun(en.getKey(), s.name, finalScore, (int) secs);
             heat.onComplete(en.getKey());
+            meta.award(en.getKey(), clearedRooms(), true, heat.level());
             Player p = Bukkit.getPlayer(en.getKey());
             if (p == null) continue;
             int xp = cfg.i("rewards.xp");

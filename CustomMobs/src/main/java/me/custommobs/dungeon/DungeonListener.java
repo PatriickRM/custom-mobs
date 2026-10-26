@@ -279,6 +279,21 @@ public final class DungeonListener implements Listener {
         if (e.getView().getTopInventory().getHolder() instanceof ClassSystem.Menu) e.setCancelled(true);
     }
 
+    /** Santuario de Ecos (mejoras permanentes). */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onMetaMenuClick(InventoryClickEvent e) {
+        if (!(e.getView().getTopInventory().getHolder() instanceof MetaSystem.Menu)) return;
+        e.setCancelled(true);
+        if (!(e.getWhoClicked() instanceof Player p)) return;
+        if (e.getClickedInventory() != e.getView().getTopInventory()) return;
+        new MetaSystem(manager).click(p, e.getSlot());
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onMetaMenuDrag(InventoryDragEvent e) {
+        if (e.getView().getTopInventory().getHolder() instanceof MetaSystem.Menu) e.setCancelled(true);
+    }
+
     /** Menú de las salas de Evento. */
     @EventHandler(priority = EventPriority.HIGH)
     public void onEventMenuClick(InventoryClickEvent e) {

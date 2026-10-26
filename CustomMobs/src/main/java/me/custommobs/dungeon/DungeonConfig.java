@@ -336,6 +336,14 @@ public final class DungeonConfig {
               # Cada nivel de Calor suma este % al puntaje final (0.10 = +10% por nivel).
               score-bonus-per-level: 0.10
 
+            meta:
+              # Ecos: moneda permanente. Se gana en cada partida (aunque pierdas) y se gasta en mejoras
+              # permanentes con /dungeon meta o desde el Heraldo de las Sombras.
+              enabled: true
+              per-room: 3
+              win-bonus: 25
+              per-heat-level: 8
+
             classes:
               # Clases de inicio: en la sala de inicio habla con el Heraldo de las Sombras (clic derecho),
               # elige clase y confirma que estás listo. Con todos listos se abren las puertas.

@@ -166,3 +166,19 @@ se le asigna una clase al azar. Con `classes.enabled: false` vuelve la cuenta at
 | Guardián | Aguanta y devuelve el golpe | Piel de Obsidiana II, Espinas de Sangre, Aliento de Vida · Égida de Ceniza · **+1 vida** |
 
 Las clases son datos en `StartClass.java`: añadir una es copiar un bloque.
+
+## Novedades (parte 6): niveles de Calor
+
+Dificultad opcional estilo «ascensión». Cada jugador elige su nivel en el menú del Heraldo (botón de la hoguera). Los niveles se suman:
+
+| Calor | Efecto |
+|---|---|
+| 1 · Marea de Ceniza | Enemigos con +15% de vida |
+| 2 · Colmillos Afilados | Enemigos con +15% de daño |
+| 3 · Élites Voraces | x2 de probabilidad de élites |
+| 4 · Vidas Contadas | Una vida menos para todos |
+| 5 · Sin Tregua | +1 oleada en las salas de oleadas |
+
+Se desbloquean de uno en uno al **completar la dungeon** con el Calor anterior (se guarda por jugador en `dungeon-data.yml`).
+El grupo juega con la media redondeada de las elecciones y el puntaje sube un 10% por nivel. Todo se ajusta en `dungeon.yml` → `heat`.
+Requiere `classes.enabled: true`, porque el botón vive en el menú del Heraldo.

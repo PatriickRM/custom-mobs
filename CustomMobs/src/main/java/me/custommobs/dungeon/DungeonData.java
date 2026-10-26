@@ -21,6 +21,7 @@ public final class DungeonData {
     private final File file;
     private final Map<UUID, Long> cooldowns = new HashMap<>();
     private final Map<UUID, Record> records = new HashMap<>();
+    private final Map<UUID, Integer> heat = new HashMap<>();
     private String lobby = "";
 
     public DungeonData(CustomMobsPlugin plugin) {
@@ -38,6 +39,16 @@ public final class DungeonData {
             for (String k : cd.getKeys(false)) {
                 try {
                     cooldowns.put(UUID.fromString(k), cd.getLong(k));
+                } catch (IllegalArgumentException ignored) {
+                    // clave inválida
+                }
+            }
+        }
+        ConfigurationSection hc = y.getConfigurationSection("heat");
+        if (hc != null) {
+            for (String k : hc.getKeys(false)) {
+                try {
+                    heat.put(UUID.fromString(k), hc.getInt(k));
                 } catch (IllegalArgumentException ignored) {
                     // clave inválida
                 }
@@ -64,6 +75,9 @@ public final class DungeonData {
         long now = System.currentTimeMillis();
         for (Map.Entry<UUID, Long> e : cooldowns.entrySet()) {
             if (e.getValue() > now) y.set("cooldowns." + e.getKey(), e.getValue());
+        }
+        for (Map.Entry<UUID, Integer> e : heat.entrySet()) {
+            if (e.getValue() > 0) y.set("heat." + e.getKey(), e.getValue());
         }
         for (Map.Entry<UUID, Record> e : records.entrySet()) {
             Record r = e.getValue();
@@ -114,6 +128,18 @@ public final class DungeonData {
         int best = old == null ? score : Math.max(old.bestScore(), score);
         int bestTime = old == null ? seconds : Math.min(old.bestTimeSeconds(), seconds);
         records.put(id, new Record(name, best, bestTime, old == null ? 1 : old.runs() + 1));
+        save();
+    }
+
+    /** Mayor nivel de Calor que el jugador puede elegir (0 = ninguno desbloqueado). */
+    public int heatUnlocked(UUID id) {
+        return heat.getOrDefault(id, 0);
+    }
+
+    /** Desbloquea hasta {@code level} (nunca baja el progreso). */
+    public void unlockHeat(UUID id, int level) {
+        if (level <= heatUnlocked(id)) return;
+        heat.put(id, level);
         save();
     }
 

@@ -323,6 +323,19 @@ public final class DungeonConfig {
                 - "POTION_HEAL:1:1:0.50"
                 - "NETHERITE_SCRAP:1:1:0.10"
 
+            heat:
+              # Niveles de Calor (dificultad opcional). Se elige en el menú del Heraldo de las Sombras
+              # (requiere classes.enabled) y se desbloquean uno a uno al completar la dungeon.
+              # El grupo juega con la media de lo que elijan los jugadores. Los niveles se acumulan:
+              #   1 más vida de enemigos · 2 más daño · 3 más élites · 4 una vida menos · 5 oleadas extra
+              enabled: true
+              health-bonus: 0.15
+              damage-bonus: 0.15
+              elite-multiplier: 2.0
+              extra-waves: 1
+              # Cada nivel de Calor suma este % al puntaje final (0.10 = +10% por nivel).
+              score-bonus-per-level: 0.10
+
             classes:
               # Clases de inicio: en la sala de inicio habla con el Heraldo de las Sombras (clic derecho),
               # elige clase y confirma que estás listo. Con todos listos se abren las puertas.

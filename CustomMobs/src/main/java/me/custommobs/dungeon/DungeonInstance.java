@@ -171,6 +171,7 @@ public final class DungeonInstance {
     private final MerchantSystem merchant;
     private final EventSystem events;
     private final ClassSystem classes;
+    private final HeatSystem heat;
     private final CombatFx fx;
     private final RoomAmbience ambience;
     private final Puzzles puzzles;
@@ -238,6 +239,7 @@ public final class DungeonInstance {
         this.merchant = new MerchantSystem(this, cfg, world);
         this.events = new EventSystem(this, cfg, world);
         this.classes = new ClassSystem(this, cfg, world);
+        this.heat = new HeatSystem(this, cfg);
         this.fx = new CombatFx(plugin, cfg, world);
         this.ambience = new RoomAmbience(plugin, this, cfg, world);
         this.puzzles = new Puzzles(this);
@@ -700,6 +702,7 @@ public final class DungeonInstance {
                 hint = classes.hint(tick);
                 classes.ambient(tick);
                 if (classes.shouldStart(tick)) {
+                    heat.lock();
                     classes.apply();
                     titleAll("<gradient:#ff4d4d:#ffb347><bold>¡ADELANTE!</bold></gradient>", "<gray>Las puertas se abren</gray>");
                     soundAll(Sound.ENTITY_ENDER_DRAGON_GROWL, 0.8f, 1.2f);
@@ -783,7 +786,7 @@ public final class DungeonInstance {
         ambience.enter(r);
         switch (r.type) {
             case WAVES -> {
-                totalWaves = cfg.i("waves.count");
+                totalWaves = cfg.i("waves.count") + heat.extraWaves();
                 nextWaveTick = tick + 50;
                 titleAll("<gold><bold>SALA " + curStep + "</bold></gold>", "<gray>Sobrevive a las oleadas</gray>");
             }
@@ -1020,9 +1023,9 @@ public final class DungeonInstance {
         int ordinal = roomOrdinal();
         int tier = Math.min(3, WaveMobs.tierFor(ordinal) + (wave == totalWaves ? 1 : 0));
         double hpMul = (1 + cfg.d("scaling.health-per-extra-player") * (groupSize() - 1))
-                * (1 + cfg.d("scaling.health-per-room") * (ordinal - 1));
-        double dmgMul = 1 + cfg.d("scaling.damage-per-room") * (ordinal - 1);
-        double eliteChance = cfg.d("waves.elite-chance") * (modifier == Modifier.ELITE ? 4 : 1);
+                * (1 + cfg.d("scaling.health-per-room") * (ordinal - 1)) * heat.hpMul();
+        double dmgMul = (1 + cfg.d("scaling.damage-per-room") * (ordinal - 1)) * heat.dmgMul();
+        double eliteChance = cfg.d("waves.elite-chance") * (modifier == Modifier.ELITE ? 4 : 1) * heat.eliteMul();
         int n = Math.min(pendingSpawns, 3);
         for (int i = 0; i < n; i++) {
             Location l = randomSpot(r);
@@ -2070,6 +2073,18 @@ public final class DungeonInstance {
         return classes;
     }
 
+    HeatSystem heat() {
+        return heat;
+    }
+
+    int heatUnlocked(UUID u) {
+        return manager.data().heatUnlocked(u);
+    }
+
+    void unlockHeat(UUID u, int level) {
+        manager.data().unlockHeat(u, level);
+    }
+
     int activeRoomIndex() {
         return active;
     }
@@ -2439,6 +2454,7 @@ public final class DungeonInstance {
         relics.resetAll();
         merchant.resetAll();
         events.resetAll();
+        heat.resetAll();
         classes.begin(rooms.get(0), tick);
         ambience.clear();
         for (UUID u : members.keySet()) {
@@ -2503,7 +2519,7 @@ public final class DungeonInstance {
         int timeBonus = (int) Math.max(0, cfg.i("score.max-time-bonus") - secs * cfg.d("score.time-points-per-second"));
         int score = cfg.i("score.base") + timeBonus - totalDeaths * cfg.i("score.death-penalty")
                 + (totalDeaths == 0 ? cfg.i("score.no-death-bonus") : 0);
-        finalScore = Math.max(0, score);
+        finalScore = Math.max(0, (int) Math.round(score * heat.scoreMul()));
         finalRank = finalScore >= cfg.i("score.rank-s") ? "S" : finalScore >= cfg.i("score.rank-a") ? "A"
                 : finalScore >= cfg.i("score.rank-b") ? "B" : finalScore >= cfg.i("score.rank-c") ? "C" : "D";
 
@@ -2553,7 +2569,8 @@ public final class DungeonInstance {
             p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f);
             p.sendMessage(Text.mm("<dark_gray>━━━━━━━━ <gradient:#ffd86b:#ff9a3c><bold>RESULTADOS</bold></gradient> <dark_gray>━━━━━━━━"));
             p.sendMessage(Text.mm("<gray>Tiempo: <aqua>" + clock(secs) + "</aqua>  <dark_gray>·</dark_gray>  Muertes: <red>" + totalDeaths
-                    + "</red>  <dark_gray>·</dark_gray>  Puntaje: <white>" + finalScore + "</white> <gold>[" + finalRank + "]</gold>"));
+                    + "</red>  <dark_gray>·</dark_gray>  Puntaje: <white>" + finalScore + "</white> <gold>[" + finalRank + "]</gold>"
+                    + (heat.level() > 0 ? "  <dark_gray>·</dark_gray>  <red>Calor " + heat.level() + "</red>" : "")));
             for (Map.Entry<UUID, PState> en : ranking) {
                 PState s = en.getValue();
                 p.sendMessage(Text.mm("<dark_gray>▸</dark_gray> <white>" + s.name + "</white> <gray>daño <red>" + (int) Math.round(s.damage)
@@ -2566,6 +2583,7 @@ public final class DungeonInstance {
             s.completed = true;
             manager.applyCooldown(en.getKey(), cfg.i("cooldown.success-minutes"));
             manager.data().recordRun(en.getKey(), s.name, finalScore, (int) secs);
+            heat.onComplete(en.getKey());
             Player p = Bukkit.getPlayer(en.getKey());
             if (p == null) continue;
             int xp = cfg.i("rewards.xp");
@@ -2688,7 +2706,8 @@ public final class DungeonInstance {
         bar.name(Text.mm("<gradient:#ff4d4d:#ffb347><bold>Dungeon de Vorthak</bold></gradient> <dark_gray>·</dark_gray> <gray>Sala <white>"
                 + Math.max(0, Math.min(curStep, total)) + "/" + total + "</white></gray> <dark_gray>·</dark_gray> <aqua>"
                 + clock(elapsedSeconds()) + "</aqua>"
-                + (modifier != null ? " <dark_gray>·</dark_gray> <light_purple>" + modifier.title + "</light_purple>" : "")));
+                + (modifier != null ? " <dark_gray>·</dark_gray> <light_purple>" + modifier.title + "</light_purple>" : "")
+                + (heat.level() > 0 ? " <dark_gray>·</dark_gray> <red>Calor " + heat.level() + "</red>" : "")));
         for (Player p : onlineMembers()) {
             PState s = members.get(p.getUniqueId());
             if (s == null) continue;

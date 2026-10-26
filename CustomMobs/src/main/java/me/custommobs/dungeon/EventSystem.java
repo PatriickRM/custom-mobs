@@ -32,7 +32,7 @@ import java.util.UUID;
  * Salas de Evento: un texto, tres decisiones y consecuencias (riesgo y recompensa). Cada jugador decide por sí mismo.
  *
  * <p>Los eventos son DATOS (ver {@link #EVENTS}): para añadir uno basta con copiar un bloque {@code event(...)}.
- * Cada opción tiene un coste opcional (almas / vidas), una probabilidad de éxito y la lista de efectos de
+ * Cada opción tiene un coste opcional (brasas / vidas), una probabilidad de éxito y la lista de efectos de
  * éxito y de fallo.</p>
  */
 final class EventSystem {
@@ -86,7 +86,7 @@ final class EventSystem {
                     List.of(
                             gamble("Beber", "60%: ganas 1 vida. 40%: recibes una reliquia maldita.",
                                     60, List.of(fx(Fx.LIFE, 1)), List.of(fx(Fx.CURSED_RELIC))),
-                            sure("Llenar un frasco", "Ganas 12 almas, pero el agua te quema (-2 corazones de salud).",
+                            sure("Llenar un frasco", "Ganas 12 brasas, pero el agua te quema (-2 corazones de salud).",
                                     0, 0, fx(Fx.SOULS, 12), fx(Fx.HURT, 4)),
                             leave("Marcharte"))),
             new Event("Cofre Trampa", Material.CHEST,
@@ -94,23 +94,23 @@ final class EventSystem {
                     List.of(
                             gamble("Forzar la cerradura", "50%: reliquia al azar. 50%: emboscada.",
                                     50, List.of(fx(Fx.RELIC)), List.of(fx(Fx.AMBUSH, 4))),
-                            sure("Abrirlo con cuidado", "Ganas 10 almas, pero un dardo te hiere (-1 corazón de salud).",
+                            sure("Abrirlo con cuidado", "Ganas 10 brasas, pero un dardo te hiere (-1 corazón de salud).",
                                     0, 0, fx(Fx.SOULS, 10), fx(Fx.HURT, 2)),
                             leave("Ignorarlo"))),
             new Event("Susurro del Vacío", Material.ENDER_EYE,
                     "Una voz sin boca te habla desde las grietas. Conoce tus miedos y promete saciarlos.",
                     List.of(
-                            sure("Escuchar", "Recibes una reliquia maldita y 20 almas.",
+                            sure("Escuchar", "Recibes una reliquia maldita y 20 brasas.",
                                     0, 0, fx(Fx.CURSED_RELIC), fx(Fx.SOULS, 20)),
-                            gamble("Responderle", "50%: ganas 30 almas. 50%: emboscada.",
+                            gamble("Responderle", "50%: ganas 30 brasas. 50%: emboscada.",
                                     50, List.of(fx(Fx.SOULS, 30)), List.of(fx(Fx.AMBUSH, 3))),
                             leave("Taparte los oídos"))),
             new Event("Mendigo Espectral", Material.SOUL_LANTERN,
-                    "Un espectro harapiento extiende la mano. Sus ojos parecen contar tus almas.",
+                    "Un espectro harapiento extiende la mano. Sus ojos parecen contar tus brasas.",
                     List.of(
-                            sure("Darle 10 almas", "Te recompensa con una reliquia al azar.",
+                            sure("Darle 10 brasas", "Te recompensa con una reliquia al azar.",
                                     10, 0, fx(Fx.RELIC)),
-                            gamble("Robarle", "60%: ganas 15 almas. 40%: emboscada.",
+                            gamble("Robarle", "60%: ganas 15 brasas. 40%: emboscada.",
                                     60, List.of(fx(Fx.SOULS, 15)), List.of(fx(Fx.AMBUSH, 4))),
                             leave("Ignorarlo"))));
 
@@ -281,7 +281,7 @@ final class EventSystem {
         if (c.costSouls() > 0 || c.costLives() > 0) {
             lore.add("");
             StringBuilder sb = new StringBuilder("<white>Coste: ");
-            if (c.costSouls() > 0) sb.append("<aqua>☾ ").append(c.costSouls()).append(" almas</aqua> ");
+            if (c.costSouls() > 0) sb.append("<gold>◆ ").append(c.costSouls()).append(" brasas</gold> ");
             if (c.costLives() > 0) sb.append("<red>❤ ").append(c.costLives()).append(c.costLives() == 1 ? " vida" : " vidas").append("</red>");
             lore.add(sb.toString());
         }
@@ -352,7 +352,7 @@ final class EventSystem {
         switch (e.type()) {
             case SOULS -> {
                 inst.merchant().addSouls(u, e.n());
-                return "<aqua>" + (e.n() >= 0 ? "+" : "") + e.n() + " almas</aqua>";
+                return "<gold>" + (e.n() >= 0 ? "+" : "") + e.n() + " brasas</gold>";
             }
             case HEAL -> {
                 inst.healPlayer(p, e.n());
@@ -376,7 +376,7 @@ final class EventSystem {
                 List<Relic> roll = inst.relics().rollFor(u, 1);
                 if (roll.isEmpty()) {
                     inst.merchant().addSouls(u, 15);
-                    return "<aqua>+15 almas</aqua> <dark_gray>(ya tienes todas las reliquias)</dark_gray>";
+                    return "<gold>+15 brasas</gold> <dark_gray>(ya tienes todas las reliquias)</dark_gray>";
                 }
                 inst.relics().grant(u, roll.get(0));
                 return roll.get(0).tier.color + roll.get(0).title + "</" + roll.get(0).tier.color.substring(1);
@@ -385,7 +385,7 @@ final class EventSystem {
                 Relic r = inst.relics().rollCursed(u);
                 if (r == null) {
                     inst.merchant().addSouls(u, 15);
-                    return "<aqua>+15 almas</aqua> <dark_gray>(sin malditas disponibles)</dark_gray>";
+                    return "<gold>+15 brasas</gold> <dark_gray>(sin malditas disponibles)</dark_gray>";
                 }
                 inst.relics().grant(u, r);
                 return "<dark_red>" + r.title + "</dark_red>";

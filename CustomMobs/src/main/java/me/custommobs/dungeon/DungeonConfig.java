@@ -323,6 +323,16 @@ public final class DungeonConfig {
                 - "POTION_HEAL:1:1:0.50"
                 - "NETHERITE_SCRAP:1:1:0.10"
 
+            classes:
+              # Clases de inicio: en la sala de inicio habla con el Heraldo de las Sombras (clic derecho),
+              # elige clase y confirma que estás listo. Con todos listos se abren las puertas.
+              # Si lo pones en false vuelve la cuenta atrás clásica (players.start-countdown-seconds).
+              enabled: true
+              # Cuenta atrás cuando todos están listos.
+              start-delay-seconds: 5
+              # Si alguien no confirma a tiempo se le asigna una clase al azar y empieza la partida.
+              timeout-seconds: 120
+
             event:
               # Sala de Evento: cada jugador elige una opción (riesgo y recompensa).
               # Los eventos están definidos en EventSystem.java (son datos: añadir uno es copiar un bloque).
@@ -330,15 +340,15 @@ public final class DungeonConfig {
               seconds: 60
 
             merchant:
-              # Mercader Fantasma: gasta ALMAS (se ganan matando) o VIDAS. Las almas duran toda la partida.
+              # Mercader Fantasma: gasta BRASAS (se ganan matando) o VIDAS. Las brasas duran toda la partida.
               enabled: true
               # Tiempo máximo en la tienda (se abre antes si todos pulsan "Listo").
               seconds: 90
               souls-per-kill: 1
               souls-per-elite: 4
-              # Almas que recibe cada jugador al matar un mini jefe.
+              # Brasas que recibe cada jugador al matar un mini jefe.
               souls-miniboss: 12
-              # Precio en almas de la reliquia según su rareza.
+              # Precio en brasas de la reliquia según su rareza.
               price-common: 12
               price-rare: 20
               price-cursed: 10
@@ -351,7 +361,7 @@ public final class DungeonConfig {
               max-heals: 3
               # Vida Prestada: compra 1 vida (una por visita).
               life-cost: 40
-              # Pacto de Sangre: entregas 1 vida y recibes estas almas (uno por visita).
+              # Pacto de Sangre: entregas 1 vida y recibes estas brasas (uno por visita).
               pact-souls: 25
 
             sweep:

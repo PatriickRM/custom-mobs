@@ -17,7 +17,7 @@ import java.util.Locale;
 /** /dungeon join | start | leave | status | top | reset | reload | setlobby | clearcooldown */
 public final class DungeonCommand implements CommandExecutor, TabCompleter {
 
-    private static final List<String> PLAYER_SUBS = List.of("join", "start", "leave", "status", "top", "bless", "relic", "shop", "event", "path", "help");
+    private static final List<String> PLAYER_SUBS = List.of("join", "start", "leave", "status", "top", "bless", "relic", "shop", "event", "class", "path", "help");
     private static final List<String> ADMIN_SUBS = List.of("reset", "reload", "setlobby", "clearcooldown", "list");
 
     private final CustomMobsPlugin plugin;
@@ -72,6 +72,11 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
                 if (!(sender instanceof Player p)) return playerOnly(sender);
                 DungeonInstance inst = manager.of(p);
                 if (inst == null || !inst.merchant().openMenu(p)) send(p, "<red>El Mercader Fantasma no está aquí ahora mismo.</red>");
+            }
+            case "class" -> {
+                if (!(sender instanceof Player p)) return playerOnly(sender);
+                DungeonInstance inst = manager.of(p);
+                if (inst == null || !inst.classes().openMenu(p)) send(p, "<red>Solo puedes elegir clase en la sala de inicio.</red>");
             }
             case "event" -> {
                 if (!(sender instanceof Player p)) return playerOnly(sender);
@@ -150,6 +155,7 @@ public final class DungeonCommand implements CommandExecutor, TabCompleter {
         s.sendMessage(Text.mm("<dark_gray>▸</dark_gray> <white>/dungeon bless</white> <gray>— elegir tu bendición pendiente</gray>"));
         s.sendMessage(Text.mm("<dark_gray>▸</dark_gray> <white>/dungeon relic</white> <gray>— elegir tu reliquia pendiente</gray>"));
         s.sendMessage(Text.mm("<dark_gray>▸</dark_gray> <white>/dungeon shop</white> <gray>— abrir la tienda del Mercader Fantasma</gray>"));
+        s.sendMessage(Text.mm("<dark_gray>▸</dark_gray> <white>/dungeon class</white> <gray>— elegir clase y confirmar que estás listo (sala de inicio)</gray>"));
         s.sendMessage(Text.mm("<dark_gray>▸</dark_gray> <white>/dungeon event</white> <gray>— abrir la decisión de la sala de evento</gray>"));
         s.sendMessage(Text.mm("<dark_gray>▸</dark_gray> <white>/dungeon path <n></white> <gray>— votar el camino cuando hay dos salas</gray>"));
         s.sendMessage(Text.mm("<dark_gray>▸</dark_gray> <white>/dungeon status</white> <gray>— estado y tu cooldown</gray>"));

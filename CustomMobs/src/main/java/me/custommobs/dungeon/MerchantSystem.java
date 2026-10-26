@@ -28,11 +28,11 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Mercader Fantasma: sala sin combate donde cada jugador gasta ALMAS (se ganan matando enemigos) o VIDAS.
+ * Mercader Fantasma: sala sin combate donde cada jugador gasta BRASAS (se ganan matando enemigos) o VIDAS.
  *
  * <p>Es independiente del resto: solo usa {@link RelicSystem#rollFor} / {@link RelicSystem#grant} para vender
  * reliquias, y {@link DungeonInstance.PState#lives} para cobrar vidas. Todos los precios salen de dungeon.yml
- * (sección merchant). Las almas se conservan entre salas durante la partida.</p>
+ * (sección merchant). Las brasas se conservan entre salas durante la partida.</p>
  */
 final class MerchantSystem {
 
@@ -55,7 +55,7 @@ final class MerchantSystem {
     private static final int SLOT_PACT = 22;
     private static final int SLOT_READY = 31;
 
-    /** Estado de cada jugador. Las almas duran toda la partida; el stock se renueva en cada visita. */
+    /** Estado de cada jugador. Las brasas duran toda la partida; el stock se renueva en cada visita. */
     private static final class St {
         int souls;
         Relic soulRelic;
@@ -96,16 +96,16 @@ final class MerchantSystem {
         return cfg.b("merchant.enabled");
     }
 
-    // ------------------------------------------------------------------ almas
+    // ------------------------------------------------------------------ brasas
 
-    /** Cada enemigo muerto da almas a quien lo mata. */
+    /** Cada enemigo muerto da brasas a quien lo mata. */
     void onKill(Player killer, boolean elite) {
         if (!enabled()) return;
         int n = elite ? cfg.i("merchant.souls-per-elite") : cfg.i("merchant.souls-per-kill");
         if (n > 0) st(killer.getUniqueId()).souls += n;
     }
 
-    /** Almas para todos los jugadores vivos (mini jefe...). */
+    /** Brasas para todos los jugadores vivos (mini jefe...). */
     void grantAll(int n) {
         if (!enabled() || n <= 0) return;
         for (Player p : inst.aliveOnline()) st(p.getUniqueId()).souls += n;
@@ -116,7 +116,7 @@ final class MerchantSystem {
         return s == null ? 0 : s.souls;
     }
 
-    /** Suma (o resta, sin bajar de 0) almas a un jugador. */
+    /** Suma (o resta, sin bajar de 0) brasas a un jugador. */
     void addSouls(UUID u, int n) {
         St s = st(u);
         s.souls = Math.max(0, s.souls + n);
@@ -125,7 +125,7 @@ final class MerchantSystem {
     String hudLine(Player p) {
         St s = states.get(p.getUniqueId());
         if (s == null || (s.souls <= 0 && !open)) return "";
-        return "<dark_aqua>☾" + s.souls + "</dark_aqua>";
+        return "<gold>◆" + s.souls + "</gold>";
     }
 
     // ------------------------------------------------------------------ ciclo de la sala
@@ -204,7 +204,7 @@ final class MerchantSystem {
         Location at = new Location(world, r.cx() + 0.5, r.floorY + 3.2, r.cz + 0.5);
         sign = world.spawn(at, TextDisplay.class, td -> {
             td.text(Text.mm("<gradient:#7de8ff:#6b6bff><bold>☾ MERCADER FANTASMA ☾</bold></gradient>\n"
-                    + "<gray>Almas o sangre. Tú eliges.</gray>"));
+                    + "<gray>Brasas o sangre. Tú eliges.</gray>"));
             td.setBillboard(Display.Billboard.CENTER);
             td.setSeeThrough(false);
             td.setShadowed(true);
@@ -260,17 +260,17 @@ final class MerchantSystem {
 
         int cap = inst.maxLives() + ps.bonusLives;
         inv.setItem(SLOT_INFO, item(Material.SOUL_LANTERN, "<dark_aqua><bold>Tu bolsa</bold></dark_aqua>", List.of(
-                "<aqua>☾ Almas: <white>" + s.souls,
+                "<gold>◆ Brasas: <white>" + s.souls,
                 "<red>❤ Vidas: <white>" + ps.lives + "<gray>/" + cap,
                 "",
-                "<dark_gray>Las almas se ganan matando enemigos."), false));
+                "<dark_gray>Las brasas se ganan matando enemigos."), false));
 
-        // reliquia por almas
+        // reliquia por brasas
         if (s.soulRelic == null || s.soulSold) {
             inv.setItem(SLOT_SOUL_RELIC, soldOut());
         } else {
             int price = soulPrice(s.soulRelic);
-            inv.setItem(SLOT_SOUL_RELIC, relicOffer(s.soulRelic, "<aqua>☾ " + price + " almas", s.souls >= price));
+            inv.setItem(SLOT_SOUL_RELIC, relicOffer(s.soulRelic, "<gold>◆ " + price + " brasas", s.souls >= price));
         }
         // reliquia por sangre
         if (s.bloodRelic == null || s.bloodSold) {
@@ -288,26 +288,26 @@ final class MerchantSystem {
                 "<gray>Recuperas <green>" + String.format(java.util.Locale.ROOT, "%.1f", cfg.d("merchant.heal-amount") / 2.0)
                         + " ❤</green> de salud.",
                 "",
-                "<aqua>☾ " + healCost + " almas",
+                "<gold>◆ " + healCost + " brasas",
                 "<dark_gray>Compradas: " + s.heals + "/" + maxHeals,
                 "",
-                healLeft ? (s.souls >= healCost ? "<green>▸ Clic para comprar" : "<red>✖ Almas insuficientes")
+                healLeft ? (s.souls >= healCost ? "<green>▸ Clic para comprar" : "<red>✖ Brasas insuficientes")
                         : "<red>✖ Agotado"), false));
         // vida prestada
         int lifeCost = cfg.i("merchant.life-cost");
         inv.setItem(SLOT_LIFE, item(Material.TOTEM_OF_UNDYING, "<gold><bold>Vida Prestada</bold></gold>", List.of(
                 "<gray>Recuperas <red>1 vida</red> (sin pasar del máximo).",
                 "",
-                "<aqua>☾ " + lifeCost + " almas",
+                "<gold>◆ " + lifeCost + " brasas",
                 "",
                 s.lifeBought ? "<red>✖ Solo una por visita"
                         : ps.lives >= cap ? "<red>✖ Ya tienes todas las vidas"
-                        : s.souls >= lifeCost ? "<green>▸ Clic para comprar" : "<red>✖ Almas insuficientes"), false));
+                        : s.souls >= lifeCost ? "<green>▸ Clic para comprar" : "<red>✖ Brasas insuficientes"), false));
         // pacto de sangre
         int blood = cfg.i("merchant.pact-souls");
         inv.setItem(SLOT_PACT, item(Material.REDSTONE, "<dark_red><bold>Pacto de Sangre</bold></dark_red>", List.of(
                 "<gray>Entregas <red>1 vida</red> y recibes",
-                "<aqua>☾ " + blood + " almas</aqua><gray>.",
+                "<gold>◆ " + blood + " brasas</gold><gray>.",
                 "",
                 s.pactDone ? "<red>✖ Solo un pacto por visita"
                         : ps.lives <= 1 ? "<red>✖ No puedes entregar tu última vida"
@@ -378,7 +378,7 @@ final class MerchantSystem {
         if (s.soulRelic == null || s.soulSold) return;
         int price = soulPrice(s.soulRelic);
         if (s.souls < price) {
-            deny(p, "No tienes suficientes almas.");
+            deny(p, "No tienes suficientes brasas.");
             return;
         }
         s.souls -= price;
@@ -412,7 +412,7 @@ final class MerchantSystem {
             return;
         }
         if (s.souls < cost) {
-            deny(p, "No tienes suficientes almas.");
+            deny(p, "No tienes suficientes brasas.");
             return;
         }
         s.souls -= cost;
@@ -434,7 +434,7 @@ final class MerchantSystem {
             return;
         }
         if (s.souls < cost) {
-            deny(p, "No tienes suficientes almas.");
+            deny(p, "No tienes suficientes brasas.");
             return;
         }
         s.souls -= cost;

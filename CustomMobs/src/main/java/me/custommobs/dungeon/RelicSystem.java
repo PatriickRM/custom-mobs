@@ -391,6 +391,11 @@ final class RelicSystem {
 
     /** Concede una reliquia directamente (compra). No hace nada si ya la tiene. */
     void grant(UUID u, Relic r) {
+        grant(u, r, true);
+    }
+
+    /** @param announce false = sin sonido ni mensaje (reliquia inicial de una clase). */
+    void grant(UUID u, Relic r, boolean announce) {
         St s = st(u);
         if (!s.owned.add(r)) return;
         DungeonInstance.PState ps = inst.pstate(u);
@@ -399,6 +404,7 @@ final class RelicSystem {
             ps.lives++;
         }
         if (r == Relic.ASH_AEGIS) s.aegisNext = 0;
+        if (!announce) return;
         Player p = Bukkit.getPlayer(u);
         if (p != null) {
             p.playSound(p.getLocation(), Sound.ITEM_TOTEM_USE, 0.4f, 1.5f);

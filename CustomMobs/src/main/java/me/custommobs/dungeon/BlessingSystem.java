@@ -1185,6 +1185,20 @@ final class BlessingSystem {
         });
     }
 
+    /** Concede niveles de una bendición sin menú ni mensajes (clases de inicio). */
+    void grantStart(Player p, Blessing b, int levels) {
+        DungeonInstance.PState s = inst.pstate(p.getUniqueId());
+        if (s == null || levels <= 0) return;
+        int oldDash = dashLevel(s);
+        s.blessings.merge(b, Math.min(b.max, levels), (a, c) -> Math.min(b.max, a + c));
+        if (dashLevel(s) > 0 && oldDash == 0) {
+            Rt r = rt(p);
+            r.dashReady = 0;
+            r.dashCue = true;
+        }
+        applyAttributes(p, s);
+    }
+
     void choose(UUID u, int idx, boolean auto) {
         DungeonInstance.PState s = inst.pstate(u);
         if (s == null || s.offer == null || idx < 0 || idx >= s.offer.size()) return;

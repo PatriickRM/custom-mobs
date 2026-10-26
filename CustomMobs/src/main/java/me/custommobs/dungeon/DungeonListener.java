@@ -253,6 +253,32 @@ public final class DungeonListener implements Listener {
         if (e.getView().getTopInventory().getHolder() instanceof MerchantSystem.Menu) e.setCancelled(true);
     }
 
+    /** Heraldo de las Sombras (NPC de la sala de inicio): clic derecho abre el menú de clases. */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onHeraldInteract(org.bukkit.event.player.PlayerInteractEntityEvent e) {
+        if (!inDungeon(e.getPlayer().getWorld())) return;
+        DungeonInstance inst = manager.of(e.getPlayer());
+        if (inst == null || !inst.classes().isNpc(e.getRightClicked())) return;
+        e.setCancelled(true);
+        if (e.getHand() == org.bukkit.inventory.EquipmentSlot.HAND) inst.classes().openMenu(e.getPlayer());
+    }
+
+    /** Menú de clases de inicio. */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onClassMenuClick(InventoryClickEvent e) {
+        if (!(e.getView().getTopInventory().getHolder() instanceof ClassSystem.Menu)) return;
+        e.setCancelled(true);
+        if (!(e.getWhoClicked() instanceof Player p)) return;
+        if (e.getClickedInventory() != e.getView().getTopInventory()) return;
+        DungeonInstance inst = manager.of(p);
+        if (inst != null) inst.classes().click(p, e.getSlot());
+    }
+
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onClassMenuDrag(InventoryDragEvent e) {
+        if (e.getView().getTopInventory().getHolder() instanceof ClassSystem.Menu) e.setCancelled(true);
+    }
+
     /** Menú de las salas de Evento. */
     @EventHandler(priority = EventPriority.HIGH)
     public void onEventMenuClick(InventoryClickEvent e) {

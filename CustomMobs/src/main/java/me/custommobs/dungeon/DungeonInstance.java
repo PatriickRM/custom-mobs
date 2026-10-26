@@ -170,6 +170,7 @@ public final class DungeonInstance {
     private final RelicSystem relics;
     private final MerchantSystem merchant;
     private final EventSystem events;
+    private final ClassSystem classes;
     private final CombatFx fx;
     private final RoomAmbience ambience;
     private final Puzzles puzzles;
@@ -236,6 +237,7 @@ public final class DungeonInstance {
         this.relics = new RelicSystem(plugin, this, cfg, world);
         this.merchant = new MerchantSystem(this, cfg, world);
         this.events = new EventSystem(this, cfg, world);
+        this.classes = new ClassSystem(this, cfg, world);
         this.fx = new CombatFx(plugin, cfg, world);
         this.ambience = new RoomAmbience(plugin, this, cfg, world);
         this.puzzles = new Puzzles(this);
@@ -572,6 +574,7 @@ public final class DungeonInstance {
         roomStates[0] = RoomState.ACTIVE;
         active = 0;
         startEnd = tick + cfg.i("players.start-countdown-seconds") * 20L;
+        classes.begin(rooms.get(0), tick);
         for (UUID u : new ArrayList<>(members.keySet())) {
             Player p = Bukkit.getPlayer(u);
             if (p != null) enter(p);
@@ -693,6 +696,17 @@ public final class DungeonInstance {
 
     private void runRooms() {
         if (roomStates[0] == RoomState.ACTIVE) {
+            if (classes.enabled()) {
+                hint = classes.hint(tick);
+                classes.ambient(tick);
+                if (classes.shouldStart(tick)) {
+                    classes.apply();
+                    titleAll("<gradient:#ff4d4d:#ffb347><bold>¡ADELANTE!</bold></gradient>", "<gray>Las puertas se abren</gray>");
+                    soundAll(Sound.ENTITY_ENDER_DRAGON_GROWL, 0.8f, 1.2f);
+                    clearRoom(0);
+                }
+                return;
+            }
             long left = startEnd - tick;
             if (left <= 0) {
                 titleAll("<gradient:#ff4d4d:#ffb347><bold>¡ADELANTE!</bold></gradient>", "<gray>Las puertas se abren</gray>");
@@ -788,7 +802,7 @@ public final class DungeonInstance {
             case VAULT -> startVault(r);
             case MERCHANT -> {
                 titleAll("<dark_aqua><bold>MERCADER FANTASMA</bold></dark_aqua>",
-                        "<gray>Paga con almas... o con sangre</gray>");
+                        "<gray>Paga con brasas... o con sangre</gray>");
                 merchant.start(r, tick);
             }
             case EVENT -> {
@@ -2052,6 +2066,14 @@ public final class DungeonInstance {
         return events;
     }
 
+    ClassSystem classes() {
+        return classes;
+    }
+
+    int activeRoomIndex() {
+        return active;
+    }
+
     int maxLives() {
         return maxLives;
     }
@@ -2417,6 +2439,7 @@ public final class DungeonInstance {
         relics.resetAll();
         merchant.resetAll();
         events.resetAll();
+        classes.begin(rooms.get(0), tick);
         ambience.clear();
         for (UUID u : members.keySet()) {
             PState s = members.get(u);

@@ -502,6 +502,50 @@ public final class DungeonBuilder {
                 brazier(r.x1, r.z1, r);
                 cobwebs(r, 10);
             }
+            case EVENT -> {
+                // pedestal central de obsidiana llorosa con una piedra de ofrenda, cuatro pilares y llamas del alma
+                for (int dx = -2; dx <= 2; dx++) {
+                    for (int dz = -2; dz <= 2; dz++) {
+                        set(cx + dx, r.floorY, r.cz + dz, Math.abs(dx) + Math.abs(dz) >= 4
+                                ? Material.POLISHED_BLACKSTONE_BRICKS : Material.CRYING_OBSIDIAN);
+                    }
+                }
+                set(cx, r.floorY + 1, r.cz, Material.LODESTONE);
+                set(cx, r.floorY + 2, r.cz, Material.SOUL_LANTERN);
+                int o = Math.max(4, h - 3);
+                pillar(cx - o, r.cz - o, r);
+                pillar(cx + o, r.cz + o, r);
+                pillar(cx - o, r.cz + o, r);
+                pillar(cx + o, r.cz - o, r);
+                emblem(r, 3.5, 5.5);
+                brazier(r.x0, r.z0, r);
+                brazier(r.x0, r.z1, r);
+                brazier(r.x1, r.z0, r);
+                brazier(r.x1, r.z1, r);
+                cobwebs(r, 7);
+            }
+            case MERCHANT -> {
+                // plataforma del mercader: suelo de ladrillo con centro dorado, 4 farolas de almas y hoguera
+                for (int dx = -3; dx <= 3; dx++) {
+                    for (int dz = -3; dz <= 3; dz++) {
+                        set(cx + dx, r.floorY, r.cz + dz, dx == 0 && dz == 0
+                                ? Material.GILDED_BLACKSTONE : Material.POLISHED_BLACKSTONE_BRICKS);
+                    }
+                }
+                for (int sx = -1; sx <= 1; sx += 2) {
+                    for (int sz = -1; sz <= 1; sz += 2) {
+                        set(cx + sx * 3, r.floorY + 1, r.cz + sz * 3, Material.POLISHED_BLACKSTONE_WALL);
+                        set(cx + sx * 3, r.floorY + 2, r.cz + sz * 3, Material.SOUL_LANTERN);
+                    }
+                }
+                set(cx, r.floorY + 1, r.cz, Material.SOUL_CAMPFIRE);
+                emblem(r, 3.5, 5.5);
+                brazier(r.x0, r.z0, r);
+                brazier(r.x0, r.z1, r);
+                brazier(r.x1, r.z0, r);
+                brazier(r.x1, r.z1, r);
+                cobwebs(r, 5);
+            }
             case SWEEP -> {
                 // 4 llaves en las esquinas y un faro en el centro
                 int o = Math.max(5, h - 3);
@@ -688,7 +732,8 @@ public final class DungeonBuilder {
     private void chandeliers(Room r) {
         if (r.height < 8) return;
         int cx = r.cx();
-        if (r.type == RoomType.START || r.type == RoomType.REST) {
+        if (r.type == RoomType.START || r.type == RoomType.REST || r.type == RoomType.MERCHANT
+                || r.type == RoomType.EVENT) {
             chandelier(r, cx, r.cz);
             return;
         }

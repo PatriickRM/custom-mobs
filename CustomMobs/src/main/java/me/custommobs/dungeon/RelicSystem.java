@@ -376,6 +376,44 @@ final class RelicSystem {
         return out;
     }
 
+    /** Reliquias que el jugador aún no tiene, al azar según rareza (para el Mercader). */
+    List<Relic> rollFor(UUID u, int n) {
+        return roll(st(u), n);
+    }
+
+    /** Una reliquia maldita que el jugador aún no tenga (o null si ya las tiene todas). */
+    Relic rollCursed(UUID u) {
+        St s = st(u);
+        List<Relic> pool = new ArrayList<>();
+        for (Relic r : Relic.values()) if (r.tier == Relic.Tier.CURSED && !s.owned.contains(r)) pool.add(r);
+        return pool.isEmpty() ? null : pool.get(rnd.nextInt(pool.size()));
+    }
+
+    /** Concede una reliquia directamente (compra). No hace nada si ya la tiene. */
+    void grant(UUID u, Relic r) {
+        grant(u, r, true);
+    }
+
+    /** @param announce false = sin sonido ni mensaje (reliquia inicial de una clase). */
+    void grant(UUID u, Relic r, boolean announce) {
+        St s = st(u);
+        if (!s.owned.add(r)) return;
+        DungeonInstance.PState ps = inst.pstate(u);
+        if (r == Relic.PHOENIX_FEATHER && ps != null) {
+            ps.bonusLives++;
+            ps.lives++;
+        }
+        if (r == Relic.ASH_AEGIS) s.aegisNext = 0;
+        if (!announce) return;
+        Player p = Bukkit.getPlayer(u);
+        if (p != null) {
+            p.playSound(p.getLocation(), Sound.ITEM_TOTEM_USE, 0.4f, 1.5f);
+            world.spawnParticle(Particle.TOTEM_OF_UNDYING, p.getLocation().add(0, 1.2, 0), 25, 0.4, 0.7, 0.4, 0.3);
+        }
+        inst.broadcast("<white>" + (ps != null ? ps.name : "Alguien") + "</white> <gray>compró la reliquia</gray> "
+                + r.tier.color + "<bold>" + r.title + "</bold>");
+    }
+
     boolean openMenu(Player p) {
         St s = states.get(p.getUniqueId());
         DungeonInstance.PState ps = inst.pstate(p.getUniqueId());
@@ -438,7 +476,7 @@ final class RelicSystem {
         return it;
     }
 
-    private static List<String> wrap(String text, int width) {
+    static List<String> wrap(String text, int width) {
         List<String> lines = new ArrayList<>();
         StringBuilder cur = new StringBuilder();
         for (String w : text.split(" ")) {

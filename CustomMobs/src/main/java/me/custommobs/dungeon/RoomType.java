@@ -11,7 +11,9 @@ public enum RoomType {
     VORTHAK("Vorthak", "El Centinela de Ceniza."),
     ALTAR("Altar de Almas", "Defiende el círculo mientras el altar se carga. Más gente dentro = más rápido."),
     VAULT("Cámara de Reliquias", "Cofres con riesgo y recompensa: emboscada, maldición o botín seguro."),
-    SWEEP("Faro Giratorio", "Recoge las llaves esquivando los rayos giratorios.");
+    SWEEP("Faro Giratorio", "Recoge las llaves esquivando los rayos giratorios."),
+    MERCHANT("Mercader Fantasma", "Sin combate: compra reliquias y pociones con brasas o con vidas."),
+    EVENT("Evento", "Una decisión con riesgo y recompensa. Cada uno elige su destino.");
 
     /** Nombre que se muestra al elegir camino. */
     public final String title;

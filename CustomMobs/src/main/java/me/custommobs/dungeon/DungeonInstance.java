@@ -167,6 +167,9 @@ public final class DungeonInstance {
     private long sweepHaz;
     private final Map<UUID, Long> sweepHit = new java.util.HashMap<>();
     private final BlessingSystem bless;
+    private final RelicSystem relics;
+    private final CombatFx fx;
+    private final RoomAmbience ambience;
     private final Puzzles puzzles;
     // camino: cada paso es una sala o una elección entre dos (índices físicos de sala)
     private final List<int[]> steps = new ArrayList<>();
@@ -228,6 +231,9 @@ public final class DungeonInstance {
         Collections.shuffle(miniOrder);
 
         this.bless = new BlessingSystem(plugin, this, cfg, world, id);
+        this.relics = new RelicSystem(plugin, this, cfg, world);
+        this.fx = new CombatFx(plugin, cfg, world);
+        this.ambience = new RoomAmbience(plugin, this, cfg, world);
         this.puzzles = new Puzzles(this);
         this.maxLives = cfg.i("players.lives") + (modifier == Modifier.BLESSED ? 1 : 0);
         for (Player p : players) {
@@ -622,6 +628,8 @@ public final class DungeonInstance {
         updateTombs();
         hazardTick();
         bless.tick(tick);
+        relics.tick(tick);
+        ambience.tick(tick);
         if (tick % 40 == 0) keepSpectators();
         if (state == State.RUNNING) {
             ambientSounds();
@@ -746,6 +754,7 @@ public final class DungeonInstance {
         hint = "";
         soundAll(Sound.BLOCK_IRON_DOOR_OPEN, 1f, 0.5f);
         autoPickPending();
+        ambience.enter(r);
         switch (r.type) {
             case WAVES -> {
                 totalWaves = cfg.i("waves.count");
@@ -785,6 +794,7 @@ public final class DungeonInstance {
         mobs.clear();
         pendingSpawns = 0;
         hint = "";
+        ambience.clear();
         DungeonBuilder.Room r = rooms.get(i);
         if (r.type == RoomType.VORTHAK) return;
         if (i > 0) {
@@ -794,6 +804,7 @@ public final class DungeonInstance {
             boolean miniReward = r.type == RoomType.MINIBOSS && cfg.b("blessings.enabled")
                     && cfg.b("blessings.miniboss-reward");
             if (blessingsDue(i) || miniReward) offerBlessings(r.type == RoomType.MINIBOSS);
+            if (relicsDue(i)) relics.offer();
         }
         advanceFrom(i);
     }
@@ -877,7 +888,7 @@ public final class DungeonInstance {
         for (int v : votes.values()) count[v]++;
         List<Player> al = aliveOnline();
         boolean allIn = !al.isEmpty() && votes.size() >= al.size();
-        boolean pending = bless.hasPending();
+        boolean pending = bless.hasPending() || relics.hasPending();
         boolean timeUp = tick >= voteEnd;
         StringBuilder sb = new StringBuilder("Camino: ");
         for (int k = 0; k < opts.length; k++) {
@@ -1976,6 +1987,31 @@ public final class DungeonInstance {
         return bless;
     }
 
+    RelicSystem relics() {
+        return relics;
+    }
+
+    CombatFx fx() {
+        return fx;
+    }
+
+    /** Las reliquias se ofrecen en las salas que no ofrecen bendición (se alternan). */
+    private boolean relicsDue(int clearedRoom) {
+        if (!cfg.b("relics.enabled")) return false;
+        int every = Math.max(1, cfg.i("relics.every"));
+        int st = stepOfRoom[clearedRoom];
+        return st > 0 && st % every == 1 % every && st + 1 < steps.size();
+    }
+
+    /** @return false si el jugador no tiene ninguna reliquia pendiente. */
+    public boolean openRelicMenu(Player p) {
+        return relics.openMenu(p);
+    }
+
+    public void chooseRelicBySlot(Player p, int slot) {
+        relics.click(p, slot);
+    }
+
     private boolean blessingsDue(int clearedRoom) {
         if (!cfg.b("blessings.enabled")) return false;
         int every = Math.max(1, cfg.i("blessings.every"));
@@ -1995,6 +2031,7 @@ public final class DungeonInstance {
     /** Si alguien no eligió a tiempo, se le concede una al azar al entrar en la siguiente sala. */
     private void autoPickPending() {
         bless.autoPickPending();
+        relics.autoPickPending();
     }
 
     /** @return false si el jugador no tiene ninguna bendición pendiente. */
@@ -2064,7 +2101,11 @@ public final class DungeonInstance {
         if (killer != null) {
             PState s = members.get(killer.getUniqueId());
             if (s != null) s.kills++;
-            if (!u.equals(vorthakId)) bless.onKill(e.getEntity(), killer);
+            if (!u.equals(vorthakId)) {
+                bless.onKill(e.getEntity(), killer);
+                relics.onKill(e.getEntity(), killer,
+                        e.getEntity().getPersistentDataContainer().has(manager.eliteKey, PersistentDataType.BYTE));
+            }
         }
         if (mini != null && mini.owns(u)) {
             mini.onDeath();
@@ -2305,6 +2346,8 @@ public final class DungeonInstance {
         revivesUsed = 0;
         startEnd = tick + cfg.i("players.start-countdown-seconds") * 20L;
         bless.resetAll();
+        relics.resetAll();
+        ambience.clear();
         for (UUID u : members.keySet()) {
             PState s = members.get(u);
             s.lives = maxLives;
@@ -2559,6 +2602,8 @@ public final class DungeonInstance {
             String hearts = "<red>" + "❤".repeat(Math.max(0, s.lives)) + "</red><dark_gray>"
                     + "❤".repeat(Math.max(0, maxLives + s.bonusLives - s.lives)) + "</dark_gray>";
             String bl = bless.hudLine(p);
+            String rl = relics.hudLine(p);
+            if (!rl.isEmpty()) bl = bl.isEmpty() ? rl : bl + " <dark_gray>·</dark_gray> " + rl;
             p.sendActionBar(Text.mm(hearts + (bl.isEmpty() ? "" : " <dark_gray>·</dark_gray> " + bl)
                     + (hint.isEmpty() ? "" : " <dark_gray>·</dark_gray> <gray>" + hint + "</gray>")));
         }
@@ -2636,6 +2681,7 @@ public final class DungeonInstance {
             mini.remove();
             mini = null;
         }
+        ambience.clear();
         discardVorthak();
         removeAllTombs();
         restoreHazards();

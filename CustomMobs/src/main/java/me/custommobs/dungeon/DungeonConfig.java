@@ -281,6 +281,21 @@ public final class DungeonConfig {
               # Tras derrotar al mini jefe todos reciben una bendición extra (rara o mejor).
               miniboss-reward: true
 
+            relics:
+              # Reliquias: objetos pasivos que cambian las reglas. Se ofrecen en las salas intermedias
+              # (alternando con las bendiciones). Cada jugador elige la suya.
+              enabled: true
+              # Cada cuántas salas se ofrece una (2 = salas 1, 3, 5...).
+              every: 2
+              # Opciones que se muestran (1-3).
+              choices: 3
+
+            fx:
+              # Números de daño flotantes sobre los enemigos.
+              damage-numbers: true
+              # Cristales flotantes y partículas de ambiente propias de cada sala.
+              ambience: true
+
             altar:
               # Altar de Almas: quédate en la zona para cargarlo mientras llegan enemigos.
               # Cuantos más jugadores dentro, más rápido (hasta x2).

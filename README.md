@@ -205,3 +205,16 @@ Catacumbas de Ceniza (clásico), Cripta Helada, Santuario del Vacío y Forja Car
 En `dungeon.yml` → `biome`: `random` (por defecto), `ashen`, `frost`, `void` o `crimson`. Las paletas están en `Biome.java`
 (solo se sustituyen bloques por otros de la misma forma: bloque, escalera, losa, muro). Las salas ya tenían ramas: en los pasos con
 varias opciones (`"A|B"`) el grupo vota el camino.
+
+## Novedades (parte 9): Hub de la dungeon y registro de jefes
+
+Una **isla flotante decorada** (mundo vacío propio `dungeon_lobby`, se construye al arrancar y se borra al apagar) que hace de lobby:
+- **Pedestales de jefe:** uno por cada entrada de `BossDef.ALL`. Clic derecho abre un menú para entrar en la cola, salirse o adelantar el inicio. Los jefes no disponibles aparecen **sellados**.
+- **Santuario de Ecos** (clic derecho) y **Salón de la Fama** (top 3 de puntajes), más un cristal central que muestra la cola.
+- Protegido: no se rompe ni se coloca nada, sin daño ni hambre, sin mobs (los admins en creativo pueden editar).
+
+Comandos: `/dungeon hub` (ir al hub). Sin `/dungeon setlobby`, el lobby de la dungeon **es** el hub; si ya tenías uno fijado sigue mandando:
+usa `/dungeon setlobby hub` para volver al hub. Config en `dungeon.yml` → `hub` (`enabled`, `world`).
+
+**Añadir un jefe nuevo:** copia una línea de `BossDef.ALL` (id, nombre, color, icono, descripción, `available`). Su pedestal aparece solo en el hub
+(hasta 5) y la cola ya es por jefe. El combate de cada jefe se implementa aparte: hoy solo Vorthak tiene combate (`DungeonInstance.spawnVorthak`).

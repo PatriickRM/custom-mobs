@@ -173,6 +173,7 @@ public final class DungeonInstance {
     private final ClassSystem classes;
     private final MetaSystem meta;
     private final Biome biome;
+    private final BossDef boss;
     private final HeatSystem heat;
     private final CombatFx fx;
     private final RoomAmbience ambience;
@@ -201,7 +202,7 @@ public final class DungeonInstance {
     private final List<Hazard> hazards = new ArrayList<>();
 
     public DungeonInstance(CustomMobsPlugin plugin, DungeonManager manager, int id, int slot,
-                           List<Player> players, Modifier modifier) {
+                           List<Player> players, Modifier modifier, BossDef boss) {
         this.plugin = plugin;
         this.manager = manager;
         this.cfg = manager.cfg();
@@ -210,6 +211,7 @@ public final class DungeonInstance {
         this.slot = slot;
         this.world = manager.world();
         this.modifier = modifier;
+        this.boss = boss == null ? BossDef.DEFAULT : boss;
         this.oz = slot * cfg.i("instance-spacing");
 
         List<RoomType> types = new ArrayList<>();
@@ -2075,6 +2077,10 @@ public final class DungeonInstance {
         return events;
     }
 
+    BossDef bossDef() {
+        return boss;
+    }
+
     Biome biome() {
         return biome;
     }
@@ -2727,7 +2733,7 @@ public final class DungeonInstance {
         for (int i = 1; i < rooms.size(); i++) if (roomStates[i] == RoomState.CLEARED) cleared++;
         if (state == State.COMPLETED) cleared = total;
         bar.progress((float) Math.max(0.0, Math.min(1.0, cleared / (double) total)));
-        bar.name(Text.mm("<gradient:#ff4d4d:#ffb347><bold>Dungeon de Vorthak</bold></gradient> <dark_gray>·</dark_gray> <gray>Sala <white>"
+        bar.name(Text.mm("<gradient:#ff4d4d:#ffb347><bold>Dungeon de " + boss.title() + "</bold></gradient> <dark_gray>·</dark_gray> <gray>Sala <white>"
                 + Math.max(0, Math.min(curStep, total)) + "/" + total + "</white></gray> <dark_gray>·</dark_gray> <aqua>"
                 + clock(elapsedSeconds()) + "</aqua>"
                 + (modifier != null ? " <dark_gray>·</dark_gray> <light_purple>" + modifier.title + "</light_purple>" : "")

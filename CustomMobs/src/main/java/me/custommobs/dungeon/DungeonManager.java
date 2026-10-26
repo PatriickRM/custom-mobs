@@ -56,6 +56,8 @@ public final class DungeonManager {
     private int nextId = 1;
     private int countdown = -1;
     private BukkitTask queueTask;
+    private HubWorld hub;
+    private BossDef queueBoss;
 
     private final Map<Integer, DungeonInstance> slots = new HashMap<>();
     private final Map<UUID, DungeonInstance> byPlayer = new HashMap<>();
@@ -92,6 +94,17 @@ public final class DungeonManager {
         if (!createWorld()) return;
         enabled = true;
         Bukkit.getPluginManager().registerEvents(new DungeonListener(plugin, this), plugin);
+        if (cfg.b("hub.enabled")) {
+            HubWorld h = new HubWorld(this);
+            try {
+                if (h.create()) {
+                    hub = h;
+                    Bukkit.getPluginManager().registerEvents(new HubListener(this, h), plugin);
+                }
+            } catch (RuntimeException ex) {
+                plugin.getLogger().log(java.util.logging.Level.WARNING, "No se pudo construir el hub de la dungeon", ex);
+            }
+        }
         queueTask = Bukkit.getScheduler().runTaskTimer(plugin, this::queueTick, 20L, 20L);
         plugin.getLogger().info("Dungeon lista (mundo '" + world.getName() + "').");
     }
@@ -116,6 +129,10 @@ public final class DungeonManager {
                 deleteFolder(new File(Bukkit.getWorldContainer(), name));
             }
             world = null;
+        }
+        if (hub != null) {
+            hub.shutdown();
+            hub = null;
         }
         if (data != null) data.save();
     }
@@ -155,6 +172,10 @@ public final class DungeonManager {
         world.setThundering(false);
         world.setSpawnLocation(0, 100, 0);
         return true;
+    }
+
+    void deleteWorldFolder(File dir) {
+        deleteFolder(dir);
     }
 
     private void deleteFolder(File dir) {
@@ -242,6 +263,14 @@ public final class DungeonManager {
         return queue.size();
     }
 
+    public HubWorld hub() {
+        return hub;
+    }
+
+    public BossDef queueBoss() {
+        return queueBoss == null ? BossDef.DEFAULT : queueBoss;
+    }
+
     public boolean inQueue(UUID id) {
         return queue.contains(id);
     }
@@ -250,7 +279,7 @@ public final class DungeonManager {
 
     public Location lobbyLocation() {
         String s = data.lobby();
-        if (s == null || s.isBlank()) return null;
+        if (s == null || s.isBlank()) return hub != null ? hub.spawn() : null;
         try {
             String[] p = s.split(";");
             World w = Bukkit.getWorld(p[0]);
@@ -334,7 +363,16 @@ public final class DungeonManager {
 
     /** @return mensaje de error, o null si se unió. */
     public String join(Player p) {
+        return join(p, BossDef.DEFAULT);
+    }
+
+    /** @return mensaje de error, o null si se unió (la cola es de un solo jefe a la vez). */
+    public String join(Player p, BossDef boss) {
         if (!enabled) return "La dungeon no está disponible.";
+        if (boss == null || !boss.available()) return "Ese jefe aún no está disponible.";
+        if (!queue.isEmpty() && queueBoss != null && queueBoss != boss) {
+            return "La cola actual es para " + queueBoss.title() + ". Espera a que empiece.";
+        }
         if (byPlayer.containsKey(p.getUniqueId())) return "Ya estás dentro de una dungeon.";
         if (queue.contains(p.getUniqueId())) return "Ya estás en la cola.";
         if (isDungeonWorld(p.getWorld())) return "No puedes unirte desde dentro de la dungeon.";
@@ -347,6 +385,7 @@ public final class DungeonManager {
         if (gear != null) return gear + ".";
         int max = cfg.i("lobby.max-players");
         if (queue.size() >= max) return "La cola está llena (" + max + " jugadores).";
+        if (queue.isEmpty()) queueBoss = boss;
         queue.add(p.getUniqueId());
         int min = cfg.i("lobby.min-players");
         msgQueue("<white>" + p.getName() + "</white> <gray>se une a la dungeon</gray> <dark_gray>(" + queue.size() + "/" + max + ")</dark_gray>"
@@ -424,7 +463,9 @@ public final class DungeonManager {
         }
         queue.clear();
         Modifier mod = Modifier.today(cfg.s("modifiers.force"), cfg.b("modifiers.enabled"));
-        DungeonInstance inst = new DungeonInstance(plugin, this, nextId++, slot, players, mod);
+        BossDef chosen = queueBoss();
+        queueBoss = null;
+        DungeonInstance inst = new DungeonInstance(plugin, this, nextId++, slot, players, mod, chosen);
         slots.put(slot, inst);
         for (Player p : players) {
             byPlayer.put(p.getUniqueId(), inst);

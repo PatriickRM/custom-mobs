@@ -338,6 +338,12 @@ public final class DungeonConfig {
               # Cada nivel de Calor suma este % al puntaje final (0.10 = +10% por nivel).
               score-bonus-per-level: 0.10
 
+            hub:
+              # Hub: isla decorada (mundo vacío propio, se construye al arrancar) con un pedestal por jefe,
+              # el Santuario de Ecos y el Salón de la Fama. Sin /dungeon setlobby, el lobby es el hub.
+              enabled: true
+              world: dungeon_lobby
+
             meta:
               # Ecos: moneda permanente. Se gana en cada partida (aunque pierdas) y se gasta en mejoras
               # permanentes con /dungeon meta o desde el Heraldo de las Sombras.

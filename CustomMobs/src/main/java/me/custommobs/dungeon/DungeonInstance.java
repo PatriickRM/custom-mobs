@@ -173,6 +173,7 @@ public final class DungeonInstance {
     private final ClassSystem classes;
     private final MetaSystem meta;
     private final Biome biome;
+    private final ObjectiveSystem objectives;
     private final BossDef boss;
     private final HeatSystem heat;
     private final CombatFx fx;
@@ -246,6 +247,7 @@ public final class DungeonInstance {
         this.classes = new ClassSystem(this, cfg, world);
         this.heat = new HeatSystem(this, cfg);
         this.meta = new MetaSystem(manager);
+        this.objectives = new ObjectiveSystem(this, cfg, world);
         this.fx = new CombatFx(plugin, cfg, world);
         this.ambience = new RoomAmbience(plugin, this, cfg, world);
         this.puzzles = new Puzzles(this);
@@ -795,8 +797,12 @@ public final class DungeonInstance {
         switch (r.type) {
             case WAVES -> {
                 totalWaves = cfg.i("waves.count") + heat.extraWaves();
-                nextWaveTick = tick + 50;
-                titleAll("<gold><bold>SALA " + curStep + "</bold></gold>", "<gray>Sobrevive a las oleadas</gray>");
+                if (objectives.begin(r)) {
+                    nextWaveTick = 0;
+                } else {
+                    nextWaveTick = tick + 50;
+                    titleAll("<gold><bold>SALA " + curStep + "</bold></gold>", "<gray>Sobrevive a las oleadas</gray>");
+                }
             }
             case TRAP -> {
                 trapStart = tick;
@@ -843,6 +849,7 @@ public final class DungeonInstance {
         pendingSpawns = 0;
         hint = "";
         ambience.clear();
+        objectives.clear();
         DungeonBuilder.Room r = rooms.get(i);
         if (r.type == RoomType.VORTHAK) return;
         if (i > 0) {
@@ -993,6 +1000,16 @@ public final class DungeonInstance {
     // ------------------------------------------------------------------ oleadas
 
     private void wavesTick(DungeonBuilder.Room r) {
+        if (objectives.active()) {
+            objectives.tick(r);
+            if (tick % 10 == 0) {
+                mobs.removeIf(u -> {
+                    Entity e = Bukkit.getEntity(u);
+                    return e == null || !e.isValid() || e.isDead();
+                });
+            }
+            return;
+        }
         if (nextWaveTick > 0 && tick >= nextWaveTick) {
             nextWaveTick = 0;
             startWave();
@@ -2081,6 +2098,54 @@ public final class DungeonInstance {
         return boss;
     }
 
+    ObjectiveSystem objectives() {
+        return objectives;
+    }
+
+    DungeonManager manager() {
+        return manager;
+    }
+
+    void hint(String h) {
+        hint = h;
+    }
+
+    int mobCount() {
+        return mobs.size();
+    }
+
+    /** El objetivo de la sala (cristales, faros...) se ha cumplido: la sala queda superada. */
+    void objectiveComplete() {
+        if (state == State.RUNNING && roomStates[active] == RoomState.ACTIVE) clearRoom(active);
+    }
+
+    /** Hace desaparecer a los enemigos de oleada que queden (al cumplir un objetivo). */
+    void purgeWaveMobs() {
+        for (UUID u : new ArrayList<>(mobs)) {
+            Entity e = Bukkit.getEntity(u);
+            if (e != null && e.isValid()) {
+                world.spawnParticle(Particle.SOUL, e.getLocation().add(0, 1, 0), 10, 0.3, 0.5, 0.3, 0.02);
+                e.remove();
+            }
+            manager.unindexMob(u);
+        }
+        mobs.clear();
+        pendingSpawns = 0;
+    }
+
+    /** Genera un enemigo de oleada para un objetivo, con las mismas escalas que las oleadas. */
+    void spawnObjectiveMob(Location l, boolean forceElite) {
+        int ordinal = roomOrdinal();
+        int tier = Math.min(3, WaveMobs.tierFor(ordinal));
+        double hpMul = (1 + cfg.d("scaling.health-per-extra-player") * (groupSize() - 1))
+                * (1 + cfg.d("scaling.health-per-room") * (ordinal - 1)) * heat.hpMul();
+        double dmgMul = (1 + cfg.d("scaling.damage-per-room") * (ordinal - 1)) * heat.dmgMul();
+        double eliteChance = cfg.d("waves.elite-chance") * (modifier == Modifier.ELITE ? 4 : 1) * heat.eliteMul();
+        boolean elite = forceElite || rnd.nextDouble() < eliteChance;
+        LivingEntity e = WaveMobs.spawn(this, l, tier, elite, hpMul, dmgMul);
+        mobs.add(e.getUniqueId());
+    }
+
     Biome biome() {
         return biome;
     }
@@ -2212,6 +2277,7 @@ public final class DungeonInstance {
     // ------------------------------------------------------------------ eventos delegados
 
     public void onMobDamaged(EntityDamageEvent e) {
+        if (objectives.onDamaged(e)) return;
         if (puzzles.onDamaged(e)) return;
         if (mini != null && mini.owns(e.getEntity().getUniqueId())) mini.onDamage(e);
     }
@@ -2486,6 +2552,7 @@ public final class DungeonInstance {
         heat.resetAll();
         classes.begin(rooms.get(0), tick);
         ambience.clear();
+        objectives.clear();
         for (UUID u : members.keySet()) {
             PState s = members.get(u);
             s.lives = maxLives;
@@ -2826,6 +2893,7 @@ public final class DungeonInstance {
             mini = null;
         }
         ambience.clear();
+        objectives.clear();
         discardVorthak();
         removeAllTombs();
         restoreHazards();

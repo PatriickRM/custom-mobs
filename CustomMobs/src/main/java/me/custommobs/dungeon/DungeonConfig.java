@@ -185,7 +185,7 @@ public final class DungeonConfig {
             # size = lado interior (se fuerza impar), height = alto interior.
             sizes:
               START:    {size: 13, height: 8}
-              WAVES:    {size: 25, height: 10}
+              WAVES:    {size: 45, height: 14}
               TRAP:     {size: 25, height: 9}
               PUZZLE:   {size: 25, height: 9}
               MINIBOSS: {size: 29, height: 13}
@@ -337,6 +337,17 @@ public final class DungeonConfig {
               extra-waves: 1
               # Cada nivel de Calor suma este % al puntaje final (0.10 = +10% por nivel).
               score-bonus-per-level: 0.10
+
+            objectives:
+              # Las salas de oleadas pueden tener un objetivo especial en vez de solo matar:
+              # destruir cristales de invocación o capturar faros. 'chance' = probabilidad (0 = siempre oleada clásica).
+              enabled: true
+              chance: 0.65
+              crystal-health: 150.0
+              crystal-pulse-seconds: 9
+              beacon-radius: 4.5
+              beacon-seconds: 14
+              beacon-spawn-seconds: 6
 
             hub:
               # Hub: isla decorada (mundo vacío propio, se construye al arrancar) con un pedestal por jefe,

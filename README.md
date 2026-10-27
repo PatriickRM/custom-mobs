@@ -218,3 +218,19 @@ usa `/dungeon setlobby hub` para volver al hub. Config en `dungeon.yml` → `hub
 
 **Añadir un jefe nuevo:** copia una línea de `BossDef.ALL` (id, nombre, color, icono, descripción, `available`). Su pedestal aparece solo en el hub
 (hasta 5) y la cola ya es por jefe. El combate de cada jefe se implementa aparte: hoy solo Vorthak tiene combate (`DungeonInstance.spawnVorthak`).
+
+## Novedades (parte 10): arenas grandes y objetivos de sala
+
+Las salas de oleadas ya no son una caja vacía:
+- **Más grandes** (45x45, 14 de alto por defecto) y con **arquitectura** distinta cada vez: *Ruinas* (columnas rotas, muros bajos y escombros como cobertura),
+  *Terrazas* (cuatro plataformas elevadas con escaleras), *Catedral* (hileras de columnas altas con una nave central) o *Arcos* (anillo de arcos de piedra),
+  más cadenas colgantes del techo. Siempre queda libre el pasillo entre las dos puertas.
+- **Anclajes de objetivo:** cada arena marca 6 puntos en el suelo (altares) donde se colocan los objetivos.
+- **Objetivos** (probabilidad `objectives.chance`, por defecto 65%; si no toca, oleada clásica):
+  - *Cristales de invocación:* hay que **destruir** 3-5 cristales (vida propia, sube con el grupo y el Calor). Cada uno invoca enemigos sin parar y,
+    con la mitad destruida, los que quedan invocan más rápido. Al destruir el último, los enemigos restantes se desvanecen.
+  - *Faros:* hay que **capturar** 3 faros quedándote dentro del círculo (más gente = más rápido). Si hay 4+ enemigos encima el faro queda *disputado*;
+    si te vas, el progreso baja. Llegan refuerzos continuos y, con el último faro, a veces un élite.
+
+Ajustes en `dungeon.yml` → `objectives` (`enabled`, `chance`, `crystal-health`, `crystal-pulse-seconds`, `beacon-radius`, `beacon-seconds`,
+`beacon-spawn-seconds`). **Ojo:** si tu `dungeon.yml` ya tiene el bloque `sizes:`, pon `WAVES: {size: 45, height: 14}` (o borra el bloque para usar los nuevos valores).

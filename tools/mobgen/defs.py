@@ -605,5 +605,193 @@ def nigromante():
     return Mob('nigromante', 'Nigromante de Almas', nodes)
 
 
+# ============================================================================= CRIPTA HELADA
+ICE = ['#16344d', '#256a93', '#3fa0cc', '#8adcf0', '#e4faff']
+FROZEN = ['#22364a', '#334d66', '#4a6b88', '#6b90ad']
+DEEPBLUE = ['#0a1522', '#112236', '#1a3350', '#27496d']
+SNOWFUR = ['#7f8ea0', '#a2b1c0', '#c6d2de', '#e3ebf3', '#fbfdff']
+BONE_ICE = ['#5f7384', '#8aa1b3', '#b4c8d6', '#d9e7f0', '#f2fbff']
+G_ICE = ['#1f93d6', '#58cbff', '#b0efff', '#f4ffff']
+
+
+def congelado():
+    """Congelado: cadáver helado con cristales de hielo clavados en hombros y pecho, corona de carámbanos."""
+    skin = S(FROZEN, bias=1.4, spread=1.0, cracks=(1, 4, '#58cbff'), speck=(0.05, '#e4faff'))
+    rag = S(DEEPBLUE, bias=1.5, spread=1.0, stripes=True)
+    ice = S(ICE, bias=2.0, spread=1.0, speck=(0.06, '#ffffff'))
+    ice_d = S(ICE, bias=1.0, spread=0.9)
+    leg = lambda sx: [B(0.5 * sx, 4.5 * sx, 2, 12, -2, 2, skin), B(0.2 * sx, 4.8 * sx, 3, 8, -2.5, 2.5, rag),
+                      B(0.5 * sx, 4.5 * sx, 0, 2, -2, 4, ice_d), B(1.5 * sx, 3.5 * sx, 9, 12.5, 2.0, 3.2, ice)]
+    arm = lambda sx: [B(4.5 * sx, 7.5 * sx, 9, 23, -1.5, 1.5, skin), B(4.2 * sx, 7.8 * sx, 6.5, 9.5, -2, 2, ice_d),
+                      B(4.4 * sx, 5.2 * sx, 2, 6.5, -0.5, 0.5, ice), B(5.5 * sx, 6.3 * sx, 1.5, 6.5, -0.5, 0.5, ice),
+                      B(6.6 * sx, 7.4 * sx, 2, 6.5, -0.5, 0.5, ice), B(4 * sx, 8.5 * sx, 22, 25, -2.5, 2.5, rag)]
+    nodes = [
+        Node('legL', (2.5, 12, 0), leg(1), walk_amp=30, walk_phase=0),
+        Node('legR', (-2.5, 12, 0), mirror(leg(1)), walk_amp=30, walk_phase=180),
+        Node('body', (0, 12, 0), [
+            B(-4, 4, 12, 24, -2, 2, skin), B(-4.6, 4.6, 12, 14.2, -2.6, 2.6, rag),
+            B(-2.2, 2.2, 15.5, 22.5, 2.0, 3.6, ice), B(-1.2, 1.2, 17, 21, 3.6, 4.6, ice),
+            B(3.4, 6.4, 24, 29, -1.6, 1.6, ice), B(4.4, 5.6, 29, 34, -0.8, 0.8, ice),
+            B(-6.4, -3.4, 24, 27, -1.6, 1.6, ice), B(-5.6, -4.4, 27, 31, -0.8, 0.8, ice),
+            B(-1.2, 1.2, 14, 23, -2.9, -2.0, ice_d),
+        ], rest=(10, 0, 0), idle_amp=1.8, idle_axis='x', idle_speed=1.3),
+        Node('body_glow', (0, 12, 0), [
+            B(-0.6, 0.6, 17.4, 20.6, 4.6, 4.75, glow(G_ICE)), B(-1.7, 1.7, 18.6, 19.4, 3.6, 3.75, glow(G_ICE)),
+            B(4.7, 5.3, 25.5, 31, -0.2, 0.2, glow(G_ICE)), B(-5.3, -4.7, 24.8, 28.5, -0.2, 0.2, glow(G_ICE)),
+        ], parent='body', glow=True),
+        Node('head', (0, 24, 0), [
+            B(-4, 4, 25, 32, -4, 4, skin), B(-3, 3, 21, 24, -3.2, 3, S(FROZEN, bias=0.6)),
+            B(-3.5, -1.8, 32, 36.5, -3, -1.2, ice), B(0, 1.8, 32, 39, 0, 1.8, ice), B(2.4, 4, 32, 35.5, -2, -0.2, ice),
+            B(-2.6, 2.6, 21.5, 25, 3.2, 4.4, ice_d), B(-1.8, -0.8, 18.5, 21.5, 3.4, 4.2, ice), B(0.6, 1.6, 17.5, 21.5, 3.4, 4.2, ice),
+        ], parent='body', look=True),
+        Node('head_glow', (0, 24, 0), [
+            B(-3, -1, 27, 28.8, 4.0, 4.15, glow(G_ICE)), B(1, 3, 27, 28.8, 4.0, 4.15, glow(G_ICE)),
+        ], parent='head', glow=True),
+        Node('armL', (6, 23, 0), arm(1), parent='body', rest=(-80, 0, -4), walk_amp=9, walk_phase=180, atk=45),
+        Node('armR', (-6, 23, 0), mirror(arm(1)), parent='body', rest=(-80, 0, 4), walk_amp=9, walk_phase=0, atk=45),
+    ]
+    return Mob('congelado', 'Congelado', nodes)
+
+
+def escarcha():
+    """Arquero de Escarcha: esqueleto con coraza de hielo, capa de piel blanca y arco de carámbano."""
+    bone = S(BONE_ICE, bias=1.8, spread=1.0, speck=(0.06, '#ffffff'))
+    bone_d = S(BONE_ICE, bias=0.9, spread=0.9)
+    ice = S(ICE, bias=2.1, spread=1.0, speck=(0.05, '#ffffff'))
+    fur = S(SNOWFUR, bias=2.0, spread=1.0, stripes=True)
+    leather = S(DEEPBLUE, bias=1.6, spread=1.0, rows=3)
+    leg = lambda sx: [B(1 * sx, 3 * sx, 1.5, 12, -1, 1, bone), B(0.8 * sx, 3.2 * sx, 0, 1.5, -1.2, 2.6, bone_d),
+                      B(0.6 * sx, 3.4 * sx, 5, 8, -1.4, 1.4, fur)]
+    ribs = [B(-3, 3, y, y + 1, -1.5, 1.5, bone) for y in (13, 15, 17, 19, 21)]
+    bow = [B(3.4, 4.6, 9.5, 11.5, -2, 2, ice), B(3.4, 4.6, 10.2, 12.2, 2, 5.5, ice), B(3.4, 4.6, 11.4, 13.4, 5.5, 9, ice),
+           B(3.4, 4.6, 10.2, 12.2, -5.5, -2, ice), B(3.4, 4.6, 11.4, 13.4, -9, -5.5, ice),
+           B(3.85, 4.15, 12.9, 13.2, -8.8, 8.8, S(['#8aa1b3', '#d9e7f0'], bias=0.5)), B(3.2, 4.8, 9.2, 11.8, -1.2, 1.2, leather),
+           B(3.6, 4.4, 5.5, 9.4, -0.5, 0.5, ice), B(3.6, 4.4, 13.4, 16.5, 8.5, 9.5, ice)]
+    nodes = [
+        Node('legL', (2, 12, 0), leg(1), walk_amp=32, walk_phase=0),
+        Node('legR', (-2, 12, 0), leg(-1), walk_amp=32, walk_phase=180),
+        Node('body', (0, 12, 0), ribs + [
+            B(-0.8, 0.8, 12, 24, -2.4, -1.5, bone), B(-3, 3, 12, 13.5, -1.7, 1.7, bone_d),
+            B(-4, 4, 22.2, 24, -1.7, 1.7, bone), B(-6, 6, 22.5, 26, -3.0, 3.0, fur),
+            B(-3, 3, 6.5, 12.5, 1.8, 2.3, leather)], rest=(6, 0, 0), idle_amp=1.5, idle_axis='x', idle_speed=1.2),
+        Node('body_glow', (0, 12, 0), [B(-1.6, 1.6, 14, 22, -1.0, 1.0, glow(G_ICE))], parent='body', glow=True),
+        Node('cape', (0, 23, -2.6), [B(-4, 4, 6, 23, -3.2, -2.6, fur)], parent='body', idle_amp=7, idle_axis='x', idle_speed=1.4),
+        Node('head', (0, 24, 0), [
+            B(-4, 4, 24, 32, -4, 4, bone), B(-3.6, 3.6, 31.5, 34, -3.6, 3.6, fur),
+            B(-1.2, 1.2, 34, 39, -1, 1, ice), B(-3.4, -2.2, 34, 37.5, -0.8, 0.8, ice), B(2.2, 3.4, 34, 37.5, -0.8, 0.8, ice),
+        ], parent='body', look=True),
+        Node('head_glow', (0, 24, 0), [
+            B(-3.2, -1.2, 27, 29, 4, 4.15, glow(G_ICE)), B(1.2, 3.2, 27, 29, 4, 4.15, glow(G_ICE)),
+        ], parent='head', glow=True),
+        Node('armL', (4, 23, 0), [B(3, 5, 11, 23, -1, 1, bone), B(2.8, 5.2, 9.5, 11, -1.2, 1.2, bone_d)],
+             parent='body', rest=(-85, 0, 0), walk_amp=4, walk_phase=180, atk=10),
+        Node('bow', (4, 11, 0), bow, parent='armL'),
+        Node('armR', (-4, 23, 0), mirror([B(3, 5, 11, 23, -1, 1, bone), B(2.8, 5.2, 9.5, 11, -1.2, 1.2, bone_d)]),
+             parent='body', rest=(-62, 0, 14), walk_amp=4, walk_phase=0, atk=10),
+    ]
+    return Mob('escarcha', 'Arquero de Escarcha', nodes)
+
+
+def yeti():
+    """Yeti de Ventisca: bruto de pelaje blanco, brazos hasta el suelo, colmillos de hielo y cuernos."""
+    fur = S(SNOWFUR, bias=2.0, spread=1.2, stripes=True, speck=(0.05, '#ffffff'))
+    fur_d = S(SNOWFUR, bias=1.0, spread=1.0, stripes=True)
+    skin = S(FROZEN, bias=1.8, spread=0.9)
+    ice = S(ICE, bias=2.2, spread=1.0, speck=(0.06, '#ffffff'))
+    claw = S(BONE_ICE, bias=3.0, spread=0.6)
+    leg = lambda sx: [B(0.8 * sx, 5.6 * sx, 2, 13, -2.8, 2.8, fur), B(0.5 * sx, 6 * sx, 0, 2.5, -3, 4.5, fur_d)]
+    arm = lambda sx: [B(6.5 * sx, 10.5 * sx, 5, 25, -2.6, 2.6, fur), B(6.3 * sx, 10.7 * sx, 2, 6, -3, 3, fur_d),
+                      B(6.6 * sx, 7.6 * sx, 1, 3, -0.6, 0.6, claw), B(7.8 * sx, 8.8 * sx, 1, 3, -0.6, 0.6, claw),
+                      B(9.0 * sx, 10.0 * sx, 1, 3, -0.6, 0.6, claw)]
+    nodes = [
+        Node('legL', (3.2, 13, 0), leg(1), walk_amp=26, walk_phase=0),
+        Node('legR', (-3.2, 13, 0), mirror(leg(1)), walk_amp=26, walk_phase=180),
+        Node('body', (0, 13, 0), [B(-6, 6, 13, 27, -3.6, 3.6, fur), B(-6.4, 6.4, 13, 15.5, -4, 4, fur_d),
+                                  B(-3.5, 3.5, 17, 25, 3.6, 4.2, skin), B(-8, 8, 25, 29, -4.4, 4.4, fur),
+                                  B(-2, 2, 29, 33, -4, -2, ice)] + [B(-1.2 + 1.2 * i, 0.2 + 1.2 * i, 27, 32 + (i % 2) * 2, -4.4, -3.4, ice) for i in range(3)],
+             rest=(12, 0, 0), idle_amp=2.2, idle_axis='x', idle_speed=1.1),
+        Node('body_glow', (0, 13, 0), [B(-2.5, 2.5, 20, 22, 4.2, 4.35, glow(G_ICE))], parent='body', glow=True),
+        Node('head', (0, 27, 0), [B(-4, 4, 26, 34, -4.4, 4.4, fur), B(-3, 3, 24, 27, -3, 4.6, skin),
+                                  B(-2.8, 2.8, 25.5, 28.5, 4.4, 6.2, skin),
+                                  B(-3, -2, 21.5, 26, 4.5, 5.5, ice), B(2, 3, 21.5, 26, 4.5, 5.5, ice),
+                                  B(4, 6, 31, 35, -1, 1, ice), B(5.5, 7, 34, 38, -1, 1, ice), B(-6, -4, 31, 35, -1, 1, ice), B(-7, -5.5, 34, 38, -1, 1, ice)],
+             parent='body', look=True),
+        Node('head_glow', (0, 27, 0), [B(-3, -1, 29.5, 31.2, 4.4, 4.55, glow(G_ICE)), B(1, 3, 29.5, 31.2, 4.4, 4.55, glow(G_ICE))],
+             parent='head', glow=True),
+        Node('armL', (8.5, 25, 0), arm(1), parent='body', rest=(-25, 0, -6), walk_amp=14, walk_phase=180, atk=70),
+        Node('armR', (-8.5, 25, 0), mirror(arm(1)), parent='body', rest=(-25, 0, 6), walk_amp=14, walk_phase=0, atk=70),
+    ]
+    return Mob('yeti', 'Yeti de Ventisca', nodes, scale=1.1)
+
+
+def banshee():
+    """Banshee de Ventisca: espíritu de escarcha flotante de melena helada y garras de cristal."""
+    robe = S(DEEPBLUE, bias=1.6, spread=1.0, stripes=True)
+    robe_l = S(ICE, bias=1.8, spread=1.0, stripes=True, speck=(0.05, '#ffffff'))
+    face = S(BONE_ICE, bias=2.2, spread=0.8)
+    hair = S(SNOWFUR, bias=2.2, spread=1.0, stripes=True)
+    claw = S(ICE, bias=3.0, spread=0.6)
+    arm = lambda sx: [B(3.5 * sx, 5.5 * sx, 14, 24, -1.3, 1.3, robe), B(3.6 * sx, 5.4 * sx, 10, 14, -1, 1, face),
+                      B(3.6 * sx, 4.2 * sx, 5, 10, -0.4, 0.4, claw), B(4.4 * sx, 5 * sx, 4.5, 10, -0.4, 0.4, claw), B(5.2 * sx, 5.8 * sx, 5, 10, -0.4, 0.4, claw)]
+    nodes = [
+        Node('core', (0, 20, 0), [], hover_amp=2.6, hover_speed=1.1),
+        Node('robe', (0, 26, 0), [B(-4.5, 4.5, 18, 28, -3, 3, robe), B(-4.8, 4.8, 26, 28.5, -3.4, 3.4, robe_l)], parent='core',
+             idle_amp=1.5, idle_axis='z', idle_speed=1.0),
+        Node('tail1', (0, 18, 0), [B(-4, 4, 10, 18, -2.8, 2.8, robe)], parent='robe', idle_amp=6, idle_axis='x', idle_speed=1.1),
+        Node('tail2', (0, 10, 0), [B(-3, 3, 4, 10, -2.2, 2.2, robe_l)], parent='tail1', idle_amp=10, idle_axis='x', idle_speed=1.3, idle_phase=60),
+        Node('rags', (0, 8, 0), [B(-3.6, -2, 0, 8, -1.8, -1.2, robe_l), B(-0.8, 0.8, -1, 8, 1.4, 2, robe_l), B(2, 3.6, 1, 8, -1.8, -1.2, robe_l)],
+             parent='tail2', idle_amp=14, idle_axis='z', idle_speed=1.6, idle_phase=120),
+        Node('head', (0, 28, 0), [B(-3.4, 3.4, 27.5, 34, -3.4, 3.4, face), B(-4.2, 4.2, 33, 36, -4.2, 4.2, hair),
+                                  B(-4.4, -3.2, 20, 34, -4, 3.6, hair), B(3.2, 4.4, 20, 34, -4, 3.6, hair), B(-4, 4, 24, 34, -4.6, -3.4, hair),
+                                  B(-3.2, 3.2, 26, 28, 3.0, 4.4, face)], parent='robe', look=True),
+        Node('head_glow', (0, 28, 0), [B(-2.4, -0.8, 30, 32, 3.4, 3.55, glow(G_ICE)), B(0.8, 2.4, 30, 32, 3.4, 3.55, glow(G_ICE)),
+                                       B(-1.2, 1.2, 26.5, 28, 4.4, 4.55, glow(G_ICE))], parent='head', glow=True),
+        Node('hair_l', (3.4, 30, -3.6), [B(3, 4.2, 6, 30, -4.6, -3.2, hair)], parent='head', idle_amp=12, idle_axis='x', idle_speed=1.3),
+        Node('hair_r', (-3.4, 30, -3.6), [B(-4.2, -3, 6, 30, -4.6, -3.2, hair)], parent='head', idle_amp=12, idle_axis='x', idle_speed=1.3, idle_phase=140),
+        Node('armL', (4, 24, 0), arm(1), parent='robe', rest=(-55, 0, -8), idle_amp=6, idle_axis='x', idle_speed=1.0, atk=40),
+        Node('armR', (-4, 24, 0), mirror(arm(1)), parent='robe', rest=(-55, 0, 8), idle_amp=6, idle_axis='x', idle_speed=1.0, idle_phase=180, atk=40),
+    ]
+    for i, ph in enumerate((0, 120, 240)):
+        nodes.append(Node(f'shard{i}', (0, 14 + i * 5, 0), [B(-1.0, 1.0, 12.5 + i * 5, 16.5 + i * 5, -1.0, 1.0, glow(G_ICE))], parent='core',
+                          glow=True, orbit_r=11 + i, orbit_speed=65 + 20 * i, orbit_phase=ph, hover_amp=1.5, hover_speed=2.0 + i * 0.4,
+                          spin_axis='y', spin_speed=120))
+    return Mob('banshee', 'Banshee de Ventisca', nodes)
+
+
+def chaman():
+    """Chamán de Nieve: hechicero con capucha de piel, cuernos de hielo, bastón de cristal y copo giratorio."""
+    robe = S(DEEPBLUE, bias=1.5, spread=0.9, stripes=True)
+    robe_t = S(DEEPBLUE, bias=1.4, spread=0.9, stripes=True, trim='#8adcf0')
+    fur = S(SNOWFUR, bias=2.1, spread=1.0, stripes=True)
+    ice = S(ICE, bias=2.2, spread=1.0, speck=(0.06, '#ffffff'))
+    face = S(FROZEN, bias=2.0, spread=0.9)
+    wood = S(WOOD, bias=1.6, spread=1.0, stripes=True)
+    sleeve = lambda sx: [B(4 * sx, 7.5 * sx, 11, 23, -2, 2, robe), B(3.8 * sx, 7.7 * sx, 10, 12.5, -2.3, 2.3, fur),
+                         B(4.5 * sx, 6.8 * sx, 8, 10.5, -1, 1, face)]
+    nodes = [
+        Node('skirt', (0, 14, 0), [B(-5.2, 5.2, 1.6, 14, -3.8, 3.8, robe), B(-5.4, 5.4, 0, 1.6, -4, 4, fur)],
+             idle_amp=2, idle_axis='z', idle_speed=1.1, walk_amp=3, walk_phase=0),
+        Node('torso', (0, 14, 0), [B(-4, 4, 14, 24, -2.5, 2.5, robe), B(-4.2, 4.2, 14, 16, -2.8, 2.8, fur),
+                                   B(-6.2, 6.2, 22, 25.5, -3.6, 3.6, fur)], idle_amp=1.2, idle_axis='x', idle_speed=1.2),
+        Node('torso_glow', (0, 14, 0), [B(-1, 1, 17, 20, 2.5, 2.65, glow(G_ICE))], parent='torso', glow=True),
+        Node('head', (0, 24, 0), [B(-3, 3, 25, 31.5, -3, 3, face), B(3, 5, 24, 32, -4, 3.5, fur), B(-5, -3, 24, 32, -4, 3.5, fur),
+                                  B(-5, 5, 31.5, 34, -4, 4.2, fur), B(-5, 5, 17, 32, -5, -3.5, fur),
+                                  B(4, 5.4, 33, 38, -1, 1, ice), B(5, 6.6, 37, 42, -1, 1, ice), B(-5.4, -4, 33, 38, -1, 1, ice), B(-6.6, -5, 37, 42, -1, 1, ice)],
+             parent='torso', look=True),
+        Node('head_glow', (0, 24, 0), [B(-2.2, -0.8, 28, 29.3, 3, 3.15, glow(G_ICE)), B(0.8, 2.2, 28, 29.3, 3, 3.15, glow(G_ICE))],
+             parent='head', glow=True),
+        Node('flake', (0, 29, -6.5), [B(-8, 8, 28.6, 29.4, -0.3, 0.3, glow(G_ICE)), B(-0.4, 0.4, 21, 37, -0.3, 0.3, glow(G_ICE)),
+                                      B(-5.6, 5.6, 23.4, 24.2, -0.3, 0.3, glow(G_ICE)), B(-5.6, 5.6, 33.8, 34.6, -0.3, 0.3, glow(G_ICE))],
+             parent='torso', glow=True, spin_axis='z', spin_speed=30),
+        Node('armL', (5, 23, 0), sleeve(1), parent='torso', rest=(-30, 0, -5), idle_amp=4, idle_axis='x', idle_speed=1.0, atk=40),
+        Node('armR', (-5, 23, 0), mirror(sleeve(1)), parent='torso', rest=(-45, 0, 0), walk_amp=3, walk_phase=0, atk=25),
+        Node('staff', (-6, 10, 0), [B(-6.6, -5.4, -2, 29, -0.6, 0.6, wood), B(-8, -4, 27, 29, -1.6, 1.6, fur),
+                                    B(-7.2, -4.8, 29, 34, -1.2, 1.2, ice)],
+             parent='armR', rest=(30, 0, 0)),
+        Node('staff_glow', (-6, 10, 0), [B(-6.6, -5.4, 30.5, 33, 1.2, 1.35, glow(G_ICE))], parent='staff', glow=True),
+    ]
+    return Mob('chaman', 'Chamán de Nieve', nodes)
+
+
 ALL = [cenizo, calcinado, marchito, bruto, espectro, sacerdote, bestia, vorthak, vorthak2, vorthak3, vorthak4,
-       sombra, guardian, nigromante]
+       sombra, guardian, nigromante, congelado, escarcha, yeti, banshee, chaman]

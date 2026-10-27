@@ -1947,3 +1947,440 @@ mobs:
         rest: [0, 0, 0]
         model: nigromante_skull2_glow
         glow: true
+  congelado:
+    scale: 1.0
+    name: "Congelado"
+    nodes:
+      - id: legL
+        parent: null
+        pivot: [2.5, 12, 0]
+        rest: [0, 0, 0]
+        model: congelado_legl
+        glow: false
+        walk_amp: 30
+        walk_phase: 0
+      - id: legR
+        parent: null
+        pivot: [-2.5, 12, 0]
+        rest: [0, 0, 0]
+        model: congelado_legr
+        glow: false
+        walk_amp: 30
+        walk_phase: 180
+      - id: body
+        parent: null
+        pivot: [0, 12, 0]
+        rest: [10, 0, 0]
+        model: congelado_body
+        glow: false
+        idle_amp: 1.8
+        idle_axis: "x"
+        idle_speed: 1.3
+      - id: body_glow
+        parent: body
+        pivot: [0, 12, 0]
+        rest: [0, 0, 0]
+        model: congelado_body_glow
+        glow: true
+      - id: head
+        parent: body
+        pivot: [0, 24, 0]
+        rest: [0, 0, 0]
+        model: congelado_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 24, 0]
+        rest: [0, 0, 0]
+        model: congelado_head_glow
+        glow: true
+      - id: armL
+        parent: body
+        pivot: [6, 23, 0]
+        rest: [-80, 0, -4]
+        model: congelado_arml
+        glow: false
+        walk_amp: 9
+        walk_phase: 180
+        atk: 45
+      - id: armR
+        parent: body
+        pivot: [-6, 23, 0]
+        rest: [-80, 0, 4]
+        model: congelado_armr
+        glow: false
+        walk_amp: 9
+        walk_phase: 0
+        atk: 45
+  escarcha:
+    scale: 1.0
+    name: "Arquero de Escarcha"
+    nodes:
+      - id: legL
+        parent: null
+        pivot: [2, 12, 0]
+        rest: [0, 0, 0]
+        model: escarcha_legl
+        glow: false
+        walk_amp: 32
+        walk_phase: 0
+      - id: legR
+        parent: null
+        pivot: [-2, 12, 0]
+        rest: [0, 0, 0]
+        model: escarcha_legr
+        glow: false
+        walk_amp: 32
+        walk_phase: 180
+      - id: body
+        parent: null
+        pivot: [0, 12, 0]
+        rest: [6, 0, 0]
+        model: escarcha_body
+        glow: false
+        idle_amp: 1.5
+        idle_axis: "x"
+        idle_speed: 1.2
+      - id: body_glow
+        parent: body
+        pivot: [0, 12, 0]
+        rest: [0, 0, 0]
+        model: escarcha_body_glow
+        glow: true
+      - id: cape
+        parent: body
+        pivot: [0, 23, -2.6]
+        rest: [0, 0, 0]
+        model: escarcha_cape
+        glow: false
+        idle_amp: 7
+        idle_axis: "x"
+        idle_speed: 1.4
+      - id: head
+        parent: body
+        pivot: [0, 24, 0]
+        rest: [0, 0, 0]
+        model: escarcha_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 24, 0]
+        rest: [0, 0, 0]
+        model: escarcha_head_glow
+        glow: true
+      - id: armL
+        parent: body
+        pivot: [4, 23, 0]
+        rest: [-85, 0, 0]
+        model: escarcha_arml
+        glow: false
+        walk_amp: 4
+        walk_phase: 180
+        atk: 10
+      - id: bow
+        parent: armL
+        pivot: [4, 11, 0]
+        rest: [0, 0, 0]
+        model: escarcha_bow
+        glow: false
+      - id: armR
+        parent: body
+        pivot: [-4, 23, 0]
+        rest: [-62, 0, 14]
+        model: escarcha_armr
+        glow: false
+        walk_amp: 4
+        walk_phase: 0
+        atk: 10
+  yeti:
+    scale: 1.1
+    name: "Yeti de Ventisca"
+    nodes:
+      - id: legL
+        parent: null
+        pivot: [3.2, 13, 0]
+        rest: [0, 0, 0]
+        model: yeti_legl
+        glow: false
+        walk_amp: 26
+        walk_phase: 0
+      - id: legR
+        parent: null
+        pivot: [-3.2, 13, 0]
+        rest: [0, 0, 0]
+        model: yeti_legr
+        glow: false
+        walk_amp: 26
+        walk_phase: 180
+      - id: body
+        parent: null
+        pivot: [0, 13, 0]
+        rest: [12, 0, 0]
+        model: yeti_body
+        glow: false
+        idle_amp: 2.2
+        idle_axis: "x"
+        idle_speed: 1.1
+      - id: body_glow
+        parent: body
+        pivot: [0, 13, 0]
+        rest: [0, 0, 0]
+        model: yeti_body_glow
+        glow: true
+      - id: head
+        parent: body
+        pivot: [0, 27, 0]
+        rest: [0, 0, 0]
+        model: yeti_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 27, 0]
+        rest: [0, 0, 0]
+        model: yeti_head_glow
+        glow: true
+      - id: armL
+        parent: body
+        pivot: [8.5, 25, 0]
+        rest: [-25, 0, -6]
+        model: yeti_arml
+        glow: false
+        walk_amp: 14
+        walk_phase: 180
+        atk: 70
+      - id: armR
+        parent: body
+        pivot: [-8.5, 25, 0]
+        rest: [-25, 0, 6]
+        model: yeti_armr
+        glow: false
+        walk_amp: 14
+        walk_phase: 0
+        atk: 70
+  banshee:
+    scale: 1.0
+    name: "Banshee de Ventisca"
+    nodes:
+      - id: core
+        parent: null
+        pivot: [0, 20, 0]
+        rest: [0, 0, 0]
+        model: null
+        glow: false
+        hover_amp: 2.6
+        hover_speed: 1.1
+      - id: robe
+        parent: core
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: banshee_robe
+        glow: false
+        idle_amp: 1.5
+        idle_axis: "z"
+        idle_speed: 1.0
+      - id: tail1
+        parent: robe
+        pivot: [0, 18, 0]
+        rest: [0, 0, 0]
+        model: banshee_tail1
+        glow: false
+        idle_amp: 6
+        idle_axis: "x"
+        idle_speed: 1.1
+      - id: tail2
+        parent: tail1
+        pivot: [0, 10, 0]
+        rest: [0, 0, 0]
+        model: banshee_tail2
+        glow: false
+        idle_amp: 10
+        idle_axis: "x"
+        idle_speed: 1.3
+        idle_phase: 60
+      - id: rags
+        parent: tail2
+        pivot: [0, 8, 0]
+        rest: [0, 0, 0]
+        model: banshee_rags
+        glow: false
+        idle_amp: 14
+        idle_axis: "z"
+        idle_speed: 1.6
+        idle_phase: 120
+      - id: head
+        parent: robe
+        pivot: [0, 28, 0]
+        rest: [0, 0, 0]
+        model: banshee_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 28, 0]
+        rest: [0, 0, 0]
+        model: banshee_head_glow
+        glow: true
+      - id: hair_l
+        parent: head
+        pivot: [3.4, 30, -3.6]
+        rest: [0, 0, 0]
+        model: banshee_hair_l
+        glow: false
+        idle_amp: 12
+        idle_axis: "x"
+        idle_speed: 1.3
+      - id: hair_r
+        parent: head
+        pivot: [-3.4, 30, -3.6]
+        rest: [0, 0, 0]
+        model: banshee_hair_r
+        glow: false
+        idle_amp: 12
+        idle_axis: "x"
+        idle_speed: 1.3
+        idle_phase: 140
+      - id: armL
+        parent: robe
+        pivot: [4, 24, 0]
+        rest: [-55, 0, -8]
+        model: banshee_arml
+        glow: false
+        idle_amp: 6
+        idle_axis: "x"
+        idle_speed: 1.0
+        atk: 40
+      - id: armR
+        parent: robe
+        pivot: [-4, 24, 0]
+        rest: [-55, 0, 8]
+        model: banshee_armr
+        glow: false
+        idle_amp: 6
+        idle_axis: "x"
+        idle_speed: 1.0
+        idle_phase: 180
+        atk: 40
+      - id: shard0
+        parent: core
+        pivot: [0, 14, 0]
+        rest: [0, 0, 0]
+        model: banshee_shard0
+        glow: true
+        orbit_r: 11
+        orbit_speed: 65
+        orbit_phase: 0
+        hover_amp: 1.5
+        hover_speed: 2.0
+        spin_axis: "y"
+        spin_speed: 120
+      - id: shard1
+        parent: core
+        pivot: [0, 19, 0]
+        rest: [0, 0, 0]
+        model: banshee_shard1
+        glow: true
+        orbit_r: 12
+        orbit_speed: 85
+        orbit_phase: 120
+        hover_amp: 1.5
+        hover_speed: 2.4
+        spin_axis: "y"
+        spin_speed: 120
+      - id: shard2
+        parent: core
+        pivot: [0, 24, 0]
+        rest: [0, 0, 0]
+        model: banshee_shard2
+        glow: true
+        orbit_r: 13
+        orbit_speed: 105
+        orbit_phase: 240
+        hover_amp: 1.5
+        hover_speed: 2.8
+        spin_axis: "y"
+        spin_speed: 120
+  chaman:
+    scale: 1.0
+    name: "Chamán de Nieve"
+    nodes:
+      - id: skirt
+        parent: null
+        pivot: [0, 14, 0]
+        rest: [0, 0, 0]
+        model: chaman_skirt
+        glow: false
+        idle_amp: 2
+        idle_axis: "z"
+        idle_speed: 1.1
+        walk_amp: 3
+        walk_phase: 0
+      - id: torso
+        parent: null
+        pivot: [0, 14, 0]
+        rest: [0, 0, 0]
+        model: chaman_torso
+        glow: false
+        idle_amp: 1.2
+        idle_axis: "x"
+        idle_speed: 1.2
+      - id: torso_glow
+        parent: torso
+        pivot: [0, 14, 0]
+        rest: [0, 0, 0]
+        model: chaman_torso_glow
+        glow: true
+      - id: head
+        parent: torso
+        pivot: [0, 24, 0]
+        rest: [0, 0, 0]
+        model: chaman_head
+        glow: false
+        look: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 24, 0]
+        rest: [0, 0, 0]
+        model: chaman_head_glow
+        glow: true
+      - id: flake
+        parent: torso
+        pivot: [0, 29, -6.5]
+        rest: [0, 0, 0]
+        model: chaman_flake
+        glow: true
+        spin_axis: "z"
+        spin_speed: 30
+      - id: armL
+        parent: torso
+        pivot: [5, 23, 0]
+        rest: [-30, 0, -5]
+        model: chaman_arml
+        glow: false
+        idle_amp: 4
+        idle_axis: "x"
+        idle_speed: 1.0
+        atk: 40
+      - id: armR
+        parent: torso
+        pivot: [-5, 23, 0]
+        rest: [-45, 0, 0]
+        model: chaman_armr
+        glow: false
+        walk_amp: 3
+        walk_phase: 0
+        atk: 25
+      - id: staff
+        parent: armR
+        pivot: [-6, 10, 0]
+        rest: [30, 0, 0]
+        model: chaman_staff
+        glow: false
+      - id: staff_glow
+        parent: staff
+        pivot: [-6, 10, 0]
+        rest: [0, 0, 0]
+        model: chaman_staff_glow
+        glow: true

@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class DungeonBuilder {
 
     /** Largo del pasillo entre salas. */
-    public static final int CORRIDOR = 7;
+    public static final int CORRIDOR = 13;
 
     // ------------------------------------------------------------------ geometría
 
@@ -94,6 +94,29 @@ public final class DungeonBuilder {
         }
     }
 
+    /** Un secreto de la dungeon: palanca que abre una cámara oculta, cofre escondido o fuente curativa. */
+    public static final class Secret {
+        public enum Kind { LEVER, CHEST, FOUNTAIN }
+
+        public final Kind kind;
+        public final int room;
+        public final int x, y, z;
+        public final String id;
+        /** Cofre de cámara secreta (mejor botín) frente a cofre de pasillo/rincón. */
+        public boolean big;
+        /** Bloques de la pared falsa que desaparecen al tirar de la palanca. */
+        public final List<int[]> plug = new ArrayList<>();
+
+        Secret(Kind kind, int room, int x, int y, int z, String id) {
+            this.kind = kind;
+            this.room = room;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.id = id;
+        }
+    }
+
     private record Op(int x, int y, int z, BlockData data, boolean physics) {}
 
     // ------------------------------------------------------------------ estado
@@ -105,6 +128,7 @@ public final class DungeonBuilder {
     private final Biome biome;
     private final List<Room> rooms = new ArrayList<>();
     private final List<Op> ops = new ArrayList<>();
+    private final List<Secret> secrets = new ArrayList<>();
     private final Set<Long> ticketed = new HashSet<>();
     private final int oy;
     private int minX, maxX, minZ, maxZ;
@@ -136,12 +160,16 @@ public final class DungeonBuilder {
         }
         this.minX = ox - 2;
         this.maxX = cursor;
-        this.minZ = oz - maxHalf - 3;
-        this.maxZ = oz + maxHalf + 3;
+        this.minZ = oz - maxHalf - 12;     // margen extra: las cámaras secretas sobresalen de las paredes
+        this.maxZ = oz + maxHalf + 12;
     }
 
     public List<Room> rooms() {
         return rooms;
+    }
+
+    public List<Secret> secrets() {
+        return secrets;
     }
 
     public double progress() {
@@ -304,26 +332,141 @@ public final class DungeonBuilder {
         }
     }
 
+    /** Vestíbulo entre dos salas: 9 de ancho, columnas con farolillos y, a veces, una fuente curativa o un cofre escondido. */
     private void corridor(Room a, Room b) {
+        final int w = 4;
+        final int h = 6;
         int cz = a.cz;
         int xs = a.eastWall;      // incluye ambas paredes de sala
         int xe = b.westWall;
         int fy = a.floorY;
         for (int x = xs; x <= xe; x++) {
-            for (int z = cz - 2; z <= cz + 2; z++) {
+            for (int z = cz - w; z <= cz + w; z++) {
                 set(x, fy, z, floor(x, z));
-                set(x, fy + 5, z, ceiling());
+                set(x, fy + h + 1, z, ceiling());
             }
-            for (int y = fy + 1; y <= fy + 4; y++) {
-                set(x, y, cz - 2, wall());
-                set(x, y, cz + 2, wall());
+            for (int y = fy + 1; y <= fy + h; y++) {
+                set(x, y, cz - w, wall());
+                set(x, y, cz + w, wall());
+            }
+        }
+        // alfombra central de ladrillos rojos
+        for (int x = xs + 1; x < xe; x++) {
+            for (int z = cz - 1; z <= cz + 1; z++) {
+                if (z == cz || ((x + z) & 1) == 0) set(x, fy, z, Material.RED_NETHER_BRICKS);
+            }
+        }
+        // columnas pegadas a las paredes con capitel y farolillos
+        for (int x = xs + 3; x <= xe - 3; x += 3) {
+            for (int side = -1; side <= 1; side += 2) {
+                int z = cz + side * (w - 1);
+                for (int y = fy + 1; y <= fy + h; y++) set(x, y, z, Material.POLISHED_BASALT);
+                set(x, fy + 1, z, Material.CHISELED_POLISHED_BLACKSTONE);
+                set(x, fy + h, z, Material.CHISELED_POLISHED_BLACKSTONE);
+                hangingLantern(x, fy + h - 1, z - side);
             }
         }
         int mid = (xs + xe) / 2;
-        set(mid, fy + 5, cz, Material.SHROOMLIGHT);
-        set(xs + 2, fy + 5, cz, Material.SHROOMLIGHT);
-        set(xe - 2, fy + 5, cz, Material.SHROOMLIGHT);
-        if (cfg.b("lighting.enabled")) for (int x = xs + 1; x < xe; x += 3) glow(x, fy + 3, cz);
+        for (int x = xs + 2; x <= xe - 2; x += 4) set(x, fy + h + 1, cz, Material.SHROOMLIGHT);
+        set(mid, fy + h + 1, cz, Material.SHROOMLIGHT);
+        if (cfg.b("lighting.enabled")) for (int x = xs + 1; x < xe; x += 3) glow(x, fy + 4, cz);
+        // rasgo especial del vestíbulo
+        int roll = rnd.nextInt(100);
+        if (roll < 30) {
+            fountain(a, mid, cz + (w - 1));
+        } else if (roll < 55) {
+            chest(a, mid, fy + 1, cz - (w - 1), BlockFace.SOUTH, false, "h" + a.index);
+        }
+    }
+
+    /** Fuente de almas: un caldero de agua entre dos farolillos (cura una vez a cada jugador). */
+    private void fountain(Room a, int x, int z) {
+        int fy = a.floorY;
+        org.bukkit.block.data.Levelled c = (org.bukkit.block.data.Levelled) Material.WATER_CAULDRON.createBlockData();
+        c.setLevel(c.getMaximumLevel());
+        set(x, fy + 1, z, c);
+        set(x - 1, fy + 1, z, Material.SOUL_LANTERN);
+        set(x + 1, fy + 1, z, Material.SOUL_LANTERN);
+        set(x, fy, z, Material.GILDED_BLACKSTONE);
+        secrets.add(new Secret(Secret.Kind.FOUNTAIN, a.index, x, fy + 1, z, "f" + a.index));
+    }
+
+    /** Cofre escondido (se abre una vez por jugador). */
+    private void chest(Room r, int x, int y, int z, BlockFace facing, boolean big, String id) {
+        org.bukkit.block.data.type.Chest ch = (org.bukkit.block.data.type.Chest) Material.CHEST.createBlockData();
+        ch.setFacing(facing);
+        set(x, y, z, ch);
+        Secret s = new Secret(Secret.Kind.CHEST, r.index, x, y, z, id);
+        s.big = big;
+        secrets.add(s);
+    }
+
+    private boolean secretRoom(Room r) {
+        return switch (r.type) {
+            case WAVES, TRAP, PUZZLE, SWEEP, ALTAR -> true;
+            default -> false;
+        };
+    }
+
+    /** Palanca oculta que abre una cámara secreta tras la pared + (a veces) un cofre escondido en un rincón. */
+    private void plantSecrets(Room r) {
+        if (!secretRoom(r)) return;
+        int fy = r.floorY;
+        if (rnd.nextDouble() < cfg.d("secrets.chamber-chance") && r.x1 - r.x0 > 24 && r.height >= 8) {
+            boolean north = rnd.nextBoolean();
+            int ax = r.x0 + 10 + rnd.nextInt(Math.max(1, r.x1 - r.x0 - 19));
+            int dir = north ? -1 : 1;
+            int wallZ = north ? r.z0 - 1 : r.z1 + 1;
+            // cámara: casco macizo con el interior vaciado
+            for (int x = ax - 4; x <= ax + 4; x++) {
+                for (int z = 1; z <= 8; z++) {
+                    for (int y = fy; y <= fy + 5; y++) {
+                        set(x, y, wallZ + dir * z, Material.DEEPSLATE_BRICKS);
+                    }
+                }
+            }
+            for (int x = ax - 3; x <= ax + 3; x++) {
+                for (int z = 1; z <= 7; z++) {
+                    set(x, fy, wallZ + dir * z, ((x + z) & 1) == 0 ? Material.POLISHED_BLACKSTONE_BRICKS : Material.GILDED_BLACKSTONE);
+                    for (int y = fy + 1; y <= fy + 4; y++) set(x, y, wallZ + dir * z, Material.AIR);
+                }
+            }
+            set(ax - 3, fy + 4, wallZ + dir * 2, Material.SOUL_LANTERN);
+            set(ax + 3, fy + 4, wallZ + dir * 2, Material.SOUL_LANTERN);
+            set(ax - 3, fy + 4, wallZ + dir * 6, Material.SOUL_LANTERN);
+            set(ax + 3, fy + 4, wallZ + dir * 6, Material.SOUL_LANTERN);
+            set(ax - 2, fy + 1, wallZ + dir * 7, Material.SOUL_CAMPFIRE);
+            set(ax + 2, fy + 1, wallZ + dir * 7, Material.SOUL_CAMPFIRE);
+            if (cfg.b("lighting.enabled")) glow(ax, fy + 3, wallZ + dir * 4);
+            // cofre grande al fondo, mirando a la entrada
+            chest(r, ax, fy + 1, wallZ + dir * 7, north ? BlockFace.SOUTH : BlockFace.NORTH, true, "c" + r.index);
+            // la palanca va en la pared contraria, a la altura de la vista
+            int lx = r.x0 + 9 + rnd.nextInt(Math.max(1, r.x1 - r.x0 - 17));
+            while ((lx - r.x0 - 2) % 4 == 0) lx++;
+            int lz = north ? r.z1 : r.z0;                       // cara interior de la pared opuesta
+            BlockFace out = north ? BlockFace.NORTH : BlockFace.SOUTH;
+            org.bukkit.block.data.type.Switch sw = (org.bukkit.block.data.type.Switch) Material.LEVER.createBlockData();
+            sw.setFace(org.bukkit.block.data.type.Switch.Face.WALL);
+            sw.setFacing(out);
+            set(lx, fy + 2, lz, sw);
+            Secret l2 = new Secret(Secret.Kind.LEVER, r.index, lx, fy + 2, lz, "l" + r.index);
+            // pared falsa 3x3 (ladrillos agrietados)
+            for (int x = ax - 1; x <= ax + 1; x++) {
+                for (int y = fy + 1; y <= fy + 3; y++) {
+                    set(x, y, wallZ, rnd.nextInt(4) == 0 ? Material.CRACKED_POLISHED_BLACKSTONE_BRICKS : Material.CRACKED_DEEPSLATE_BRICKS);
+                    l2.plug.add(new int[]{x, y, wallZ});
+                }
+            }
+            secrets.add(l2);
+        }
+        if (rnd.nextDouble() < cfg.d("secrets.nook-chance")) {
+            boolean north = rnd.nextBoolean();
+            int x = r.x0 + 9 + rnd.nextInt(Math.max(1, r.x1 - r.x0 - 17));
+            int z = north ? r.z0 + 1 : r.z1 - 1;
+            chest(r, x, fy + 1, z, north ? BlockFace.SOUTH : BlockFace.NORTH, false, "n" + r.index);
+            set(x, fy + 2, z, Material.COBWEB);
+            set(x + 1, fy + 1, z, Material.SKELETON_SKULL);
+        }
     }
 
     /** Abre un hueco de 3x3 en una pared y le pone marco. */
@@ -678,6 +821,7 @@ public final class DungeonBuilder {
             case VORTHAK -> throne(r);
             default -> { }
         }
+        plantSecrets(r);
     }
 
     /** Moldura de escaleras invertidas donde la pared se une con el techo. */

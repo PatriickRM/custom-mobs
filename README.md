@@ -234,3 +234,13 @@ Las salas de oleadas ya no son una caja vacía:
 
 Ajustes en `dungeon.yml` → `objectives` (`enabled`, `chance`, `crystal-health`, `crystal-pulse-seconds`, `beacon-radius`, `beacon-seconds`,
 `beacon-spawn-seconds`). **Ojo:** si tu `dungeon.yml` ya tiene el bloque `sizes:`, pon `WAVES: {size: 45, height: 14}` (o borra el bloque para usar los nuevos valores).
+
+## Novedades (parte 11): secretos, vestíbulos y portales de camino
+
+- **Vestíbulos:** los pasillos entre salas ahora miden 13 de largo y 9 de ancho, con alfombra, columnas y faroles; a veces tienen una **fuente curativa** (una vez por jugador) o un cofre oculto.
+- **Cámaras ocultas:** en salas de oleadas/trampa/puzzle/barrido/altar puede haber un muro de ladrillo agrietado que se abre con una **palanca** escondida en la pared opuesta. Dentro hay un cofre grande.
+- **Cofres secretos:** rincones con telarañas y calavera. El cofre es personal por jugador (botín, brasas, posible reliquia) y puede ser un **mímico**.
+- **Portales de elección:** al terminar una sala aparecen arcos de portal junto a la salida; el grupo vota caminando hacia uno (el contador se actualiza en vivo). Hasta 3 opciones por paso.
+- **Portal misterioso:** con cierta probabilidad una opción oculta su sala y da brasas extra al grupo.
+
+Config en `dungeon.yml`: `secrets` (`chamber-chance`, `nook-chance`, `loot`, `souls-big`, `souls-small`, `relic-chance-big`, `relic-chance-small`, `mimic-chance`, `fountain-regen-seconds`) y `path` (`mystery-chance`, `mystery-souls`).

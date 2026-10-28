@@ -174,6 +174,9 @@ public final class DungeonInstance {
     private final MetaSystem meta;
     private final Biome biome;
     private final ObjectiveSystem objectives;
+    private final SecretSystem secrets;
+    private final PathPortals portals;
+    private int mysteryOpt = -1;
     private final BossDef boss;
     private final HeatSystem heat;
     private final CombatFx fx;
@@ -233,9 +236,11 @@ public final class DungeonInstance {
         this.biome = Biome.of(cfg.s("biome"));
         this.builder = new DungeonBuilder(plugin, world, cfg, types, 16, cfg.i("build-y"), oz, System.nanoTime(), biome);
         this.rooms = builder.rooms();
+        this.secrets = new SecretSystem(this, cfg, world, builder);
+        this.portals = new PathPortals(world);
         int maxHalf = 0;
         for (DungeonBuilder.Room r : rooms) maxHalf = Math.max(maxHalf, r.half());
-        this.zBand = maxHalf + 6;
+        this.zBand = maxHalf + 14;
         this.roomStates = new RoomState[rooms.size()];
         Arrays.fill(roomStates, RoomState.LOCKED);
         Collections.shuffle(miniOrder);
@@ -653,6 +658,7 @@ public final class DungeonInstance {
         bless.tick(tick);
         relics.tick(tick);
         ambience.tick(tick);
+        secrets.tick(tick);
         if (tick % 40 == 0) keepSpectators();
         if (state == State.RUNNING) {
             ambientSounds();
@@ -904,17 +910,22 @@ public final class DungeonInstance {
         voteFrom = from;
         votes.clear();
         voteEnd = tick + Math.max(8, cfg.i("path.vote-seconds")) * 20L;
-        titleAll("<gold><bold>ELIGE EL CAMINO</bold></gold>", "<gray>Votad en el chat: gana la mayoría</gray>");
+        mysteryOpt = opts.length >= 2 && rnd.nextDouble() < cfg.d("path.mystery-chance") ? rnd.nextInt(opts.length) : -1;
+        List<RoomType> optTypes = new ArrayList<>();
+        for (int o : opts) optTypes.add(rooms.get(o).type);
+        portals.show(rooms.get(from), optTypes, mysteryOpt);
+        titleAll("<gold><bold>ELIGE EL CAMINO</bold></gold>", "<gray>Entra en un portal (o vota en el chat)</gray>");
         soundAll(Sound.BLOCK_BEACON_POWER_SELECT, 1f, 1.3f);
         for (Player p : onlineMembers()) {
             p.sendMessage(Text.mm("<dark_gray>━━━━━━━━ <gradient:#ffd86b:#ff9a3c><bold>ELIGE EL CAMINO</bold></gradient> <dark_gray>━━━━━━━━"));
             for (int k = 0; k < opts.length; k++) {
                 RoomType t = rooms.get(opts[k]).type;
-                p.sendMessage(Text.mm("<green><bold>[" + (k + 1) + "] " + t.title + "</bold></green>")
+                boolean hid = k == mysteryOpt;
+                p.sendMessage(Text.mm("<green><bold>[" + (k + 1) + "] " + (hid ? "???" : t.title) + "</bold></green>")
                         .clickEvent(ClickEvent.runCommand("/dungeon path " + (k + 1)))
-                        .append(Text.mm(" <gray>" + t.blurb + "</gray>")));
+                        .append(Text.mm(hid ? " <gray>Una sala desconocida... con premio extra.</gray>" : " <gray>" + t.blurb + "</gray>")));
             }
-            p.sendMessage(Text.mm("<gray>Haz clic en una opción o usa <white>/dungeon path <número></white>.</gray>"));
+            p.sendMessage(Text.mm("<gray>Entra en un portal, haz clic en una opción o usa <white>/dungeon path <número></white>.</gray>"));
         }
     }
 
@@ -926,7 +937,8 @@ public final class DungeonInstance {
         int[] opts = steps.get(voteStep);
         if (option < 1 || option > opts.length) return "Opción inválida (1-" + opts.length + ").";
         votes.put(p.getUniqueId(), option - 1);
-        broadcast("<white>" + s.name + "</white> <gray>vota por</gray> <green>" + rooms.get(opts[option - 1]).type.title
+        broadcast("<white>" + s.name + "</white> <gray>vota por</gray> <green>"
+                + (option - 1 == mysteryOpt ? "???" : rooms.get(opts[option - 1]).type.title)
                 + "</green> <dark_gray>(" + votes.size() + "/" + Math.max(1, aliveOnline().size()) + ")</dark_gray>");
         return null;
     }
@@ -939,15 +951,25 @@ public final class DungeonInstance {
             return s == null || s.eliminated;
         });
         int[] opts = steps.get(voteStep);
+        // votar entrando en un portal (el último en el que estés es tu voto)
+        for (Player p : aliveOnline()) {
+            int z = portals.zoneOf(p);
+            if (z >= 0 && z < opts.length && !Integer.valueOf(z).equals(votes.get(p.getUniqueId()))) {
+                votes.put(p.getUniqueId(), z);
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 1.2f);
+            }
+        }
+        if (tick % 10 == 0) portals.particles();
         int[] count = new int[opts.length];
         for (int v : votes.values()) count[v]++;
+        for (int k = 0; k < count.length; k++) portals.refresh(k, count[k]);
         List<Player> al = aliveOnline();
         boolean allIn = !al.isEmpty() && votes.size() >= al.size();
         boolean pending = bless.hasPending() || relics.hasPending();
         boolean timeUp = tick >= voteEnd;
         StringBuilder sb = new StringBuilder("Camino: ");
         for (int k = 0; k < opts.length; k++) {
-            sb.append(rooms.get(opts[k]).type.title).append(" ").append(count[k]).append("  ");
+            sb.append(k == mysteryOpt ? "???" : rooms.get(opts[k]).type.title).append(" ").append(count[k]).append("  ");
         }
         sb.append(timeUp ? "· elige tu bendición" : "· " + Math.max(0, (voteEnd - tick) / 20) + "s");
         hint = sb.toString();
@@ -972,7 +994,14 @@ public final class DungeonInstance {
         voteStep = -1;
         votes.clear();
         hint = "";
+        portals.clear();
         broadcast("<gold>Camino elegido:</gold> <white>" + rooms.get(to).type.title + "</white>");
+        if (pick == mysteryOpt) {
+            int bonus = cfg.i("path.mystery-souls");
+            if (bonus > 0) merchant.grantAll(bonus);
+            broadcast("<light_purple>¡El portal misterioso os premia!</light_purple> <gray>◆ +" + bonus + " brasas para todos</gray>");
+        }
+        mysteryOpt = -1;
         openRoom(from, to);
     }
 
@@ -2098,6 +2127,16 @@ public final class DungeonInstance {
         return boss;
     }
 
+    SecretSystem secrets() {
+        return secrets;
+    }
+
+    /** La sala en la que está una ubicación (o la actual si no está en ninguna). */
+    DungeonBuilder.Room roomAt(Location l) {
+        for (DungeonBuilder.Room r : rooms) if (r.contains(l)) return r;
+        return currentRoom();
+    }
+
     ObjectiveSystem objectives() {
         return objectives;
     }
@@ -2553,6 +2592,8 @@ public final class DungeonInstance {
         classes.begin(rooms.get(0), tick);
         ambience.clear();
         objectives.clear();
+        secrets.resetAll();
+        portals.clear();
         for (UUID u : members.keySet()) {
             PState s = members.get(u);
             s.lives = maxLives;
@@ -2894,6 +2935,7 @@ public final class DungeonInstance {
         }
         ambience.clear();
         objectives.clear();
+        portals.clear();
         discardVorthak();
         removeAllTombs();
         restoreHazards();

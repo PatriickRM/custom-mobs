@@ -77,7 +77,7 @@ public final class DungeonConfig {
             for (String part : s.split("\\|")) {
                 RoomType t = RoomType.parse(part);
                 if (t == null || t == RoomType.START || t == RoomType.VORTHAK) continue;
-                if (opts.size() < 2) opts.add(t);
+                if (opts.size() < 3) opts.add(t);
             }
             if (!opts.isEmpty()) out.add(opts);
         }
@@ -181,6 +181,9 @@ public final class DungeonConfig {
             path:
               # Segundos que tiene el grupo para votar el camino (si nadie vota, se elige al azar).
               vote-seconds: 25
+              # Probabilidad de que una salida sea un portal misterioso (no muestra qué sala hay detrás) y su premio en brasas.
+              mystery-chance: 0.3
+              mystery-souls: 25
 
             # size = lado interior (se fuerza impar), height = alto interior.
             sizes:
@@ -337,6 +340,24 @@ public final class DungeonConfig {
               extra-waves: 1
               # Cada nivel de Calor suma este % al puntaje final (0.10 = +10% por nivel).
               score-bonus-per-level: 0.10
+
+            secrets:
+              # Secretos en las salas: palanca oculta que abre una cámara secreta tras la pared agrietada y cofres escondidos.
+              chamber-chance: 0.6
+              nook-chance: 0.5
+              # Botín de los cofres (formato MATERIAL:min:max:probabilidad), brasas, reliquia y mímicos.
+              loot:
+                - "GOLDEN_APPLE:1:2:0.55"
+                - "DIAMOND:1:3:0.45"
+                - "EXPERIENCE_BOTTLE:4:10:0.85"
+                - "POTION_HEAL:1:2:0.50"
+                - "NETHERITE_SCRAP:1:1:0.12"
+              souls-big: 40
+              souls-small: 15
+              relic-chance-big: 0.35
+              relic-chance-small: 0.08
+              mimic-chance: 0.15
+              fountain-regen-seconds: 12
 
             objectives:
               # Las salas de oleadas pueden tener un objetivo especial en vez de solo matar:

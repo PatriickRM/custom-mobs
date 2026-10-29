@@ -1160,7 +1160,7 @@ public final class DungeonBuilder {
             int x = r.x0 + 2 + rnd.nextInt(Math.max(1, r.x1 - r.x0 - 3));
             int z = r.z0 + 2 + rnd.nextInt(Math.max(1, r.z1 - r.z0 - 3));
             int len = 2 + rnd.nextInt(4);
-            for (int y = 0; y < len; y++) set(x, top - 1 - y, z, Material.CHAIN);
+            for (int y = 0; y < len; y++) set(x, top - 1 - y, z, Material.IRON_CHAIN);
             if (rnd.nextInt(3) == 0) hangingLantern(x, top - 1 - len, z);
         }
     }

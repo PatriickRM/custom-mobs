@@ -274,3 +274,10 @@ una línea en `BossDef.ALL` y un `case` en `DungeonInstance.spawnCustomBoss`.
 
 Ajustes en `dungeon.yml` → `ysmera` (`health`, `health-per-extra-player`, `crystal-health`, `blade-chance`, `xp`, `loot`). Como siempre, si ya tienes `dungeon.yml` se rellenan los valores que falten.
 **Resource pack:** se ha regenerado (`CustomMobsPack.zip`) y `models.sha1` de `config.yml` actualizado: súbelo a `main` junto con el código o los modelos no cargarán.
+
+## Novedades (parte 13): Ysmera mucho más dura, cinemáticas y objetivos nuevos
+
+- **Ysmera**: más daño y menos vida efectiva (`ysmera.damage-mul` 1.4, `damage-taken-mul` 0.65, `cooldown-mul` 0.75), combos que encadenan ataques y **enrage** a los `ysmera.enrage-seconds` (480 s): +40 % de daño y lluvia de carámbanos continua.
+- **Ataques nuevos**: *Charcos de escarcha* (zonas que ralentizan y congelan), *Vórtice* (succiona a todos y detona: aléjate del centro), *Rayo giratorio* (hay que saltarlo), *Fractura* (grietas radiales de lanzas: colócate entre ellas). Además **las hogueras se apagan** en las fases II y III; quédate en una apagada para reavivarla.
+- **Cinemáticas**: intro de 3 planos, y una cámara propia en el escudo de cristal, al romperlo, en el Cero Absoluto, al terminarlo y una muerte de ~13 s.
+- **Objetivos de sala nuevos** (además de cristales y faros, elegidos al azar): *Defender el núcleo* (resiste N s mientras los enemigos lo desgastan), *Runas en orden* (pisarlas en orden 1→N; si fallas, se reinician y aparecen enemigos) y *Caza al campeón* (un campeón brillante se teletransporta e invoca refuerzos). Claves: `objectives.core-health`, `core-seconds`, `rune-hold-seconds`, `champion-blink-seconds`, `champion-health-mul`.

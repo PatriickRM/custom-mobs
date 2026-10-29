@@ -369,6 +369,14 @@ public final class DungeonConfig {
               beacon-radius: 4.5
               beacon-seconds: 14
               beacon-spawn-seconds: 6
+              # Defender el núcleo: vida base, segundos que hay que resistir.
+              core-health: 220.0
+              core-seconds: 45
+              # Runas en orden: segundos que hay que mantenerse sobre cada una.
+              rune-hold-seconds: 1.5
+              # Campeón fugitivo: cada cuántos segundos se teletransporta e invoca refuerzos, y multiplicador de vida.
+              champion-blink-seconds: 8
+              champion-health-mul: 6.0
 
             hub:
               # Hub: isla decorada (mundo vacío propio, se construye al arrancar) con un pedestal por jefe,
@@ -472,6 +480,11 @@ public final class DungeonConfig {
               # Vida de cada cristal del Escudo de Cristal (x1.45 por jugador extra).
               crystal-health: 70
               blade-chance: 0.30
+              # Dificultad: multiplicador de daño de sus ataques, del daño que recibe, de los cooldowns y segundos hasta el enrage.
+              damage-mul: 1.4
+              damage-taken-mul: 0.65
+              cooldown-mul: 0.75
+              enrage-seconds: 480
               xp: 3000
               loot:
                 - "ENCHANTED_GOLDEN_APPLE:1:2:1.0"

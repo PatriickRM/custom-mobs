@@ -108,7 +108,7 @@ final class YsmeraBoss implements DungeonBoss {
 
     private enum Ab {
         ICICLES(1, 150), NOVA(1, 250), BOLTS(1, 170), SUMMON(1, 520), BLINK(1, 280), GRASP(1, 560),
-        SPEARS(2, 260), COMET(3, 330);
+        POOLS(1, 300), SPEARS(2, 260), VORTEX(2, 400), BEAM(2, 360), FRACTURE(2, 380), COMET(3, 330);
 
         final int minPhase;
         final int cd;
@@ -135,6 +135,13 @@ final class YsmeraBoss implements DungeonBoss {
         Vector vel;
         int life = 24;
         double dmg;
+    }
+
+    private static final class Pool {
+        Location at;
+        long start, end;
+        double r;
+        BlockDisplay disc;
     }
 
     private static final class Prison {
@@ -194,6 +201,14 @@ final class YsmeraBoss implements DungeonBoss {
     private Ab last;
     private String hint = "Derrota a Ysmera";
     private int surgeDir;
+    private final List<Pool> pools = new ArrayList<>();
+    private final boolean[] hearthLit = {true, true, true, true};
+    private final int[] relight = new int[4];
+    private long nextFreeze;
+    private long fightStart;
+    private long enrageNext;
+    private boolean enraged;
+    private int musicStep;
 
     private YsmeraBoss(DungeonInstance inst, DungeonBuilder.Room room, Husk ent, double maxHp) {
         this.inst = inst;
@@ -254,7 +269,7 @@ final class YsmeraBoss implements DungeonBoss {
     }
 
     private void applyStats() {
-        attr(ent, Attribute.ATTACK_DAMAGE, phase.attack * inst.heat().dmgMul());
+        attr(ent, Attribute.ATTACK_DAMAGE, phase.attack * inst.heat().dmgMul() * cfg.d("ysmera.damage-mul"));
         attr(ent, Attribute.MOVEMENT_SPEED, phase.speed);
     }
 
@@ -350,6 +365,9 @@ final class YsmeraBoss implements DungeonBoss {
         for (BlockDisplay d : temp) if (d.isValid()) d.remove();
         temp.clear();
         cold.clear();
+        for (Pool pl : pools) if (pl.disc != null && pl.disc.isValid()) pl.disc.remove();
+        pools.clear();
+        for (int i = 0; i < hearthLit.length; i++) setHearth(i, true);
     }
 
     private void removeCrystal(Crystal c) {
@@ -426,7 +444,7 @@ final class YsmeraBoss implements DungeonBoss {
     }
 
     private double dmgScale() {
-        return phase.dmg * inst.heat().dmgMul();
+        return phase.dmg * inst.heat().dmgMul() * cfg.d("ysmera.damage-mul") * (enraged ? 1.4 : 1.0);
     }
 
     private void hit(Player p, double base) {
@@ -440,7 +458,9 @@ final class YsmeraBoss implements DungeonBoss {
     }
 
     private boolean isWarm(Location l) {
-        for (Location w : warm) {
+        for (int i = 0; i < warm.size(); i++) {
+            if (!hearthLit[i]) continue;
+            Location w = warm.get(i);
             double dx = w.getX() - l.getX();
             double dz = w.getZ() - l.getZ();
             if (dx * dx + dz * dz <= WARM_RADIUS * WARM_RADIUS) return true;
@@ -581,7 +601,11 @@ final class YsmeraBoss implements DungeonBoss {
         boltsTick();
         prisonTick();
         crystalsTick();
+        poolsTick();
+        hearthTick();
         coldTick();
+        music();
+        enrageTick();
         if (shielded) {
             int left = 0;
             for (Crystal c : crystals) if (!c.dead) left++;
@@ -705,7 +729,8 @@ final class YsmeraBoss implements DungeonBoss {
         }
         double n = inst.groupSize();
         double mul = 1.0 / ((1 + cfg.d("ysmera.health-per-extra-player") * (n - 1)) * inst.heat().hpMul());
-        if (now < vulnUntil) mul *= 1.6;
+        mul *= cfg.d("ysmera.damage-taken-mul");
+        if (now < vulnUntil) mul *= 1.35;
         double real = e.getFinalDamage() * mul;
         double hp = ent.getHealth();
         double floorHp = phase == Phase.ONE ? maxHp * 0.66 : phase == Phase.TWO ? maxHp * 0.33 : 1.0;
@@ -734,47 +759,122 @@ final class YsmeraBoss implements DungeonBoss {
         ent.setAI(false);
         List<Player> ps = inst.onlineMembers();
         Location c = ent.getLocation();
-        inst.titleAll("<gradient:#9fe0f5:#ffffff><bold>YSMERA</bold></gradient>", "<gray>La Reina de Escarcha despierta</gray>");
-        sound(c, Sound.ENTITY_WITHER_SPAWN, 1.5f, 1.8f);
-        sound(c, Sound.AMBIENT_CAVE, 1.5f, 0.5f);
-        world.strikeLightningEffect(c);
+        sound(c, Sound.AMBIENT_CAVE, 2f, 0.5f);
+        sound(c, Sound.ENTITY_PLAYER_HURT_FREEZE, 2f, 0.5f);
         if (vis != null) {
-            vis.tempo(id(), 2f);
-            vis.pose(id(), "head", -18, 0, 0);
-            wings(34);
-            arms(-20, 40);
+            vis.tempo(id(), 0.5f);
+            vis.pose(id(), "head", 28, 0, 0);
+            wings(-12);
+            arms(25, 10);
         }
         lift(0f);
-        cine.play(ps, () -> ent.getLocation().add(0, 3.4, 0), 120, Cinematic.orbit(15, 7.5, 1.0, 3.8, Math.PI * 0.55), 60, 100, null);
-        after(8, () -> lift(2.2f));
-        after(30, () -> sayNow("Otro grupo de valientes... otra tumba de hielo."));
-        after(60, () -> {
+        // plano 1: grúa sobre la sala (0-75) · plano 2: la reina se eleva (75-140) · plano 3: primer plano del rostro (140-212)
+        cine.play(ps, t -> {
+            if (t < 75) return center.clone().add(0, 5, 0);
+            if (t < 140) return ent.getLocation().add(0, 3.6 + Math.min(1.0, (t - 75) / 40.0), 0);
+            return ent.getLocation().add(0, 5.5, 0);
+        }, 212, (t, total, f, start) -> {
+            double a0 = Math.atan2(start.getZ() - center.getZ(), start.getX() - center.getX());
+            double a, r, y;
+            if (t < 75) {
+                double u = Cinematic.ease(t / 75.0);
+                a = a0 + u * 0.6;
+                r = Cinematic.lerp(16, 12, u);
+                y = Cinematic.lerp(10, 6.5, u);
+            } else if (t < 140) {
+                double u = Cinematic.ease((t - 75) / 65.0);
+                a = a0 + 0.6 + u * 0.7;
+                r = Cinematic.lerp(11, 7.5, u);
+                y = Cinematic.lerp(1.4, 4.2, u);
+            } else {
+                double u = Cinematic.ease((t - 140) / 72.0);
+                a = a0 + 1.3 - u * 0.3;
+                r = Cinematic.lerp(6.6, 4.6, u);
+                y = Cinematic.lerp(5.4, 5.9, u);
+            }
+            return new Location(world, center.getX() + Math.cos(a) * r, center.getY() + y, center.getZ() + Math.sin(a) * r);
+        }, 150, 205, null);
+        // la sala despierta: columnas de luz en los altares y la nieve empieza a girar
+        seq(4, 18, i -> {
+            for (int[] sp : crystalSpots(room)) {
+                Location at = new Location(world, sp[0] + 0.5, floorY + 1, sp[1] + 0.5);
+                world.spawnParticle(Particle.END_ROD, at.getX(), at.getY() + i * 0.45, at.getZ(), 2, 0.1, 0.05, 0.1, 0.01);
+            }
+            for (Location w : warm) ringDust(w, WARM_RADIUS, 24, Color.fromRGB(255, 170, 70), 0.9f);
+            world.spawnParticle(Particle.SNOWFLAKE, center.getX(), center.getY() + 4, center.getZ(), 30, 12, 3, 12, 0.02);
+        }, null);
+        after(10, () -> sayNow("Silencio..."));
+        after(30, () -> {
+            sound(center, Sound.BLOCK_BEACON_ACTIVATE, 2f, 0.5f);
+            wings(10);
+            if (vis != null) vis.tempo(id(), 1f);
+        });
+        after(44, () -> lift(2.4f));
+        after(75, () -> {
+            inst.titleAll("<gradient:#9fe0f5:#ffffff><bold>YSMERA</bold></gradient>", "<gray>La Reina de Escarcha</gray>");
+            sound(ent.getLocation(), Sound.ENTITY_WITHER_SPAWN, 1.6f, 1.8f);
+            sayNow("Otro grupo de valientes... otra tumba de hielo.");
+        });
+        after(95, () -> {
             arms(-130, 45);
             wings(40);
             if (vis != null) {
                 vis.pulse(id(), 1.12f);
-                vis.shake(id(), 2.5f);
+                vis.tempo(id(), 2f);
+                vis.shake(id(), 2f);
             }
             sound(ent.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 2f, 0.5f);
             sound(ent.getLocation(), Sound.BLOCK_GLASS_BREAK, 2f, 0.6f);
             ring(ent.getLocation(), 3, 40, Particle.SNOWFLAKE);
             iceBurst(ent.getLocation().add(0, 2, 0), 60, 2.5);
         });
-        seq(4, 20, i -> {
+        after(112, () -> {
+            for (int[] sp : crystalSpots(room)) {
+                Location at = new Location(world, sp[0] + 0.5, floorY + 1, sp[1] + 0.5);
+                world.strikeLightningEffect(at);
+                iceBurst(at.clone().add(0, 1, 0), 40, 0.8);
+            }
+            sayNow("Cada invierno alguien viene a desafiarme. Ninguno ha visto la primavera.");
+        });
+        seq(4, 22, i -> {
             Location b = ent.getLocation();
             ring(b, 1.0 + i * 0.7, 36, Particle.SNOWFLAKE);
-            ring(b, 0.5 + i * 0.6, 24, Particle.END_ROD);
+            if (i % 2 == 0) ring(b, 0.5 + i * 0.6, 24, Particle.END_ROD);
         }, null);
-        after(100, () -> sayNow("Acercaos. Os daré un invierno eterno."));
-        after(122, () -> {
+        after(140, () -> {
+            sound(ent.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 2f, 0.5f);
+            Location eyes = ent.getLocation().add(0, 5.9, 0);
+            world.spawnParticle(Particle.END_ROD, eyes, 40, 0.4, 0.3, 0.4, 0.15);
+            if (vis != null) vis.shake(id(), 0.8f);
+        });
+        after(165, () -> {
+            if (vis != null) {
+                vis.pulse(id(), 1.22f);
+                vis.shake(id(), 6f);
+            }
+            sound(ent.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 3f, 0.4f);
+            sound(ent.getLocation(), Sound.ENTITY_WARDEN_SONIC_BOOM, 3f, 0.6f);
+            world.strikeLightningEffect(ent.getLocation());
+            seq(2, 12, i -> {
+                ring(ent.getLocation(), 2 + i * 1.7, 70, Particle.SNOWFLAKE);
+                ring(ent.getLocation(), 2 + i * 1.7, 40, Particle.CLOUD);
+            }, null);
+        });
+        after(188, () -> sayNow("Arrodillaos."));
+        after(205, () -> {
             relax();
             lift(0f);
+        });
+        after(214, () -> {
             intro = false;
             invulnerable = false;
-            busy(50);
-            for (Ab a : Ab.values()) cooldowns.put(a, now + 60 + ThreadLocalRandom.current().nextInt(60));
+            fightStart = now;
+            enrageNext = now + cfg.i("ysmera.enrage-seconds") * 20L;
+            busy(40);
+            for (Ab a : Ab.values()) cooldowns.put(a, now + 40 + ThreadLocalRandom.current().nextInt(50));
         });
     }
+
 
     // ------------------------------------------------------------------ selección de habilidad
 
@@ -786,7 +886,7 @@ final class YsmeraBoss implements DungeonBoss {
             if (cooldowns.getOrDefault(a, 0L) > now) continue;
             if (a == last && pool.size() > 0) continue;
             if (a == Ab.GRASP && alivePlayers().size() < 2) continue;
-            if (a == Ab.SUMMON && inst.mobCount() >= 4 + group) continue;
+            if (a == Ab.SUMMON && inst.mobCount() >= 5 + group) continue;
             if (a == Ab.NOVA && nearestPlayer(ent.getLocation()) != null
                     && nearestPlayer(ent.getLocation()).getLocation().distanceSquared(ent.getLocation()) > 20 * 20) continue;
             pool.add(a);
@@ -795,17 +895,41 @@ final class YsmeraBoss implements DungeonBoss {
         Ab a = pool.get(ThreadLocalRandom.current().nextInt(pool.size()));
         if (a == last && pool.size() > 1) a = pool.get((pool.indexOf(a) + 1) % pool.size());
         last = a;
-        cooldowns.put(a, now + (long) (a.cd * phase.cd * (frenzy ? 0.7 : 1.0)));
-        busy(30);
+        cooldowns.put(a, now + (long) (a.cd * phase.cd * cfg.d("ysmera.cooldown-mul") * (frenzy || enraged ? 0.7 : 1.0)));
+        busy(16);
         switch (a) {
             case ICICLES -> icicles();
             case NOVA -> nova();
-            case BOLTS -> boltVolley(phaseNum() == 1 ? 3 : phaseNum() == 2 ? 5 : 7, phaseNum() == 1 ? 12 : 9);
+            case BOLTS -> boltVolley(phaseNum() == 1 ? 5 : phaseNum() == 2 ? 7 : 9, phaseNum() == 1 ? 12 : 9);
             case SUMMON -> summon();
             case BLINK -> blink();
             case GRASP -> grasp();
             case SPEARS -> spears();
             case COMET -> comet();
+            case POOLS -> pools();
+            case VORTEX -> vortex();
+            case BEAM -> beam();
+            case FRACTURE -> fracture();
+        }
+        // combo: a veces encadena un segundo ataque ligero mientras el primero aún se resuelve
+        double chance = phase == Phase.ONE ? 0.18 : phase == Phase.TWO ? 0.42 : 0.68;
+        if (a != Ab.BLINK && a != Ab.VORTEX && a != Ab.BEAM && a != Ab.NOVA && ThreadLocalRandom.current().nextDouble() < chance) {
+            after(22, this::comboNext);
+        }
+    }
+
+    private void comboNext() {
+        if (!alive() || !calm() || intro) return;
+        Ab[] opts = phase == Phase.ONE ? new Ab[]{Ab.BOLTS, Ab.ICICLES}
+                : new Ab[]{Ab.BOLTS, Ab.ICICLES, Ab.POOLS, Ab.SPEARS};
+        Ab b = opts[ThreadLocalRandom.current().nextInt(opts.length)];
+        if (b == last) return;
+        switch (b) {
+            case BOLTS -> boltVolley(phaseNum() == 1 ? 3 : 5, 14);
+            case ICICLES -> icicles();
+            case POOLS -> pools();
+            case SPEARS -> spears();
+            default -> { }
         }
     }
 
@@ -816,14 +940,14 @@ final class YsmeraBoss implements DungeonBoss {
         arms(-100, 25);
         wings(20);
         busy(56);
-        int delay = phase == Phase.ONE ? 44 : phase == Phase.TWO ? 38 : 32;
+        int delay = phase == Phase.ONE ? 36 : phase == Phase.TWO ? 30 : 24;
         List<Location> spots = new ArrayList<>();
         for (Player p : alivePlayers()) spots.add(p.getLocation().clone());
-        for (int i = 0; i < 1 + phaseNum(); i++) {
+        for (int i = 0; i < 2 + phaseNum() * 2; i++) {
             Location l = inst.randomSpot(room);
             if (l != null) spots.add(l);
         }
-        for (int i = 0; i < Math.min(9, spots.size()); i++) icicleAt(spots.get(i), delay);
+        for (int i = 0; i < Math.min(13, spots.size()); i++) icicleAt(spots.get(i), delay);
         after(delay + 8, () -> {
             if (calm()) relax();
         });
@@ -867,8 +991,8 @@ final class YsmeraBoss implements DungeonBoss {
     }
 
     private void nova() {
-        int rings = phaseNum();
-        int total = 40 + rings * 18;
+        int rings = phaseNum() + 1;
+        int total = 36 + rings * 16;
         busy(total + 30);
         root(total + 10);
         sayNow(randomOf("¡Arrodillaos ante el invierno!", "Que el suelo mismo os rechace.", "¡Ni un paso más!"));
@@ -887,10 +1011,10 @@ final class YsmeraBoss implements DungeonBoss {
             world.spawnParticle(Particle.END_ROD, c.getX(), c.getY() + 0.3, c.getZ(), 3, 1.5, 0.2, 1.5, 0.02);
             if (i % 5 == 0) world.playSound(c, Sound.ENTITY_WARDEN_SONIC_CHARGE, 1.4f, 0.5f + i * 0.04f);
         }, null);
-        after(36, () -> inst.titleAll("", "<aqua><bold>¡SALTA!</bold></aqua>"));
+        after(32, () -> inst.titleAll("", "<aqua><bold>¡SALTA!</bold></aqua>"));
         for (int k = 0; k < rings; k++) {
-            final double speed = 1.15 + 0.1 * k;
-            after(38 + k * 18, () -> expandRing(c.clone(), speed));
+            final double speed = 1.25 + 0.12 * k;
+            after(34 + k * 16, () -> expandRing(c.clone(), speed));
         }
         after(total, () -> {
             if (calm()) {
@@ -1014,13 +1138,13 @@ final class YsmeraBoss implements DungeonBoss {
         wings(22);
         busy(80);
         root(50);
-        int cap = 6 + inst.groupSize();
-        int n = Math.min(2 + inst.groupSize() / 2 + (phaseNum() - 1), 6);
+        int cap = 8 + inst.groupSize();
+        int n = Math.min(3 + inst.groupSize() / 2 + (phaseNum() - 1), 8);
         n = Math.min(n, Math.max(0, cap - inst.mobCount()));
         for (int i = 0; i < n; i++) {
             Location l = inst.randomSpot(room);
             if (l == null) continue;
-            final boolean elite = phase == Phase.THREE && i == 0;
+            final boolean elite = phaseNum() >= 2 && i == 0;
             seq(4, 8, k -> {
                 ring(l, 1.6, 16, Particle.SNOWFLAKE);
                 world.spawnParticle(Particle.END_ROD, l.getX(), l.getY() + 0.3 + k * 0.2, l.getZ(), 2, 0.3, 0.1, 0.3, 0.02);
@@ -1217,7 +1341,7 @@ final class YsmeraBoss implements DungeonBoss {
         wings(20);
         busy(90);
         root(30);
-        int lines = phase == Phase.TWO ? 1 : 3;
+        int lines = phase == Phase.TWO ? 2 : 4;
         Location from = ent.getLocation().clone();
         Vector base = t.getLocation().toVector().subtract(from.toVector()).setY(0);
         if (base.lengthSquared() < 0.01) base = new Vector(1, 0, 0);
@@ -1382,19 +1506,21 @@ final class YsmeraBoss implements DungeonBoss {
         sound(center, Sound.ENTITY_ENDER_DRAGON_GROWL, 2f, 0.5f);
         sound(center, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 2f, 0.6f);
         world.strikeLightningEffect(center);
-        seq(3, 16, i -> {
-            ring(center, 1.5 + i * 1.1, 40, Particle.SNOWFLAKE);
-            ring(center, 1.0 + i * 0.9, 30, Particle.END_ROD);
+        cine.play(inst.onlineMembers(), t -> center.clone().add(0, 5.6, 0), 96,
+                Cinematic.orbit(12, 7, 1.5, 5.5, Math.PI * 0.55), 0, 46, null);
+        seq(3, 20, i -> {
+            ring(center, 1.5 + i * 1.0, 40, Particle.SNOWFLAKE);
+            ring(center, 1.0 + i * 0.85, 30, Particle.END_ROD);
         }, null);
         after(50, () -> {
             double hp = cfg.d("ysmera.crystal-health") * (1 + 0.45 * (inst.groupSize() - 1)) * inst.heat().hpMul();
             Location beam = new Location(world, center.getBlockX(), floorY + 4, center.getBlockZ());
-            for (int[] s : crystalSpots(room)) {
+            for (int[] sp : crystalSpots(room)) {
                 Crystal c = new Crystal();
-                c.at = new Location(world, s[0] + 0.5, floorY + 2, s[1] + 0.5);
+                c.at = new Location(world, sp[0] + 0.5, floorY + 2, sp[1] + 0.5);
                 c.hp = hp;
                 c.max = hp;
-                c.nextBolt = now + 100 + ThreadLocalRandom.current().nextInt(80);
+                c.nextBolt = now + 150 + ThreadLocalRandom.current().nextInt(80);
                 c.ent = world.spawn(c.at, EnderCrystal.class, e -> {
                     e.setShowingBottom(false);
                     e.setPersistent(false);
@@ -1402,6 +1528,7 @@ final class YsmeraBoss implements DungeonBoss {
                 });
                 inst.manager().indexMob(c.ent.getUniqueId(), inst);
                 crystals.add(c);
+                world.strikeLightningEffect(c.at);
                 iceBurst(c.at.clone().add(0, 1, 0), 40, 0.8);
                 world.playSound(c.at, Sound.BLOCK_AMETHYST_CLUSTER_BREAK, 1.5f, 0.5f);
             }
@@ -1413,11 +1540,12 @@ final class YsmeraBoss implements DungeonBoss {
             shielded = true;
             transitioning = false;
             busyUntil = 0;
-            shieldStart = now;
-            nextAdds = now + 120;
-            nextShieldBolt = now + 100;
+            shieldStart = now + 46;
+            nextAdds = now + 150;
+            nextShieldBolt = now + 140;
         });
     }
+
 
     private void shieldTick() {
         if (now >= nextAdds) {
@@ -1438,7 +1566,7 @@ final class YsmeraBoss implements DungeonBoss {
     }
 
     private void spawnAdds(int n) {
-        int cap = 6 + inst.groupSize();
+        int cap = 8 + inst.groupSize();
         n = Math.min(n, Math.max(0, cap - inst.mobCount()));
         for (int i = 0; i < n; i++) {
             Location l = inst.randomSpot(room);
@@ -1546,28 +1674,32 @@ final class YsmeraBoss implements DungeonBoss {
             vis.shake(id(), 3.5f);
             vis.tempo(id(), 0.4f);
         }
-        after(30, () -> {
+        cine.play(inst.onlineMembers(), t -> ent.getLocation().add(0, t < 20 ? 4.0 : 2.0, 0), 72,
+                Cinematic.orbit(9, 4.8, 6.0, 1.8, -Math.PI * 0.4), 0, 30, null);
+        after(76, () -> {
             transitioning = false;
             invulnerable = false;
-            vulnUntil = now + 220;
-            root(220);
-            busyUntil = now + 240;
+            vulnUntil = now + 170;
+            root(170);
+            busyUntil = now + 190;
             if (vis != null) vis.shake(id(), 0f);
-            inst.titleAll("<red><bold>¡AL SUELO!</bold></red>", "<gray>Ysmera está aturdida: <white>daño x1.6</white></gray>");
+            inst.titleAll("<red><bold>¡AL SUELO!</bold></red>", "<gray>Ysmera está aturdida: <white>más daño recibido</white></gray>");
             sound(ent.getLocation(), Sound.ENTITY_ELDER_GUARDIAN_CURSE, 1.5f, 0.8f);
         });
-        after(250, () -> {
+        after(76 + 180, () -> {
             if (dying || transitioning || absolute) return;
             relax();
             coldOn = true;
-            nextSurge = now + 300;
+            nextSurge = now + 260;
+            nextFreeze = now + 900;
             sayNow("Esto... apenas empieza. Que el frío os devore.");
             sound(ent.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 2f, 0.7f);
             ring(ent.getLocation(), 4, 50, Particle.SNOWFLAKE);
             inst.titleAll("<light_purple><bold>VENTISCA</bold></light_purple>", "<gray>Acércate a las <gold>hogueras</gold> para no congelarte</gray>");
-            for (Ab a : Ab.values()) cooldowns.put(a, now + 60 + ThreadLocalRandom.current().nextInt(60));
+            for (Ab a : Ab.values()) cooldowns.put(a, now + 40 + ThreadLocalRandom.current().nextInt(50));
         });
     }
+
 
     // ------------------------------------------------------------------ frío y ventiscas
 
@@ -1638,13 +1770,10 @@ final class YsmeraBoss implements DungeonBoss {
         transitioning = true;
         invulnerable = true;
         coldOn = false;
-        absolute = true;
         clearThreats();
-        absoluteTotal = 260;
-        absoluteEnd = now + absoluteTotal;
+        for (int i = 0; i < hearthLit.length; i++) setHearth(i, true);
         busyUntil = Long.MAX_VALUE / 2;
-        sayNow("Contemplad el final de todo calor... ¡CERO ABSOLUTO!");
-        inst.titleAll("<white><bold>CERO ABSOLUTO</bold></white>", "<gray>¡Refugiaos en las <gold>hogueras</gold> antes de que todo se congele!</gray>");
+        sayNow("Contemplad el final de todo calor...");
         Location old = ent.getLocation();
         iceBurst(old.clone().add(0, 2, 0), 60, 1.4);
         ent.teleport(center);
@@ -1659,14 +1788,25 @@ final class YsmeraBoss implements DungeonBoss {
         sound(center, Sound.ENTITY_ENDER_DRAGON_GROWL, 2.5f, 0.4f);
         sound(center, Sound.ENTITY_WARDEN_SONIC_CHARGE, 2.5f, 0.5f);
         world.strikeLightningEffect(center);
-        transitioning = false;     // el combate continúa (los jugadores pueden moverse), pero ella es inmune
-        seq(2, 60, i -> freezeRing(i * 0.33, (i + 1) * 0.33 + 0.4), null);
-        seq(2, 40, i -> {
-            ring(center, 2 + i * 0.5, 40, Particle.SNOWFLAKE);
-            world.spawnParticle(Particle.END_ROD, center.getX(), center.getY() + 3.5, center.getZ(), 5, 1.2, 1.2, 1.2, 0.05);
+        cine.play(inst.onlineMembers(), t -> center.clone().add(0, 5.8, 0), 84,
+                Cinematic.orbit(13, 6.5, 1.0, 7.0, Math.PI * 0.75), 20, 80, null);
+        seq(3, 26, i -> {
+            ring(center, 2 + i * 0.7, 40, Particle.SNOWFLAKE);
+            world.spawnParticle(Particle.END_ROD, center.getX(), center.getY() + 5, center.getZ(), 8, 1.4, 1.4, 1.4, 0.06);
         }, null);
-        nextShieldBolt = now + 80;
+        after(40, () -> inst.titleAll("<white><bold>CERO ABSOLUTO</bold></white>",
+                "<gray>¡Refugiaos en las <gold>hogueras</gold> antes de que todo se congele!</gray>"));
+        after(86, () -> {
+            sayNow("¡CERO ABSOLUTO!");
+            absolute = true;
+            transitioning = false;     // el combate sigue (los jugadores se mueven), pero ella es inmune
+            absoluteTotal = 260;
+            absoluteEnd = now + absoluteTotal;
+            seq(2, 60, i -> freezeRing(i * 0.33, (i + 1) * 0.33 + 0.4), null);
+            nextShieldBolt = now + 60;
+        });
     }
+
 
     /** Congela el suelo de la arena en una corona (BLUE_ICE: resbaladizo y con escarcha). */
     private void freezeRing(double r0, double r1) {
@@ -1713,43 +1853,52 @@ final class YsmeraBoss implements DungeonBoss {
                 p.sendMessage(Text.mm("<gold>🔥 La hoguera te ha protegido del Cero Absoluto.</gold>"));
                 p.setFreezeTicks(0);
             } else {
-                inst.hazardHit(p, 13.0 * inst.heat().dmgMul());
+                inst.hazardHit(p, 16.0 * inst.heat().dmgMul());
                 chill(p, 200, 100, 2);
                 Vector kb = p.getLocation().toVector().subtract(c.toVector()).setY(0);
                 if (kb.lengthSquared() > 0.01) p.setVelocity(kb.normalize().multiply(1.2).setY(0.5));
             }
         }
         cold.clear();
-        phase = Phase.THREE;
-        applyStats();
-        model();
-        lift(0f);
-        arms(28, 8);
-        wings(-26);
-        if (vis != null) {
-            vis.pose(id(), "head", 40, 0, 0);
-            vis.shake(id(), 4f);
-            vis.tempo(id(), 0.4f);
-        }
-        inst.titleAll("<white><bold>FASE III</bold></white>", "<gray>El suelo está helado: <white>cuidado al moverte</white> · daño x1.6 a Ysmera</gray>");
-        vulnUntil = now + 260;
-        root(260);
-        busyUntil = now + 280;
-        after(24, () -> {
+        cine.play(inst.onlineMembers(), t -> ent.getLocation().add(0, t < 30 ? 4.5 : 3.0, 0), 100,
+                Cinematic.orbit(10, 5.5, 2.0, 4.2, Math.PI * 0.5), 0, 40, null);
+        after(30, () -> {
+            phase = Phase.THREE;
+            applyStats();
+            model();
+            lift(0f);
+            arms(28, 8);
+            wings(-26);
+            if (vis != null) {
+                vis.pose(id(), "head", 40, 0, 0);
+                vis.shake(id(), 4f);
+                vis.tempo(id(), 0.4f);
+            }
+            iceBurst(ent.getLocation().add(0, 3, 0), 120, 2.4);
+            sound(ent.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 3f, 0.4f);
+            sound(ent.getLocation(), Sound.BLOCK_GLASS_BREAK, 3f, 0.3f);
+            sayNow("Si he de caer... ¡caeréis conmigo!");
+        });
+        after(104, () -> {
             transitioning = false;
             invulnerable = false;
+            vulnUntil = now + 200;
+            root(200);
+            busyUntil = now + 220;
             if (vis != null) vis.shake(id(), 0f);
+            inst.titleAll("<white><bold>FASE III</bold></white>", "<gray>El suelo está helado: <white>cuidado al moverte</white></gray>");
         });
-        after(262, () -> {
+        after(104 + 210, () -> {
             if (dying || transitioning || absolute) return;
             relax();
             coldOn = true;
-            nextSurge = now + 240;
-            sayNow("Si he de caer... ¡caeréis conmigo!");
+            nextSurge = now + 200;
+            nextFreeze = now + 500;
             sound(ent.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 2f, 0.6f);
-            for (Ab a : Ab.values()) cooldowns.put(a, now + 50 + ThreadLocalRandom.current().nextInt(50));
+            for (Ab a : Ab.values()) cooldowns.put(a, now + 30 + ThreadLocalRandom.current().nextInt(40));
         });
     }
+
 
     // ------------------------------------------------------------------ muerte cinemática
 
@@ -1763,10 +1912,31 @@ final class YsmeraBoss implements DungeonBoss {
         clearThreats();
         inst.purgeWaveMobs();
         ent.setTarget(null);
+        for (int i = 0; i < hearthLit.length; i++) setHearth(i, true);
         sayNow("El invierno... jamás... termina...");
         inst.titleAll("<white><bold>YSMERA CAE</bold></white>", "<gray>El hielo se resquebraja...</gray>");
-        cine.play(inst.onlineMembers(), () -> ent.getLocation().add(0, 3.0, 0), 172,
-                Cinematic.orbit(12, 5.5, 2.4, 4.2, -Math.PI * 0.6), 112, 168, null);
+        // plano 1: la reina colgando (0-90) · plano 2: primer plano del pecho agrietado (90-170) · plano 3: se aleja mientras estalla (170-258)
+        cine.play(inst.onlineMembers(), t -> ent.getLocation().add(0, t < 90 ? 3.4 : t < 170 ? 3.9 : 3.4, 0), 258, (t, total, f, start) -> {
+            double a0 = Math.atan2(start.getZ() - center.getZ(), start.getX() - center.getX());
+            double a, r, y;
+            if (t < 90) {
+                double u = Cinematic.ease(t / 90.0);
+                a = a0 - u * 0.5;
+                r = Cinematic.lerp(12, 8, u);
+                y = Cinematic.lerp(2.0, 4.0, u);
+            } else if (t < 170) {
+                double u = Cinematic.ease((t - 90) / 80.0);
+                a = a0 - 0.5 - u * 0.3;
+                r = Cinematic.lerp(6.0, 4.0, u);
+                y = Cinematic.lerp(3.8, 4.6, u);
+            } else {
+                double u = Cinematic.ease((t - 170) / 88.0);
+                a = a0 - 0.8 - u * 0.5;
+                r = Cinematic.lerp(4.6, 13.5, u);
+                y = Cinematic.lerp(4.4, 8.5, u);
+            }
+            return new Location(world, center.getX() + Math.cos(a) * r, center.getY() + y, center.getZ() + Math.sin(a) * r);
+        }, 120, 250, null);
         lift(1.8f);
         arms(35, 12);
         wings(-30);
@@ -1776,7 +1946,7 @@ final class YsmeraBoss implements DungeonBoss {
             vis.shake(id(), 1.5f);
         }
         sound(ent.getLocation(), Sound.ENTITY_WARDEN_SONIC_BOOM, 2f, 0.6f);
-        seq(4, 40, i -> {
+        seq(4, 62, i -> {
             Location l = ent.getLocation();
             world.spawnParticle(Particle.SNOWFLAKE, l.getX(), l.getY() + 3, l.getZ(), 6, 1.2, 1.8, 1.2, 0.05);
             if (i % 3 == 0) world.spawnParticle(Particle.BLOCK, l.getX(), l.getY() + 2.5, l.getZ(), 10, 0.8, 1.6, 0.8, 0.05,
@@ -1791,48 +1961,356 @@ final class YsmeraBoss implements DungeonBoss {
             if (vis != null) vis.pulse(id(), 1.06f);
             sound(ent.getLocation(), Sound.ENTITY_ELDER_GUARDIAN_CURSE, 1.5f, 0.5f);
         });
-        after(90, () -> {
+        after(95, () -> {
             if (vis != null) {
                 vis.tempo(id(), 0.02f);
                 vis.shake(id(), 0.8f);
             }
             sound(ent.getLocation(), Sound.BLOCK_POWDER_SNOW_BREAK, 2f, 0.5f);
             iceBurst(ent.getLocation().add(0, 3, 0), 90, 1.6);
+            sayNow("Tanto frío... tanta soledad...");
         });
-        after(120, () -> {
+        after(130, () -> {
             if (vis != null) vis.shake(id(), 5f);
             sound(ent.getLocation(), Sound.ENTITY_WARDEN_SONIC_CHARGE, 2f, 0.5f);
         });
-        seq(3, 18, i -> {
+        after(170, () -> sayNow("Gracias... por romper... mi invierno."));
+        seq(3, 26, i -> {
             Location l = ent.getLocation().add(0, 2.5, 0);
-            sound(l, Sound.BLOCK_GLASS_BREAK, 1.2f, 0.5f + i * 0.05f);
+            sound(l, Sound.BLOCK_GLASS_BREAK, 1.2f, 0.5f + i * 0.04f);
             world.spawnParticle(Particle.END_ROD, l, 8, 0.8, 1.6, 0.8, 0.1);
         }, null);
-        after(160, () -> {
-            if (vis != null) {
-                vis.pulse(id(), 1.3f);
-                vis.shake(id(), 8f);
-            }
+        after(200, () -> {
+            if (vis != null) vis.shake(id(), 7f);
             sound(ent.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 2.5f, 0.5f);
         });
-        after(170, () -> {
+        after(236, () -> {
+            if (vis != null) {
+                vis.pulse(id(), 1.32f);
+                vis.shake(id(), 9f);
+            }
+            sound(ent.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 2f, 1.6f);
+        });
+        after(250, () -> {
             Location l = ent.getLocation().add(0, 3, 0);
             if (vis != null) vis.drop(id());
             world.spawnParticle(Particle.EXPLOSION_EMITTER, l, 3, 1, 1, 1, 0);
-            iceBurst(l, 260, 3.2);
+            iceBurst(l, 280, 3.4);
             sound(l, Sound.ENTITY_GENERIC_EXPLODE, 3f, 0.6f);
             sound(l, Sound.BLOCK_GLASS_BREAK, 3f, 0.3f);
             sound(l, Sound.ENTITY_ENDER_DRAGON_DEATH, 2f, 1.4f);
-            seq(2, 14, i -> {
-                ring(l, 1 + i * 1.6, 70, Particle.SNOWFLAKE);
-                ring(l, 1 + i * 1.6, 40, Particle.END_ROD);
+            world.strikeLightningEffect(l);
+            seq(2, 16, i -> {
+                ring(l, 1 + i * 1.5, 70, Particle.SNOWFLAKE);
+                ring(l, 1 + i * 1.5, 40, Particle.END_ROD);
             }, null);
         });
-        after(176, () -> {
+        after(264, () -> {
             dying = false;
             invulnerable = false;
             transitioning = false;
             ent.setHealth(0.0);
         });
+    }
+
+
+    // ------------------------------------------------------------------ mecánicas añadidas: charcos, vórtice, rayo, fractura, hogueras, enrage
+
+    /** Charcos de escarcha: zonas que ralentizan y congelan durante un buen rato; obligan a moverse. */
+    private void pools() {
+        sayNow(randomOf("El suelo mismo os traicionará.", "Pisad con cuidado.", "Aquí no hay refugio."));
+        arms(-60, 40);
+        busy(44);
+        List<Location> spots = new ArrayList<>();
+        for (Player p : alivePlayers()) spots.add(p.getLocation().clone());
+        for (int i = 0; i < phaseNum(); i++) {
+            Location l = inst.randomSpot(room);
+            if (l != null) spots.add(l);
+        }
+        for (int i = 0; i < Math.min(8, spots.size()); i++) {
+            Pool pl = new Pool();
+            pl.at = new Location(world, spots.get(i).getX(), groundY() + 0.02, spots.get(i).getZ());
+            pl.r = 2.6;
+            pl.start = now + 30;
+            pl.end = now + 30 + 260 + phaseNum() * 40L;
+            pl.disc = world.spawn(pl.at, BlockDisplay.class, b -> {
+                b.setBlock(Material.BLUE_ICE.createBlockData());
+                b.setPersistent(false);
+                b.setBrightness(new Display.Brightness(12, 12));
+                b.setViewRange(2.5f);
+                b.setTransformationMatrix(new Matrix4f().translate(-0.05f, 0, -0.05f).scale(0.1f, 0.04f, 0.1f));
+            });
+            temp.add(pl.disc);
+            pools.add(pl);
+            Pool ref = pl;
+            after(30, () -> {
+                if (ref.disc == null || !ref.disc.isValid()) return;
+                ref.disc.setInterpolationDelay(0);
+                ref.disc.setInterpolationDuration(8);
+                float d = (float) (ref.r * 2);
+                ref.disc.setTransformationMatrix(new Matrix4f().translate(-d / 2, 0, -d / 2).scale(d, 0.04f, d));
+                world.playSound(ref.at, Sound.BLOCK_POWDER_SNOW_PLACE, 1.4f, 0.5f);
+            });
+        }
+        after(46, () -> {
+            if (calm()) relax();
+        });
+    }
+
+    private void poolsTick() {
+        if (pools.isEmpty()) return;
+        List<Pool> done = new ArrayList<>();
+        for (Pool pl : pools) {
+            if (now >= pl.end) {
+                done.add(pl);
+                continue;
+            }
+            if (now < pl.start) {
+                ringDust(pl.at, pl.r, 16, Color.fromRGB(255, 120, 120), 0.9f);
+                continue;
+            }
+            if (now % 6 == 0) {
+                ringDust(pl.at, pl.r, 20, Color.fromRGB(170, 230, 255), 1.0f);
+                world.spawnParticle(Particle.SNOWFLAKE, pl.at.getX(), pl.at.getY() + 0.3, pl.at.getZ(), 4, pl.r * 0.5, 0.1, pl.r * 0.5, 0.01);
+            }
+            for (Player p : alivePlayers()) {
+                Location l = p.getLocation();
+                if (Math.hypot(l.getX() - pl.at.getX(), l.getZ() - pl.at.getZ()) > pl.r || !onGround(p)) continue;
+                p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 30, 2, false, false, true));
+                p.setFreezeTicks(Math.min(p.getMaxFreezeTicks() + 40, p.getFreezeTicks() + 6));
+                if (now % 20 == 0) hit(p, 2.5);
+            }
+        }
+        for (Pool pl : done) {
+            if (pl.disc != null && pl.disc.isValid()) {
+                iceBurst(pl.at.clone().add(0, 0.2, 0), 14, pl.r * 0.5);
+                pl.disc.remove();
+            }
+            temp.remove(pl.disc);
+            pools.remove(pl);
+        }
+    }
+
+    /** Vórtice: succiona a todos hacia ella y detona; sobrevive quien se aleje del centro (o se agarre a lo lejos). */
+    private void vortex() {
+        sayNow(randomOf("¡Venid a mí!", "No hay escapatoria del invierno.", "Acercaos... y congelaos."));
+        arms(-150, 20);
+        wings(-12);
+        lift(1.6f);
+        busy(130);
+        root(120);
+        Location c = ent.getLocation().clone();
+        c.setY(groundY());
+        if (vis != null) {
+            vis.tempo(id(), 3f);
+            vis.shake(id(), 2f);
+        }
+        inst.titleAll("", "<light_purple><bold>¡SUCCIÓN! Aléjate del centro</bold></light_purple>");
+        seq(2, 50, i -> {
+            double r = 14 - i * 0.22;
+            for (int k = 0; k < 3; k++) {
+                double a = i * 0.45 + k * Math.PI * 2 / 3;
+                for (int q = 0; q < 6; q++) {
+                    double rr = r * (1 - q / 7.0);
+                    double aa = a + q * 0.35;
+                    world.spawnParticle(Particle.SNOWFLAKE, c.getX() + Math.cos(aa) * rr, c.getY() + 0.5 + q * 0.2,
+                            c.getZ() + Math.sin(aa) * rr, 1, 0, 0, 0, 0);
+                }
+            }
+            if (i % 6 == 0) sound(c, Sound.ENTITY_WARDEN_SONIC_CHARGE, 1.4f, 0.5f + i * 0.015f);
+            for (Player p : alivePlayers()) {
+                Location pl = p.getLocation();
+                Vector to = c.toVector().subtract(pl.toVector()).setY(0);
+                double d = to.length();
+                if (d < 1.6 || d > 24) continue;
+                p.setVelocity(p.getVelocity().add(to.normalize().multiply(0.085 + 0.003 * i)));
+            }
+        }, null);
+        after(104, () -> {
+            sound(c, Sound.ENTITY_GENERIC_EXPLODE, 2.5f, 0.5f);
+            sound(c, Sound.ENTITY_WARDEN_SONIC_BOOM, 2.5f, 0.6f);
+            world.spawnParticle(Particle.EXPLOSION_EMITTER, c.getX(), c.getY() + 1.5, c.getZ(), 2, 1, 0.5, 1, 0);
+            iceBurst(c.clone().add(0, 1.5, 0), 160, 3.5);
+            seq(2, 8, i -> ring(c, 1.5 + i * 1.0, 50, Particle.SNOWFLAKE), null);
+            for (Player p : alivePlayers()) {
+                Location pl = p.getLocation();
+                double d = Math.hypot(pl.getX() - c.getX(), pl.getZ() - c.getZ());
+                if (d <= 6.5) {
+                    hit(p, 15);
+                    chill(p, 160, 80, 2);
+                    Vector kb = new Vector(pl.getX() - c.getX(), 0, pl.getZ() - c.getZ());
+                    if (kb.lengthSquared() < 0.01) kb = new Vector(1, 0, 0);
+                    p.setVelocity(kb.normalize().multiply(1.3).setY(0.6));
+                }
+            }
+            if (vis != null) vis.shake(id(), 0f);
+        });
+        after(126, () -> {
+            if (calm()) {
+                relax();
+                lift(0f);
+            }
+        });
+    }
+
+    /** Rayo giratorio a ras de suelo: hay que saltarlo. */
+    private void beam() {
+        sayNow(randomOf("¡Saltad, ratones!", "Mi mirada corta el aire.", "Cada giro... es una sentencia."));
+        arms(-90, 70);
+        wings(30);
+        busy(150);
+        root(140);
+        Location c = ent.getLocation().clone();
+        c.setY(groundY());
+        double dir0 = ThreadLocalRandom.current().nextDouble(Math.PI * 2);
+        double sign = ThreadLocalRandom.current().nextBoolean() ? 1 : -1;
+        int sweeps = phaseNum() == 2 ? 1 : 2;
+        int total = 40 * sweeps + 30;
+        double radius = 18;
+        inst.titleAll("", "<red><bold>¡SALTA EL RAYO!</bold></red>");
+        // telegrafía la dirección inicial
+        seq(3, 10, i -> line(c.clone().add(0, 0.2, 0), c.clone().add(Math.cos(dir0) * radius, 0.2, Math.sin(dir0) * radius),
+                Color.fromRGB(255, 110, 110), 36), null);
+        java.util.Map<UUID, Long> lastHit = new HashMap<>();
+        after(30, () -> {
+            sound(c, Sound.BLOCK_BEACON_POWER_SELECT, 2f, 0.5f);
+            seq(2, total / 2, i -> {
+                double ang = dir0 + sign * i * (Math.PI * 2 / 20.0);
+                for (int k = 1; k <= 24; k++) {
+                    double d = k * radius / 24.0;
+                    world.spawnParticle(Particle.END_ROD, c.getX() + Math.cos(ang) * d, c.getY() + 0.35, c.getZ() + Math.sin(ang) * d, 1, 0, 0, 0, 0);
+                    if (k % 3 == 0) world.spawnParticle(Particle.SNOWFLAKE, c.getX() + Math.cos(ang) * d, c.getY() + 0.5,
+                            c.getZ() + Math.sin(ang) * d, 1, 0.05, 0.1, 0.05, 0);
+                }
+                if (i % 4 == 0) sound(c, Sound.ENTITY_GUARDIAN_ATTACK, 1.2f, 0.5f + i * 0.01f);
+                for (Player p : alivePlayers()) {
+                    Location pl = p.getLocation();
+                    double dx = pl.getX() - c.getX();
+                    double dz = pl.getZ() - c.getZ();
+                    double d = Math.hypot(dx, dz);
+                    if (d < 1.5 || d > radius + 1) continue;
+                    double pa = Math.atan2(dz, dx);
+                    double diff = Math.abs(Math.atan2(Math.sin(pa - ang), Math.cos(pa - ang)));
+                    if (diff * d < 1.3 && pl.getY() - groundY() < 0.9 && now - lastHit.getOrDefault(p.getUniqueId(), -100L) > 30) {
+                        lastHit.put(p.getUniqueId(), now);
+                        hit(p, 12);
+                        chill(p, 120, 60, 1);
+                        p.setVelocity(new Vector(-Math.sin(ang) * sign, 0.5, Math.cos(ang) * sign).multiply(0.9));
+                    }
+                }
+            }, null);
+        });
+        after(total + 36, () -> {
+            if (calm()) relax();
+        });
+    }
+
+    /** Fractura: grietas radiales que revientan en lanzas de hielo. Hay que quedarse entre dos grietas. */
+    private void fracture() {
+        sayNow(randomOf("El hielo se parte... y vosotros con él.", "¡Que se abra la tierra!"));
+        arms(-120, 30);
+        wings(24);
+        lift(1.2f);
+        busy(90);
+        root(70);
+        Location c = ent.getLocation().clone();
+        c.setY(groundY());
+        int cracks = 4 + phaseNum();
+        double base = ThreadLocalRandom.current().nextDouble(Math.PI * 2);
+        inst.titleAll("", "<aqua><bold>¡GRIETAS! Colócate entre ellas</bold></aqua>");
+        for (int k = 0; k < cracks; k++) {
+            double ang = base + k * Math.PI * 2 / cracks;
+            for (int i = 0; i < 7; i++) {
+                double d = 3 + i * 2.2;
+                Location s = new Location(world, c.getX() + Math.cos(ang) * d, groundY(), c.getZ() + Math.sin(ang) * d);
+                if (Math.abs(s.getX() - center.getX()) > 20 || Math.abs(s.getZ() - center.getZ()) > 20) continue;
+                spearAt(s, 34 + i * 3);
+            }
+            seq(3, 10, i -> line(c.clone().add(0, 0.15, 0), c.clone().add(Math.cos(ang) * 18, 0.15, Math.sin(ang) * 18),
+                    Color.fromRGB(150, 225, 255), 30), null);
+        }
+        after(36, () -> sound(c, Sound.ENTITY_WARDEN_SONIC_BOOM, 2f, 0.7f));
+        after(80, () -> {
+            if (calm()) {
+                relax();
+                lift(0f);
+            }
+        });
+    }
+
+    // ---- hogueras que se apagan
+
+    private void setHearth(int i, boolean lit) {
+        if (i < 0 || i >= warm.size()) return;
+        hearthLit[i] = lit;
+        org.bukkit.block.Block b = warm.get(i).getBlock();
+        if (b.getBlockData() instanceof org.bukkit.block.data.type.Campfire cf) {
+            cf.setLit(lit);
+            b.setBlockData(cf, false);
+        }
+    }
+
+    private void hearthTick() {
+        if (!coldOn || absolute || transitioning || dying) return;
+        int lit = 0;
+        for (boolean h : hearthLit) if (h) lit++;
+        int minLit = phase == Phase.TWO ? 3 : 2;
+        if (now >= nextFreeze && lit > minLit) {
+            List<Integer> on = new ArrayList<>();
+            for (int i = 0; i < hearthLit.length; i++) if (hearthLit[i]) on.add(i);
+            int i = on.get(ThreadLocalRandom.current().nextInt(on.size()));
+            setHearth(i, false);
+            relight[i] = 300;
+            nextFreeze = now + (phase == Phase.TWO ? 700 : 480);
+            Location w = warm.get(i);
+            sound(w, Sound.BLOCK_FIRE_EXTINGUISH, 2f, 0.6f);
+            iceBurst(w.clone().add(0, 1, 0), 40, 1.2);
+            inst.titleAll("", "<gray>Una <gold>hoguera</gold> se ha apagado: ¡quédate en ella para reavivarla!</gray>");
+        }
+        for (int i = 0; i < hearthLit.length; i++) {
+            if (hearthLit[i]) continue;
+            Location w = warm.get(i);
+            boolean near = false;
+            for (Player p : alivePlayers()) {
+                if (Math.hypot(p.getLocation().getX() - w.getX(), p.getLocation().getZ() - w.getZ()) <= WARM_RADIUS) near = true;
+            }
+            relight[i] -= near ? 6 : 2;
+            if (now % 10 == 0) ringDust(w, WARM_RADIUS, 20, Color.fromRGB(120, 160, 200), 0.9f);
+            if (relight[i] <= 0) {
+                setHearth(i, true);
+                sound(w, Sound.ITEM_FIRECHARGE_USE, 1.5f, 0.8f);
+                world.spawnParticle(Particle.FLAME, w.getX(), w.getY() + 0.5, w.getZ(), 30, 0.5, 0.4, 0.5, 0.05);
+            }
+        }
+    }
+
+    // ---- ambientación y enrage
+
+    private void music() {
+        if (intro || dying) return;
+        int period = phase == Phase.THREE ? 16 : phase == Phase.TWO ? 24 : 40;
+        if (now % period == 0) {
+            sound(center, Sound.ENTITY_WARDEN_HEARTBEAT, 1.4f, phase == Phase.THREE ? 1.4f : 1.0f);
+        }
+        if (now % 200 == 0) {
+            musicStep++;
+            sound(center, Sound.AMBIENT_CAVE, 1.2f, 0.5f + (musicStep % 3) * 0.15f);
+        }
+    }
+
+    private void enrageTick() {
+        if (enraged || enrageNext <= 0 || intro || dying || transitioning || now < enrageNext) return;
+        enraged = true;
+        sayNow("¡Se acabó el juego! ¡TODO se congelará!");
+        inst.titleAll("<dark_red><bold>ENRAGE</bold></dark_red>", "<gray>Ysmera pierde la paciencia: <red>más rápida y más letal</red></gray>");
+        sound(center, Sound.ENTITY_ENDER_DRAGON_GROWL, 3f, 0.5f);
+        if (vis != null) {
+            vis.pulse(id(), 1.2f);
+            vis.tempo(id(), 1.5f);
+        }
+        seq(100, 60, i -> {
+            if (!alive() || dying) return;
+            for (Player p : alivePlayers()) icicleAt(p.getLocation().clone(), 30);
+        }, null);
     }
 }

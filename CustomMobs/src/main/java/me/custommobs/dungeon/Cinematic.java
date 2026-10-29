@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
-import java.util.function.Supplier;
+import java.util.function.IntFunction;
 
 /**
  * Cámara de cine reutilizable para los jefes: durante unos segundos los jugadores vuelan por una trayectoria
@@ -87,10 +87,10 @@ final class Cinematic {
     }
 
     /**
-     * Reproduce la cinemática. {@code focus} se evalúa cada tick (el jefe se mueve). {@code shake} añade temblor de
+     * Reproduce la cinemática. {@code focus} se evalúa cada tick con el número de tick (el jefe se mueve y puede cambiar de plano). {@code shake} añade temblor de
      * cámara entre los ticks {@code shakeFrom} y {@code shakeTo}.
      */
-    void play(List<Player> players, Supplier<Location> focus, int ticks, Path path, int shakeFrom, int shakeTo, Runnable done) {
+    void play(List<Player> players, IntFunction<Location> focus, int ticks, Path path, int shakeFrom, int shakeTo, Runnable done) {
         stop();
         MobVisuals pk = plugin.visuals();
         boolean bars = plugin.getConfig().getBoolean("vorthak.letterbox", true) && pk != null && pk.enabled();
@@ -118,7 +118,7 @@ final class Cinematic {
 
             @Override
             public void run() {
-                Location f = focus.get();
+                Location f = focus.apply(t);
                 if (t >= ticks || cams.isEmpty() || f == null || f.getWorld() == null) {
                     finish();
                     if (done != null) done.run();

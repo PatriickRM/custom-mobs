@@ -2258,7 +2258,7 @@ public final class DungeonInstance {
     }
 
     /** Genera un enemigo de oleada para un objetivo, con las mismas escalas que las oleadas. */
-    void spawnObjectiveMob(Location l, boolean forceElite) {
+    LivingEntity spawnObjectiveMob(Location l, boolean forceElite) {
         int ordinal = roomOrdinal();
         int tier = Math.min(3, WaveMobs.tierFor(ordinal));
         double hpMul = (1 + cfg.d("scaling.health-per-extra-player") * (groupSize() - 1))
@@ -2268,6 +2268,7 @@ public final class DungeonInstance {
         boolean elite = forceElite || rnd.nextDouble() < eliteChance;
         LivingEntity e = WaveMobs.spawn(this, l, tier, elite, hpMul, dmgMul);
         mobs.add(e.getUniqueId());
+        return e;
     }
 
     Biome biome() {

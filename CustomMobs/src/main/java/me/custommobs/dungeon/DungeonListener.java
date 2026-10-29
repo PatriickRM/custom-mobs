@@ -165,6 +165,18 @@ public final class DungeonListener implements Listener {
         if (inst != null && inst.blessings().tryDash(p)) e.setCancelled(true);
     }
 
+    /** Secretos: palanca oculta, cofres escondidos y fuentes de almas. */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onSecretInteract(PlayerInteractEvent e) {
+        if (e.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK || e.getClickedBlock() == null) return;
+        if (e.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
+        if (!inDungeon(e.getPlayer().getWorld())) return;
+        DungeonInstance inst = manager.of(e.getPlayer());
+        if (inst == null || !inst.secrets().isSecret(e.getClickedBlock())) return;
+        e.setCancelled(true);
+        inst.secrets().interact(e.getPlayer(), e.getClickedBlock());
+    }
+
     /** Cofre de recompensas personal (cada jugador abre su propio menú). */
     @EventHandler(priority = EventPriority.HIGH)
     public void onRewardChest(PlayerInteractEvent e) {

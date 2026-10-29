@@ -26,6 +26,7 @@ import org.bukkit.scheduler.BukkitTask;
 import org.joml.Matrix4f;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -109,6 +110,59 @@ public final class MobVisuals implements Listener {
         return it;
     }
 
+
+    // ------------------------------------------------------------------ poses dirigidas (jefes)
+
+    /**
+     * Desplazamiento de rotación (grados, se suma a la animación) de un nodo del modelo, con transición suave.
+     * Pensado para que el código de un jefe dirija gestos: alzar brazos, abrir alas, agachar la cabeza...
+     */
+    public void pose(UUID id, String node, float rx, float ry, float rz) {
+        Visual v = visuals.get(id);
+        if (v != null) v.poseT.put(node, new float[]{rx, ry, rz});
+    }
+
+    /** Quita todas las poses dirigidas (vuelven suavemente a la animación normal). */
+    public void clearPose(UUID id) {
+        Visual v = visuals.get(id);
+        if (v != null) v.poseT.clear();
+    }
+
+    /** Eleva el modelo entero (bloques) por encima del suelo, con transición suave. */
+    public void lift(UUID id, float blocks) {
+        Visual v = visuals.get(id);
+        if (v != null) v.liftT = blocks;
+    }
+
+    /** Multiplicador temporal de tamaño (1 = normal), con transición suave: latidos, rugidos... */
+    public void pulse(UUID id, float scale) {
+        Visual v = visuals.get(id);
+        if (v != null) v.scaleT = scale;
+    }
+
+    /** Sacudida del modelo (0 = quieto). */
+    public void shake(UUID id, float amount) {
+        Visual v = visuals.get(id);
+        if (v != null) v.shakeT = amount;
+    }
+
+    /** Multiplicador de la velocidad de las animaciones de reposo y órbitas (1 = normal). */
+    public void tempo(UUID id, float mul) {
+        Visual v = visuals.get(id);
+        if (v != null) v.tempoT = mul;
+    }
+
+    /** Retira el modelo al instante (sin animación de muerte). */
+    public void drop(UUID id) {
+        Visual v = visuals.remove(id);
+        if (v != null) v.removeDisplays();
+    }
+
+    /** Si esa entidad tiene un modelo montado. */
+    public boolean has(UUID id) {
+        return visuals.containsKey(id);
+    }
+
     // ------------------------------------------------------------------ resource pack
 
     @EventHandler
@@ -165,6 +219,10 @@ public final class MobVisuals implements Listener {
         int atkCooldown;
         int deathTicks = -1;
         final float seed = (float) (Math.random() * 6.28);
+        final Map<String, float[]> poseT = new ConcurrentHashMap<>();
+        final Map<String, float[]> poseC = new HashMap<>();
+        float liftT, liftC, scaleT = 1f, scaleC = 1f, shakeT, tempoT = 1f, tempoC = 1f;
+        float timeAcc;
 
         Visual(LivingEntity ent, ModelDefs.Def def, boolean elite) {
             this.ent = ent;
@@ -233,7 +291,20 @@ public final class MobVisuals implements Listener {
             walkFactor += (target - walkFactor) * 0.5f;
             walkPhase += (float) (dist * 3.2);
 
-            float time = (now + seed * 10f) * 0.05f;           // segundos
+            tempoC += (tempoT - tempoC) * 0.25f;
+            timeAcc += PERIOD * tempoC;
+            float time = (timeAcc + seed * 10f) * 0.05f;       // segundos (acelerable con tempo)
+            liftC += (liftT - liftC) * 0.3f;
+            scaleC += (scaleT - scaleC) * 0.35f;
+            for (Map.Entry<String, float[]> pe : poseT.entrySet()) {
+                float[] c = poseC.computeIfAbsent(pe.getKey(), k -> new float[3]);
+                for (int q = 0; q < 3; q++) c[q] += (pe.getValue()[q] - c[q]) * 0.35f;
+            }
+            for (Map.Entry<String, float[]> pe : poseC.entrySet()) {
+                if (poseT.containsKey(pe.getKey())) continue;
+                float[] c = pe.getValue();
+                for (int q = 0; q < 3; q++) c[q] *= 0.65f;
+            }
             double bodyYaw = ent.isValid() ? ent.getBodyYaw() : lastBodyYaw;
             lastBodyYaw = bodyYaw;
             float headYawDiff = 0f;
@@ -284,6 +355,12 @@ public final class MobVisuals implements Listener {
                 }
                 deathTicks += PERIOD;
             }
+            if (liftC > 0.001f || liftC < -0.001f) root.translate(0, liftC, 0);
+            if (shakeT > 0f) {
+                float k = shakeT * 0.05f;
+                root.translate((float) (Math.random() - 0.5) * k, (float) (Math.random() - 0.5) * k * 0.5f, (float) (Math.random() - 0.5) * k);
+            }
+            s *= scaleC;
             root.scale(s);
 
             for (int i = 0; i < def.nodes.size(); i++) {
@@ -297,6 +374,12 @@ public final class MobVisuals implements Listener {
                         case 'z' -> rz += a;
                         default -> rx += a;
                     }
+                }
+                float[] pc = poseC.get(n.id);
+                if (pc != null) {
+                    rx += pc[0];
+                    ry += pc[1];
+                    rz += pc[2];
                 }
                 if (n.atk != 0f) rx -= n.atk * atkAmt;
                 if (n.look) {

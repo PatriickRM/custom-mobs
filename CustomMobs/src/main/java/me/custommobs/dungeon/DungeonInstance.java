@@ -173,6 +173,10 @@ public final class DungeonInstance {
     private final ClassSystem classes;
     private final MetaSystem meta;
     private final Biome biome;
+    private final ObjectiveSystem objectives;
+    private final SecretSystem secrets;
+    private final PathPortals portals;
+    private int mysteryOpt = -1;
     private final BossDef boss;
     private final HeatSystem heat;
     private final CombatFx fx;
@@ -193,6 +197,10 @@ public final class DungeonInstance {
     private UUID vorthakId;
     private boolean vorthakDead;
     private long vorthakMissing;
+    /** Jefe final distinto de Vorthak (interfaz {@link DungeonBoss}). */
+    private DungeonBoss cboss;
+    private long cbossSpawnTick;
+    private long cbossMissing;
     private long arenaNext;
     private int arenaPhase = -1;
     private int finalScore;
@@ -229,12 +237,15 @@ public final class DungeonInstance {
         for (int st = 0; st < steps.size(); st++) {
             for (int ri : steps.get(st)) stepOfRoom[ri] = st;
         }
-        this.biome = Biome.of(cfg.s("biome"));
+        this.biome = this.boss.id().equals("ysmera") ? Biome.FROST : Biome.of(cfg.s("biome"));
         this.builder = new DungeonBuilder(plugin, world, cfg, types, 16, cfg.i("build-y"), oz, System.nanoTime(), biome);
+        this.builder.bossId(this.boss.id());
         this.rooms = builder.rooms();
+        this.secrets = new SecretSystem(this, cfg, world, builder);
+        this.portals = new PathPortals(world);
         int maxHalf = 0;
         for (DungeonBuilder.Room r : rooms) maxHalf = Math.max(maxHalf, r.half());
-        this.zBand = maxHalf + 6;
+        this.zBand = maxHalf + 14;
         this.roomStates = new RoomState[rooms.size()];
         Arrays.fill(roomStates, RoomState.LOCKED);
         Collections.shuffle(miniOrder);
@@ -246,6 +257,7 @@ public final class DungeonInstance {
         this.classes = new ClassSystem(this, cfg, world);
         this.heat = new HeatSystem(this, cfg);
         this.meta = new MetaSystem(manager);
+        this.objectives = new ObjectiveSystem(this, cfg, world);
         this.fx = new CombatFx(plugin, cfg, world);
         this.ambience = new RoomAmbience(plugin, this, cfg, world);
         this.puzzles = new Puzzles(this);
@@ -474,7 +486,7 @@ public final class DungeonInstance {
         } else if (s.contains("MINI JEFE") || s.contains("SOMBRA") || s.contains("GUARDI") || s.contains("NIGROMANTE")) {
             key = "entity.wither.spawn";
             v[1] = 0.6f;
-        } else if (s.contains("VORTHAK")) {
+        } else if (s.contains("VORTHAK") || s.contains("ESCARCHA")) {
             key = "entity.ender_dragon.growl";
             v[1] = 0.55f;
         } else if (s.contains("TRAMPA") || s.contains("EMBOSCADA") || s.contains("MALDICI")) {
@@ -603,7 +615,7 @@ public final class DungeonInstance {
         p.setSaturation(20f);
         p.setFireTicks(0);
         p.showBossBar(bar);
-        p.sendMessage(Text.mm("<dark_gray>━━━━━━━━ <gradient:#ff4d4d:#ffb347><bold>DUNGEON DE VORTHAK</bold></gradient> <dark_gray>━━━━━━━━"));
+        p.sendMessage(Text.mm("<dark_gray>━━━━━━━━ <gradient:" + bossGradient() + "><bold>DUNGEON DE " + boss.title().toUpperCase() + "</bold></gradient> <dark_gray>━━━━━━━━"));
         p.sendMessage(Text.mm("<gray>Vidas: <red>" + maxLives + " ❤</red>  <dark_gray>·</dark_gray>  Salas: <white>"
                 + (steps.size() - 1) + "</white>  <dark_gray>·</dark_gray>  Equipo: <white>" + members.size() + "</white>"));
         p.sendMessage(Text.mm("<gray>Si un compañero cae sin vidas, mantén <white>SHIFT</white> sobre su tumba para revivirlo."));
@@ -651,6 +663,7 @@ public final class DungeonInstance {
         bless.tick(tick);
         relics.tick(tick);
         ambience.tick(tick);
+        secrets.tick(tick);
         if (tick % 40 == 0) keepSpectators();
         if (state == State.RUNNING) {
             ambientSounds();
@@ -795,8 +808,12 @@ public final class DungeonInstance {
         switch (r.type) {
             case WAVES -> {
                 totalWaves = cfg.i("waves.count") + heat.extraWaves();
-                nextWaveTick = tick + 50;
-                titleAll("<gold><bold>SALA " + curStep + "</bold></gold>", "<gray>Sobrevive a las oleadas</gray>");
+                if (objectives.begin(r)) {
+                    nextWaveTick = 0;
+                } else {
+                    nextWaveTick = tick + 50;
+                    titleAll("<gold><bold>SALA " + curStep + "</bold></gold>", "<gray>Sobrevive a las oleadas</gray>");
+                }
             }
             case TRAP -> {
                 trapStart = tick;
@@ -829,9 +846,15 @@ public final class DungeonInstance {
             }
             case REST -> startRest(r);
             case VORTHAK -> {
-                vorthakSpawnTick = tick + 80;
-                titleAll("<gradient:#ff4d4d:#ffb347><bold>VORTHAK</bold></gradient>", "<gray>No hay vuelta atrás.</gray>");
-                soundAll(Sound.ENTITY_WITHER_SPAWN, 0.8f, 0.6f);
+                if (customBoss()) {
+                    cbossSpawnTick = tick + 80;
+                    titleAll("<gradient:" + bossGradient() + "><bold>LA CORTE DE ESCARCHA</bold></gradient>", "<gray>No hay vuelta atrás.</gray>");
+                    soundAll(Sound.BLOCK_GLASS_BREAK, 0.8f, 0.5f);
+                } else {
+                    vorthakSpawnTick = tick + 80;
+                    titleAll("<gradient:#ff4d4d:#ffb347><bold>VORTHAK</bold></gradient>", "<gray>No hay vuelta atrás.</gray>");
+                    soundAll(Sound.ENTITY_WITHER_SPAWN, 0.8f, 0.6f);
+                }
             }
             default -> { }
         }
@@ -843,6 +866,7 @@ public final class DungeonInstance {
         pendingSpawns = 0;
         hint = "";
         ambience.clear();
+        objectives.clear();
         DungeonBuilder.Room r = rooms.get(i);
         if (r.type == RoomType.VORTHAK) return;
         if (i > 0) {
@@ -897,17 +921,22 @@ public final class DungeonInstance {
         voteFrom = from;
         votes.clear();
         voteEnd = tick + Math.max(8, cfg.i("path.vote-seconds")) * 20L;
-        titleAll("<gold><bold>ELIGE EL CAMINO</bold></gold>", "<gray>Votad en el chat: gana la mayoría</gray>");
+        mysteryOpt = opts.length >= 2 && rnd.nextDouble() < cfg.d("path.mystery-chance") ? rnd.nextInt(opts.length) : -1;
+        List<RoomType> optTypes = new ArrayList<>();
+        for (int o : opts) optTypes.add(rooms.get(o).type);
+        portals.show(rooms.get(from), optTypes, mysteryOpt);
+        titleAll("<gold><bold>ELIGE EL CAMINO</bold></gold>", "<gray>Entra en un portal (o vota en el chat)</gray>");
         soundAll(Sound.BLOCK_BEACON_POWER_SELECT, 1f, 1.3f);
         for (Player p : onlineMembers()) {
             p.sendMessage(Text.mm("<dark_gray>━━━━━━━━ <gradient:#ffd86b:#ff9a3c><bold>ELIGE EL CAMINO</bold></gradient> <dark_gray>━━━━━━━━"));
             for (int k = 0; k < opts.length; k++) {
                 RoomType t = rooms.get(opts[k]).type;
-                p.sendMessage(Text.mm("<green><bold>[" + (k + 1) + "] " + t.title + "</bold></green>")
+                boolean hid = k == mysteryOpt;
+                p.sendMessage(Text.mm("<green><bold>[" + (k + 1) + "] " + (hid ? "???" : t.title) + "</bold></green>")
                         .clickEvent(ClickEvent.runCommand("/dungeon path " + (k + 1)))
-                        .append(Text.mm(" <gray>" + t.blurb + "</gray>")));
+                        .append(Text.mm(hid ? " <gray>Una sala desconocida... con premio extra.</gray>" : " <gray>" + t.blurb + "</gray>")));
             }
-            p.sendMessage(Text.mm("<gray>Haz clic en una opción o usa <white>/dungeon path <número></white>.</gray>"));
+            p.sendMessage(Text.mm("<gray>Entra en un portal, haz clic en una opción o usa <white>/dungeon path <número></white>.</gray>"));
         }
     }
 
@@ -919,7 +948,8 @@ public final class DungeonInstance {
         int[] opts = steps.get(voteStep);
         if (option < 1 || option > opts.length) return "Opción inválida (1-" + opts.length + ").";
         votes.put(p.getUniqueId(), option - 1);
-        broadcast("<white>" + s.name + "</white> <gray>vota por</gray> <green>" + rooms.get(opts[option - 1]).type.title
+        broadcast("<white>" + s.name + "</white> <gray>vota por</gray> <green>"
+                + (option - 1 == mysteryOpt ? "???" : rooms.get(opts[option - 1]).type.title)
                 + "</green> <dark_gray>(" + votes.size() + "/" + Math.max(1, aliveOnline().size()) + ")</dark_gray>");
         return null;
     }
@@ -932,15 +962,25 @@ public final class DungeonInstance {
             return s == null || s.eliminated;
         });
         int[] opts = steps.get(voteStep);
+        // votar entrando en un portal (el último en el que estés es tu voto)
+        for (Player p : aliveOnline()) {
+            int z = portals.zoneOf(p);
+            if (z >= 0 && z < opts.length && !Integer.valueOf(z).equals(votes.get(p.getUniqueId()))) {
+                votes.put(p.getUniqueId(), z);
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 1.2f);
+            }
+        }
+        if (tick % 10 == 0) portals.particles();
         int[] count = new int[opts.length];
         for (int v : votes.values()) count[v]++;
+        for (int k = 0; k < count.length; k++) portals.refresh(k, count[k]);
         List<Player> al = aliveOnline();
         boolean allIn = !al.isEmpty() && votes.size() >= al.size();
         boolean pending = bless.hasPending() || relics.hasPending();
         boolean timeUp = tick >= voteEnd;
         StringBuilder sb = new StringBuilder("Camino: ");
         for (int k = 0; k < opts.length; k++) {
-            sb.append(rooms.get(opts[k]).type.title).append(" ").append(count[k]).append("  ");
+            sb.append(k == mysteryOpt ? "???" : rooms.get(opts[k]).type.title).append(" ").append(count[k]).append("  ");
         }
         sb.append(timeUp ? "· elige tu bendición" : "· " + Math.max(0, (voteEnd - tick) / 20) + "s");
         hint = sb.toString();
@@ -965,7 +1005,14 @@ public final class DungeonInstance {
         voteStep = -1;
         votes.clear();
         hint = "";
+        portals.clear();
         broadcast("<gold>Camino elegido:</gold> <white>" + rooms.get(to).type.title + "</white>");
+        if (pick == mysteryOpt) {
+            int bonus = cfg.i("path.mystery-souls");
+            if (bonus > 0) merchant.grantAll(bonus);
+            broadcast("<light_purple>¡El portal misterioso os premia!</light_purple> <gray>◆ +" + bonus + " brasas para todos</gray>");
+        }
+        mysteryOpt = -1;
         openRoom(from, to);
     }
 
@@ -993,6 +1040,16 @@ public final class DungeonInstance {
     // ------------------------------------------------------------------ oleadas
 
     private void wavesTick(DungeonBuilder.Room r) {
+        if (objectives.active()) {
+            objectives.tick(r);
+            if (tick % 10 == 0) {
+                mobs.removeIf(u -> {
+                    Entity e = Bukkit.getEntity(u);
+                    return e == null || !e.isValid() || e.isDead();
+                });
+            }
+            return;
+        }
         if (nextWaveTick > 0 && tick >= nextWaveTick) {
             nextWaveTick = 0;
             startWave();
@@ -1836,7 +1893,7 @@ public final class DungeonInstance {
 
     private void startRest(DungeonBuilder.Room r) {
         restEnd = tick + cfg.i("rest.seconds") * 20L;
-        titleAll("<green><bold>SALA DE DESCANSO</bold></green>", "<gray>Recupérate antes de Vorthak</gray>");
+        titleAll("<green><bold>SALA DE DESCANSO</bold></green>", "<gray>Recupérate antes de " + boss.title() + "</gray>");
         int restore = cfg.i("rest.restore-lives");
         for (PState s : members.values()) {
             int cap = maxLives + s.bonusLives;
@@ -1878,7 +1935,81 @@ public final class DungeonInstance {
 
     // ------------------------------------------------------------------ Vorthak
 
+    private boolean customBoss() {
+        return !boss.id().equals(BossDef.VORTHAK.id());
+    }
+
+    String bossGradient() {
+        return boss.id().equals("ysmera") ? "#9fe0f5:#ffffff" : "#ff4d4d:#ffb347";
+    }
+
+    private void spawnCustomBoss(DungeonBuilder.Room r) {
+        if (boss.id().equals(YsmeraBoss.ID)) {
+            cboss = YsmeraBoss.spawn(this, r);
+            vorthakDead = false;
+        } else {
+            plugin.getLogger().warning("[Dungeon #" + id + "] Jefe sin implementar: " + boss.id());
+        }
+    }
+
+    private void discardCBoss() {
+        if (cboss != null) {
+            cboss.discard();
+            cboss = null;
+        }
+        cbossSpawnTick = 0;
+        cbossMissing = 0;
+    }
+
+    /** Bucle de la sala del jefe final cuando no es Vorthak. */
+    private void customBossTick(DungeonBuilder.Room r) {
+        if (cboss == null) {
+            if (cbossSpawnTick > 0 && tick >= cbossSpawnTick) {
+                cbossSpawnTick = 0;
+                spawnCustomBoss(r);
+            }
+            return;
+        }
+        if (vorthakDead) return;
+        if (cboss.finished()) {
+            vorthakDead = true;
+            plugin.getLogger().warning("[Dungeon #" + id + "] El jefe terminó sin pasar por el evento de muerte: completando por respaldo.");
+            try {
+                complete(new ArrayList<>());
+            } catch (Throwable t) {
+                plugin.getLogger().log(java.util.logging.Level.SEVERE, "Error al completar la dungeon #" + id, t);
+            }
+            return;
+        }
+        if (!cboss.entity().isValid()) {
+            cbossMissing += 2;
+            if (cbossMissing > 100) {
+                discardCBoss();
+                cbossSpawnTick = tick + 20;
+            }
+            return;
+        }
+        cbossMissing = 0;
+        hint = cboss.hint();
+        cboss.tick(tick);
+    }
+
+    private void onCustomBossDeath(EntityDeathEvent e) {
+        vorthakDead = true;
+        plugin.getLogger().info("[Dungeon #" + id + "] " + boss.title() + " ha caído: se completa la dungeon.");
+        cboss.onDeath(e);
+        try {
+            complete(new ArrayList<>());
+        } catch (Throwable t) {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE, "Error al completar la dungeon #" + id, t);
+        }
+    }
+
     private void vorthakTick(DungeonBuilder.Room r) {
+        if (customBoss()) {
+            customBossTick(r);
+            return;
+        }
         if (vorthakId == null && vorthakSpawnTick > 0 && tick >= vorthakSpawnTick) {
             vorthakSpawnTick = 0;
             spawnVorthak(r);
@@ -2081,6 +2212,64 @@ public final class DungeonInstance {
         return boss;
     }
 
+    SecretSystem secrets() {
+        return secrets;
+    }
+
+    /** La sala en la que está una ubicación (o la actual si no está en ninguna). */
+    DungeonBuilder.Room roomAt(Location l) {
+        for (DungeonBuilder.Room r : rooms) if (r.contains(l)) return r;
+        return currentRoom();
+    }
+
+    ObjectiveSystem objectives() {
+        return objectives;
+    }
+
+    DungeonManager manager() {
+        return manager;
+    }
+
+    void hint(String h) {
+        hint = h;
+    }
+
+    int mobCount() {
+        return mobs.size();
+    }
+
+    /** El objetivo de la sala (cristales, faros...) se ha cumplido: la sala queda superada. */
+    void objectiveComplete() {
+        if (state == State.RUNNING && roomStates[active] == RoomState.ACTIVE) clearRoom(active);
+    }
+
+    /** Hace desaparecer a los enemigos de oleada que queden (al cumplir un objetivo). */
+    void purgeWaveMobs() {
+        for (UUID u : new ArrayList<>(mobs)) {
+            Entity e = Bukkit.getEntity(u);
+            if (e != null && e.isValid()) {
+                world.spawnParticle(Particle.SOUL, e.getLocation().add(0, 1, 0), 10, 0.3, 0.5, 0.3, 0.02);
+                e.remove();
+            }
+            manager.unindexMob(u);
+        }
+        mobs.clear();
+        pendingSpawns = 0;
+    }
+
+    /** Genera un enemigo de oleada para un objetivo, con las mismas escalas que las oleadas. */
+    void spawnObjectiveMob(Location l, boolean forceElite) {
+        int ordinal = roomOrdinal();
+        int tier = Math.min(3, WaveMobs.tierFor(ordinal));
+        double hpMul = (1 + cfg.d("scaling.health-per-extra-player") * (groupSize() - 1))
+                * (1 + cfg.d("scaling.health-per-room") * (ordinal - 1)) * heat.hpMul();
+        double dmgMul = (1 + cfg.d("scaling.damage-per-room") * (ordinal - 1)) * heat.dmgMul();
+        double eliteChance = cfg.d("waves.elite-chance") * (modifier == Modifier.ELITE ? 4 : 1) * heat.eliteMul();
+        boolean elite = forceElite || rnd.nextDouble() < eliteChance;
+        LivingEntity e = WaveMobs.spawn(this, l, tier, elite, hpMul, dmgMul);
+        mobs.add(e.getUniqueId());
+    }
+
     Biome biome() {
         return biome;
     }
@@ -2197,7 +2386,7 @@ public final class DungeonInstance {
     }
 
     boolean isBossEntity(Entity e) {
-        return e.getUniqueId().equals(vorthakId) || bosses.heraldOwner(e) != null;
+        return e.getUniqueId().equals(vorthakId) || bosses.heraldOwner(e) != null || (cboss != null && cboss.owns(e));
     }
 
     /** Enemigo normal o mini jefe de esta partida sobre el que las bendiciones pueden causar daño. */
@@ -2212,7 +2401,12 @@ public final class DungeonInstance {
     // ------------------------------------------------------------------ eventos delegados
 
     public void onMobDamaged(EntityDamageEvent e) {
+        if (objectives.onDamaged(e)) return;
         if (puzzles.onDamaged(e)) return;
+        if (cboss != null && cboss.owns(e.getEntity())) {
+            cboss.onDamage(e);
+            return;
+        }
         if (mini != null && mini.owns(e.getEntity().getUniqueId())) mini.onDamage(e);
     }
 
@@ -2229,7 +2423,7 @@ public final class DungeonInstance {
         if (killer != null) {
             PState s = members.get(killer.getUniqueId());
             if (s != null) s.kills++;
-            if (!u.equals(vorthakId)) {
+            if (!u.equals(vorthakId) && !(cboss != null && u.equals(cboss.id()))) {
                 bless.onKill(e.getEntity(), killer);
                 relics.onKill(e.getEntity(), killer,
                         e.getEntity().getPersistentDataContainer().has(manager.eliteKey, PersistentDataType.BYTE));
@@ -2251,6 +2445,10 @@ public final class DungeonInstance {
         }
         if (u.equals(vorthakId)) {
             onVorthakDeath(e);
+            return;
+        }
+        if (cboss != null && u.equals(cboss.id())) {
+            onCustomBossDeath(e);
             return;
         }
         boolean elite = e.getEntity().getPersistentDataContainer().has(manager.eliteKey, PersistentDataType.BYTE);
@@ -2453,6 +2651,7 @@ public final class DungeonInstance {
             mini = null;
         }
         discardVorthak();
+        discardCBoss();
         removeAllTombs();
         restoreHazards();
         purgeEntities();
@@ -2486,6 +2685,9 @@ public final class DungeonInstance {
         heat.resetAll();
         classes.begin(rooms.get(0), tick);
         ambience.clear();
+        objectives.clear();
+        secrets.resetAll();
+        portals.clear();
         for (UUID u : members.keySet()) {
             PState s = members.get(u);
             s.lives = maxLives;
@@ -2562,7 +2764,7 @@ public final class DungeonInstance {
 
         // botín personal: cada jugador tira su propio loot y lo recoge en SU cofre (no cae nada al suelo)
         for (UUID u : members.keySet()) {
-            List<ItemStack> mine = new ArrayList<>(VorthakBoss.rollLoot(plugin, bosses));
+            List<ItemStack> mine = new ArrayList<>(cboss != null ? cboss.rollLoot() : VorthakBoss.rollLoot(plugin, bosses));
             mine.addAll(cfg.rollLoot("rewards.loot"));
             rewards.put(u, mine);
         }
@@ -2826,7 +3028,10 @@ public final class DungeonInstance {
             mini = null;
         }
         ambience.clear();
+        objectives.clear();
+        portals.clear();
         discardVorthak();
+        discardCBoss();
         removeAllTombs();
         restoreHazards();
         for (Map.Entry<UUID, PState> en : new ArrayList<>(members.entrySet())) {

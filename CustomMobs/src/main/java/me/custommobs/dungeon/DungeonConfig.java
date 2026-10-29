@@ -77,7 +77,7 @@ public final class DungeonConfig {
             for (String part : s.split("\\|")) {
                 RoomType t = RoomType.parse(part);
                 if (t == null || t == RoomType.START || t == RoomType.VORTHAK) continue;
-                if (opts.size() < 2) opts.add(t);
+                if (opts.size() < 3) opts.add(t);
             }
             if (!opts.isEmpty()) out.add(opts);
         }
@@ -181,11 +181,14 @@ public final class DungeonConfig {
             path:
               # Segundos que tiene el grupo para votar el camino (si nadie vota, se elige al azar).
               vote-seconds: 25
+              # Probabilidad de que una salida sea un portal misterioso (no muestra qué sala hay detrás) y su premio en brasas.
+              mystery-chance: 0.3
+              mystery-souls: 25
 
             # size = lado interior (se fuerza impar), height = alto interior.
             sizes:
               START:    {size: 13, height: 8}
-              WAVES:    {size: 25, height: 10}
+              WAVES:    {size: 45, height: 14}
               TRAP:     {size: 25, height: 9}
               PUZZLE:   {size: 25, height: 9}
               MINIBOSS: {size: 29, height: 13}
@@ -338,6 +341,35 @@ public final class DungeonConfig {
               # Cada nivel de Calor suma este % al puntaje final (0.10 = +10% por nivel).
               score-bonus-per-level: 0.10
 
+            secrets:
+              # Secretos en las salas: palanca oculta que abre una cámara secreta tras la pared agrietada y cofres escondidos.
+              chamber-chance: 0.6
+              nook-chance: 0.5
+              # Botín de los cofres (formato MATERIAL:min:max:probabilidad), brasas, reliquia y mímicos.
+              loot:
+                - "GOLDEN_APPLE:1:2:0.55"
+                - "DIAMOND:1:3:0.45"
+                - "EXPERIENCE_BOTTLE:4:10:0.85"
+                - "POTION_HEAL:1:2:0.50"
+                - "NETHERITE_SCRAP:1:1:0.12"
+              souls-big: 40
+              souls-small: 15
+              relic-chance-big: 0.35
+              relic-chance-small: 0.08
+              mimic-chance: 0.15
+              fountain-regen-seconds: 12
+
+            objectives:
+              # Las salas de oleadas pueden tener un objetivo especial en vez de solo matar:
+              # destruir cristales de invocación o capturar faros. 'chance' = probabilidad (0 = siempre oleada clásica).
+              enabled: true
+              chance: 0.65
+              crystal-health: 150.0
+              crystal-pulse-seconds: 9
+              beacon-radius: 4.5
+              beacon-seconds: 14
+              beacon-spawn-seconds: 6
+
             hub:
               # Hub: isla decorada (mundo vacío propio, se construye al arrancar) con un pedestal por jefe,
               # el Santuario de Ecos y el Salón de la Fama. Sin /dungeon setlobby, el lobby es el hub.
@@ -431,6 +463,22 @@ public final class DungeonConfig {
                 - "DIAMOND:2:4:1.0"
                 - "NETHERITE_SCRAP:1:2:0.50"
                 - "EXPERIENCE_BOTTLE:8:16:1.0"
+
+            ysmera:
+              # Jefe final alternativo: Ysmera, Reina de Escarcha (se elige en el Hub). Fuerza el bioma Cripta Helada.
+              health: 1000
+              # Reduce el daño recibido por jugador extra (la vida máxima de un mob no puede pasar de 1024).
+              health-per-extra-player: 0.55
+              # Vida de cada cristal del Escudo de Cristal (x1.45 por jugador extra).
+              crystal-health: 70
+              blade-chance: 0.30
+              xp: 3000
+              loot:
+                - "ENCHANTED_GOLDEN_APPLE:1:2:1.0"
+                - "DIAMOND:4:8:1.0"
+                - "NETHERITE_SCRAP:2:5:1.0"
+                - "EXPERIENCE_BOTTLE:12:24:1.0"
+                - "POTION_REGEN:1:2:0.60"
 
             rewards:
               # Recompensa personal al derrotar a Vorthak (además de su botín en el cofre).

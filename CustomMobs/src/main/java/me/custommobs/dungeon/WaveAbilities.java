@@ -47,6 +47,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li><b>Espectro</b>: aparece a tu espalda con un tajo espectral y a veces atraviesa los golpes.</li>
  *   <li><b>Sacerdote de Almas</b>: cura y blinda a sus aliados y marca tu posición con círculos de almas.</li>
  *   <li><b>Bestia de Ceniza</b>: salto demoledor con onda de choque y se enfurece al 50% de vida.</li>
+ *   <li><b>Cripta Helada</b>: <b>Congelado</b> (nova gélida y se hace añicos), <b>Arquero de Escarcha</b> (flechas que
+ *       congelan), <b>Yeti de Ventisca</b> (golpe de suelo y embestida), <b>Banshee</b> (tajo por la espalda y alarido)
+ *       y <b>Chamán de Nieve</b> (cura, blinda y marca con ventiscas).</li>
  * </ul>
  * Todos van en silencio (setSilent) y suenan con las voces de {@link #voice(String)}.
  */
@@ -54,7 +57,8 @@ public final class WaveAbilities implements Listener {
 
     /** Identificadores de arquetipo (coinciden con el id del modelo). */
     public static final String CENIZO = "cenizo", CALCINADO = "calcinado", MARCHITO = "marchito",
-            BRUTO = "bruto", ESPECTRO = "espectro", SACERDOTE = "sacerdote", BESTIA = "bestia";
+            BRUTO = "bruto", ESPECTRO = "espectro", SACERDOTE = "sacerdote", BESTIA = "bestia",
+            CONGELADO = "congelado", ESCARCHA = "escarcha", YETI = "yeti", BANSHEE = "banshee", CHAMAN = "chaman";
 
     /** Voz de un enemigo: claves de sonido de Minecraft + tono. */
     private record Voice(String ambient, float ambientPitch, String hurt, float hurtPitch,
@@ -74,6 +78,16 @@ public final class WaveAbilities implements Listener {
                     "entity.vex.death", 0.7f, "block.soul_sand.step", 1.2f, 0.25f, 1.6);
             case SACERDOTE -> new Voice("entity.evoker.ambient", 0.8f, "entity.evoker.hurt", 0.9f,
                     "entity.evoker.death", 0.8f, "block.wool.step", 1.0f, 0.4f, 1.4);
+            case CONGELADO -> new Voice("entity.stray.ambient", 0.6f, "entity.stray.hurt", 0.7f,
+                    "entity.stray.death", 0.6f, "block.snow.step", 0.8f, 0.5f, 1.3);
+            case ESCARCHA -> new Voice("entity.stray.ambient", 1.2f, "entity.stray.hurt", 1.1f,
+                    "entity.stray.death", 1.0f, "block.bone_block.step", 1.2f, 0.4f, 1.2);
+            case YETI -> new Voice("entity.polar_bear.ambient", 0.6f, "entity.polar_bear.hurt", 0.7f,
+                    "entity.polar_bear.death", 0.6f, "block.snow.step", 0.6f, 0.9f, 1.7);
+            case BANSHEE -> new Voice("entity.vex.ambient", 1.5f, "entity.vex.hurt", 1.5f,
+                    "entity.vex.death", 1.4f, "block.powder_snow.step", 1.2f, 0.2f, 1.8);
+            case CHAMAN -> new Voice("entity.evoker.ambient", 1.3f, "entity.evoker.hurt", 1.3f,
+                    "entity.evoker.death", 1.2f, "block.snow.step", 1.0f, 0.4f, 1.4);
             default -> new Voice("entity.zoglin.ambient", 0.6f, "entity.zoglin.hurt", 0.7f,
                     "entity.zoglin.death", 0.6f, "entity.hoglin.step", 0.7f, 0.9f, 1.8);
         };
@@ -121,10 +135,10 @@ public final class WaveAbilities implements Listener {
     public void register(LivingEntity e, String kind, DungeonInstance inst) {
         e.setSilent(true); // sin la voz vanilla (zombi, esqueleto...): suena la propia de cada arquetipo
         int first = switch (kind) {
-            case BRUTO -> 120;
-            case ESPECTRO -> 100;
-            case SACERDOTE -> 80;
-            case CALCINADO -> 60;
+            case BRUTO, YETI -> 120;
+            case ESPECTRO, BANSHEE -> 100;
+            case SACERDOTE, CHAMAN -> 80;
+            case CALCINADO, ESCARCHA, CONGELADO -> 60;
             case BESTIA -> 90;
             default -> 0;
         };
@@ -217,10 +231,12 @@ public final class WaveAbilities implements Listener {
             }
             LivingEntity target = e instanceof Mob m ? m.getTarget() : null;
             switch (s.kind) {
-                case CALCINADO -> calcinado(s, target);
-                case BRUTO -> bruto(s, target);
+                case CALCINADO, ESCARCHA -> calcinado(s, target);
+                case BRUTO, YETI -> bruto(s, target);
                 case ESPECTRO -> espectro(s, target);
-                case SACERDOTE -> sacerdote(s, target);
+                case BANSHEE -> banshee(s, target);
+                case SACERDOTE, CHAMAN -> sacerdote(s, target);
+                case CONGELADO -> congelado(s, target);
                 case BESTIA -> bestia(s, target);
                 default -> s.cooldown = 1000;
             }
@@ -277,19 +293,22 @@ public final class WaveAbilities implements Listener {
             return;
         }
         Location here = e.getLocation();
+        boolean frost = ESCARCHA.equals(s.kind);
+        Particle trail = frost ? Particle.SNOWFLAKE : Particle.FLAME;
+        String shoot = frost ? "entity.arrow.shoot" : "entity.blaze.shoot";
         double d2 = target.getLocation().distanceSquared(here);
         if (d2 < 4.5 * 4.5) {
             // si te le acercas, da un salto hacia atrás y sigue disparando
             Vector away = here.toVector().subtract(target.getLocation().toVector()).setY(0);
             if (away.lengthSquared() < 1.0e-4) away = new Vector(1, 0, 0);
             e.setVelocity(away.normalize().multiply(0.95).setY(0.5));
-            here.getWorld().spawnParticle(Particle.FLAME, here.clone().add(0, 0.2, 0), 25, 0.3, 0.1, 0.3, 0.06);
-            Sfx.play(here, "entity.blaze.shoot", 0.6f, 1.7f);
+            here.getWorld().spawnParticle(trail, here.clone().add(0, 0.2, 0), 25, 0.3, 0.1, 0.3, 0.06);
+            Sfx.play(here, shoot, 0.6f, 1.7f);
             s.cooldown = 90;
         } else if (d2 < 30 * 30 && e.hasLineOfSight(target)) {
             visuals.attack(e.getUniqueId(), 12);
-            Sfx.play(here, "entity.blaze.shoot", 1.0f, 0.8f);
-            here.getWorld().spawnParticle(Particle.FLAME, e.getEyeLocation(), 20, 0.3, 0.3, 0.3, 0.04);
+            Sfx.play(here, shoot, 1.0f, 0.8f);
+            here.getWorld().spawnParticle(trail, e.getEyeLocation(), 20, 0.3, 0.3, 0.3, 0.04);
             s.inst.later(10, () -> volley(e, target));
             s.cooldown = 140;
         } else {
@@ -310,6 +329,61 @@ public final class WaveAbilities implements Listener {
             quiet(a);
         }
         Sfx.play(eye, "entity.blaze.shoot", 1.0f, 1.2f);
+    }
+
+    // ------------------------------------------------------------------ CONGELADO: nova gélida
+
+    /** Congela a un jugador: capa de nieve en pantalla, ralentización y tiempo de congelación. */
+    private static void freeze(Player p, int freezeTicks, int slowLevel, int slowTicks) {
+        p.setFreezeTicks(Math.max(p.getFreezeTicks(), freezeTicks));
+        p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, slowTicks, slowLevel, false, true));
+    }
+
+    private void congelado(State s, LivingEntity target) {
+        LivingEntity e = s.ent;
+        if (target == null || target.getLocation().distanceSquared(e.getLocation()) > 5.5 * 5.5) {
+            s.cooldown = 20;
+            return;
+        }
+        final Location at = e.getLocation();
+        visuals.attack(e.getUniqueId(), 14);
+        Sfx.play(at, "block.glass.break", 1.0f, 0.5f);
+        ring(at, 3.5, 20, Particle.SNOWFLAKE);
+        s.inst.hazard(at.clone(), 20, 3.5, 5.0);
+        s.inst.later(22, () -> {
+            at.getWorld().spawnParticle(Particle.SNOWFLAKE, at.clone().add(0, 1, 0), 40, 1.6, 0.6, 1.6, 0.04);
+            for (Player p : playersNear(s.inst, at, 3.6)) freeze(p, 140, 1, 60);
+        });
+        s.cooldown = 170;
+    }
+
+    // ------------------------------------------------------------------ BANSHEE: alarido y tajo
+
+    private void banshee(State s, LivingEntity target) {
+        LivingEntity e = s.ent;
+        if (target != null && ThreadLocalRandom.current().nextBoolean()
+                && target.getLocation().distanceSquared(e.getLocation()) < 10 * 10) {
+            // alarido: tras un instante de aviso, daña, congela y ciega a todos los cercanos
+            final Location at = e.getLocation();
+            visuals.attack(e.getUniqueId(), 16);
+            Sfx.play(at, "entity.ghast.scream", 1.0f, 1.7f);
+            ring(at, 3.0, 16, Particle.SNOWFLAKE);
+            s.inst.later(14, () -> {
+                if (gone(e)) return;
+                final Location l = e.getLocation();
+                ring(l, 5.0, 28, Particle.SNOWFLAKE);
+                ring(l, 8.0, 40, Particle.END_ROD);
+                Sfx.play(l, "entity.warden.sonic_boom", 0.6f, 1.8f);
+                for (Player p : playersNear(s.inst, l, 9.0)) {
+                    s.inst.hazardHit(p, 4.0);
+                    freeze(p, 160, 1, 60);
+                    p.addPotionEffect(new PotionEffect(PotionEffectType.BLINDNESS, 20, 0, false, false));
+                }
+            });
+            s.cooldown = 150;
+            return;
+        }
+        espectro(s, target);
     }
 
     // ------------------------------------------------------------------ MARCHITO: aura de peste
@@ -336,17 +410,28 @@ public final class WaveAbilities implements Listener {
             return;
         }
         Location at = e.getLocation();
+        boolean frost = YETI.equals(s.kind);
+        String roar = frost ? "entity.polar_bear.warning" : "entity.ravager.roar";
+        Particle dust = frost ? Particle.SNOWFLAKE : Particle.LARGE_SMOKE;
         double d2 = target.getLocation().distanceSquared(at);
         if (d2 < 8 * 8) {
             visuals.attack(e.getUniqueId(), 20);
-            Sfx.play(at, "entity.ravager.roar", 1f, 0.7f);
+            Sfx.play(at, roar, 1f, 0.7f);
             s.inst.hazard(at.clone(), 24, 4.0, 7.0);
+            if (frost) {
+                // la onda de choque de hielo ralentiza y congela a quien alcanza
+                final Location slam = at.clone();
+                s.inst.later(24, () -> {
+                    ring(slam, 4.0, 24, Particle.SNOWFLAKE);
+                    for (Player p : playersNear(s.inst, slam, 4.0)) freeze(p, 120, 1, 70);
+                });
+            }
             s.cooldown = 180;
         } else if (d2 < 16 * 16 && e.hasLineOfSight(target)) {
             // embestida: se agacha, ruge y se lanza en línea recta
             visuals.attack(e.getUniqueId(), 20);
-            Sfx.play(at, "entity.ravager.roar", 1f, 1.0f);
-            at.getWorld().spawnParticle(Particle.LARGE_SMOKE, at.clone().add(0, 0.3, 0), 18, 0.6, 0.1, 0.6, 0.03);
+            Sfx.play(at, roar, 1f, 1.0f);
+            at.getWorld().spawnParticle(dust, at.clone().add(0, 0.3, 0), 18, 0.6, 0.1, 0.6, 0.03);
             Vector dir = target.getLocation().toVector().subtract(at.toVector()).setY(0);
             if (dir.lengthSquared() < 1.0e-4) dir = new Vector(0, 0, 1);
             final Vector charge = dir.normalize();
@@ -358,10 +443,11 @@ public final class WaveAbilities implements Listener {
                 s.inst.repeat(2, 9, i -> {
                     if (hit[0] || gone(e)) return;
                     Location l = e.getLocation();
-                    l.getWorld().spawnParticle(Particle.LARGE_SMOKE, l.clone().add(0, 0.4, 0), 4, 0.4, 0.2, 0.4, 0.02);
+                    l.getWorld().spawnParticle(dust, l.clone().add(0, 0.4, 0), 4, 0.4, 0.2, 0.4, 0.02);
                     for (Player p : playersNear(s.inst, l, 2.3)) {
                         hit[0] = true;
                         s.inst.hazardHit(p, 8.0);
+                        if (frost) freeze(p, 100, 1, 60);
                         knock(p, l, 1.5, 0.55);
                         l.getWorld().spawnParticle(Particle.EXPLOSION, p.getLocation().add(0, 1, 0), 2, 0.3, 0.3, 0.3, 0);
                         Sfx.play(l, "entity.generic.explode", 0.8f, 1.2f);
@@ -388,9 +474,11 @@ public final class WaveAbilities implements Listener {
         Location dest = tl.clone().subtract(back.normalize().multiply(2.0));
         dest.setYaw(tl.getYaw() + 180f);
         Location from = e.getLocation();
-        from.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, from.clone().add(0, 1, 0), 24, 0.3, 0.6, 0.3, 0.05);
+        boolean frost = BANSHEE.equals(s.kind);
+        Particle mist = frost ? Particle.SNOWFLAKE : Particle.SOUL_FIRE_FLAME;
+        from.getWorld().spawnParticle(mist, from.clone().add(0, 1, 0), 24, 0.3, 0.6, 0.3, 0.05);
         e.teleport(dest);
-        dest.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, dest.clone().add(0, 1, 0), 24, 0.3, 0.6, 0.3, 0.05);
+        dest.getWorld().spawnParticle(mist, dest.clone().add(0, 1, 0), 24, 0.3, 0.6, 0.3, 0.05);
         Sfx.play(dest, "entity.enderman.teleport", 0.8f, 0.6f);
         // tajo espectral poco después de aparecer (da tiempo a girarse)
         visuals.attack(e.getUniqueId(), 12);
@@ -398,11 +486,12 @@ public final class WaveAbilities implements Listener {
             if (gone(e)) return;
             Location l = e.getLocation();
             l.getWorld().spawnParticle(Particle.SWEEP_ATTACK, l.clone().add(l.getDirection().multiply(1.6)).add(0, 1, 0), 3, 0.6, 0.2, 0.6, 0);
-            l.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, l.clone().add(0, 1, 0), 20, 1.2, 0.4, 1.2, 0.05);
+            l.getWorld().spawnParticle(mist, l.clone().add(0, 1, 0), 20, 1.2, 0.4, 1.2, 0.05);
             Sfx.play(l, "entity.player.attack.sweep", 1.0f, 0.6f);
             for (Player p : playersNear(s.inst, l, 3.4)) {
                 s.inst.hazardHit(p, 5.0);
                 p.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 40, 1, false, true));
+                if (frost) p.setFreezeTicks(Math.max(p.getFreezeTicks(), 100));
             }
         });
         s.cooldown = 160;
@@ -413,6 +502,8 @@ public final class WaveAbilities implements Listener {
     private void sacerdote(State s, LivingEntity target) {
         LivingEntity e = s.ent;
         DungeonInstance inst = s.inst;
+        boolean frost = CHAMAN.equals(s.kind);
+        Particle mark = frost ? Particle.SNOWFLAKE : Particle.SOUL_FIRE_FLAME;
         boolean healed = false;
         boolean shielded = false;
         for (Entity n : e.getNearbyEntities(8, 4, 8)) {
@@ -431,7 +522,7 @@ public final class WaveAbilities implements Listener {
         }
         if (healed || shielded) {
             visuals.attack(e.getUniqueId(), 12);
-            e.getWorld().spawnParticle(Particle.SOUL, e.getLocation().add(0, 1, 0), 30, 1.5, 0.6, 1.5, 0.02);
+            e.getWorld().spawnParticle(frost ? Particle.SNOWFLAKE : Particle.SOUL, e.getLocation().add(0, 1, 0), 30, 1.5, 0.6, 1.5, 0.02);
             Sfx.play(e.getLocation(), "block.beacon.power_select", 0.8f, 1.4f);
             s.cooldown = 140;
         } else if (target != null && target.getLocation().distanceSquared(e.getLocation()) < 22 * 22) {
@@ -439,8 +530,16 @@ public final class WaveAbilities implements Listener {
             Location tl = target.getLocation();
             visuals.attack(e.getUniqueId(), 12);
             Sfx.play(e.getLocation(), "entity.evoker.cast_spell", 1.0f, 1.1f);
-            e.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, e.getEyeLocation(), 20, 0.3, 0.3, 0.3, 0.05);
+            e.getWorld().spawnParticle(mark, e.getEyeLocation(), 20, 0.3, 0.3, 0.3, 0.05);
             inst.hazard(tl.clone(), 22, 2.4, 6.0);
+            if (frost) {
+                // ventisca: el círculo además congela a quien lo pise
+                final Location blizzard = tl.clone();
+                inst.later(24, () -> {
+                    ring(blizzard, 2.4, 16, Particle.SNOWFLAKE);
+                    for (Player p : playersNear(inst, blizzard, 2.6)) freeze(p, 100, 1, 50);
+                });
+            }
             s.cooldown = 70;
         } else {
             s.cooldown = 40;
@@ -516,7 +615,7 @@ public final class WaveAbilities implements Listener {
     @EventHandler(ignoreCancelled = true)
     public void onShoot(EntityShootBowEvent e) {
         String k = kindOf(e.getEntity());
-        if (!CALCINADO.equals(k)) return;
+        if (!CALCINADO.equals(k) && !ESCARCHA.equals(k)) return;
         // sin llama en la flecha (molestaba a la vista): el fuego se aplica al impactar, ver onHit
         if (e.getProjectile() instanceof AbstractArrow a) {
             a.setDamage(a.getDamage() + 0.5);
@@ -535,9 +634,11 @@ public final class WaveAbilities implements Listener {
     @EventHandler(ignoreCancelled = true)
     public void onArrowLand(org.bukkit.event.entity.ProjectileHitEvent e) {
         if (!(e.getEntity() instanceof AbstractArrow a)) return;
-        if (!(a.getShooter() instanceof Entity sh) || !CALCINADO.equals(kindOf(sh))) return;
+        if (!(a.getShooter() instanceof Entity sh) || !(CALCINADO.equals(kindOf(sh)) || ESCARCHA.equals(kindOf(sh)))) return;
         Location at = a.getLocation();
-        if (at.getWorld() != null) at.getWorld().spawnParticle(Particle.SMOKE, at, 4, 0.05, 0.05, 0.05, 0.01);
+        if (at.getWorld() != null) {
+            at.getWorld().spawnParticle(ESCARCHA.equals(kindOf(sh)) ? Particle.SNOWFLAKE : Particle.SMOKE, at, 4, 0.05, 0.05, 0.05, 0.01);
+        }
         Bukkit.getScheduler().runTask(plugin, () -> {
             a.remove();
             if (e.getHitEntity() instanceof Player p) p.setArrowsInBody(0);
@@ -550,15 +651,22 @@ public final class WaveAbilities implements Listener {
         String k = kindOf(e.getDamager());
         if (MARCHITO.equals(k)) {
             p.addPotionEffect(new PotionEffect(PotionEffectType.WITHER, 80, 0));
+        } else if (CONGELADO.equals(k)) {
+            freeze(p, 100, 0, 50);
+        } else if (YETI.equals(k)) {
+            freeze(p, 120, 1, 50);
         } else if (e.getDamager() instanceof AbstractArrow a && a.getShooter() instanceof Entity sh && CALCINADO.equals(kindOf(sh))) {
             p.setFireTicks(Math.max(p.getFireTicks(), 60));
+        } else if (e.getDamager() instanceof AbstractArrow a2 && a2.getShooter() instanceof Entity sh2 && ESCARCHA.equals(kindOf(sh2))) {
+            freeze(p, 100, 1, 60);
         }
     }
 
     /** Espectro: a veces el golpe lo atraviesa (intangible). */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onSpectreHit(EntityDamageByEntityEvent e) {
-        if (!ESPECTRO.equals(kindOf(e.getEntity()))) return;
+        String sk = kindOf(e.getEntity());
+        if (!ESPECTRO.equals(sk) && !BANSHEE.equals(sk)) return;
         boolean fromPlayer = e.getDamager() instanceof Player
                 || (e.getDamager() instanceof Projectile pr && pr.getShooter() instanceof Player);
         if (!fromPlayer || ThreadLocalRandom.current().nextDouble() >= 0.18) return;
@@ -598,7 +706,23 @@ public final class WaveAbilities implements Listener {
                 w.spawnParticle(Particle.SOUL_FIRE_FLAME, at.clone().add(0, 1, 0), 40, 0.4, 0.8, 0.4, 0.08);
                 Sfx.play(at, "entity.enderman.teleport", 0.6f, 1.6f);
             }
-            case SACERDOTE -> {
+            case BANSHEE -> {
+                w.spawnParticle(Particle.SNOWFLAKE, at.clone().add(0, 1, 0), 50, 0.5, 0.9, 0.5, 0.1);
+                Sfx.play(at, "block.amethyst_cluster.break", 0.8f, 1.4f);
+            }
+            case CONGELADO -> {
+                // se hace añicos: esquirlas de hielo que congelan a quien esté pegado
+                w.spawnParticle(Particle.SNOWFLAKE, at.clone().add(0, 1, 0), 40, 0.6, 0.8, 0.6, 0.08);
+                w.spawnParticle(Particle.ITEM_SNOWBALL, at.clone().add(0, 1, 0), 30, 0.5, 0.7, 0.5, 0.05);
+                Sfx.play(at, "block.glass.break", 1.0f, 0.8f);
+                for (Player p : playersNear(s.inst, at, 3.2)) freeze(p, 120, 1, 50);
+            }
+            case YETI -> {
+                Sfx.play(at, "block.powder_snow.break", 1f, 0.6f);
+                ring(at, 4.0, 24, Particle.SNOWFLAKE);
+                s.inst.hazard(at.clone(), 30, 4.0, 5.0);
+            }
+            case SACERDOTE, CHAMAN -> {
                 // su último gesto: cura a los aliados cercanos
                 for (Entity n : w.getNearbyEntities(at, 6, 3, 6)) {
                     if (!(n instanceof LivingEntity ally) || n instanceof Player) continue;

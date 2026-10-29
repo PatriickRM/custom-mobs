@@ -218,3 +218,59 @@ usa `/dungeon setlobby hub` para volver al hub. Config en `dungeon.yml` → `hub
 
 **Añadir un jefe nuevo:** copia una línea de `BossDef.ALL` (id, nombre, color, icono, descripción, `available`). Su pedestal aparece solo en el hub
 (hasta 5) y la cola ya es por jefe. El combate de cada jefe se implementa aparte: hoy solo Vorthak tiene combate (`DungeonInstance.spawnVorthak`).
+
+## Novedades (parte 10): arenas grandes y objetivos de sala
+
+Las salas de oleadas ya no son una caja vacía:
+- **Más grandes** (45x45, 14 de alto por defecto) y con **arquitectura** distinta cada vez: *Ruinas* (columnas rotas, muros bajos y escombros como cobertura),
+  *Terrazas* (cuatro plataformas elevadas con escaleras), *Catedral* (hileras de columnas altas con una nave central) o *Arcos* (anillo de arcos de piedra),
+  más cadenas colgantes del techo. Siempre queda libre el pasillo entre las dos puertas.
+- **Anclajes de objetivo:** cada arena marca 6 puntos en el suelo (altares) donde se colocan los objetivos.
+- **Objetivos** (probabilidad `objectives.chance`, por defecto 65%; si no toca, oleada clásica):
+  - *Cristales de invocación:* hay que **destruir** 3-5 cristales (vida propia, sube con el grupo y el Calor). Cada uno invoca enemigos sin parar y,
+    con la mitad destruida, los que quedan invocan más rápido. Al destruir el último, los enemigos restantes se desvanecen.
+  - *Faros:* hay que **capturar** 3 faros quedándote dentro del círculo (más gente = más rápido). Si hay 4+ enemigos encima el faro queda *disputado*;
+    si te vas, el progreso baja. Llegan refuerzos continuos y, con el último faro, a veces un élite.
+
+Ajustes en `dungeon.yml` → `objectives` (`enabled`, `chance`, `crystal-health`, `crystal-pulse-seconds`, `beacon-radius`, `beacon-seconds`,
+`beacon-spawn-seconds`). **Ojo:** si tu `dungeon.yml` ya tiene el bloque `sizes:`, pon `WAVES: {size: 45, height: 14}` (o borra el bloque para usar los nuevos valores).
+
+## Novedades (parte 11): secretos, vestíbulos y portales de camino
+
+- **Vestíbulos:** los pasillos entre salas ahora miden 13 de largo y 9 de ancho, con alfombra, columnas y faroles; a veces tienen una **fuente curativa** (una vez por jugador) o un cofre oculto.
+- **Cámaras ocultas:** en salas de oleadas/trampa/puzzle/barrido/altar puede haber un muro de ladrillo agrietado que se abre con una **palanca** escondida en la pared opuesta. Dentro hay un cofre grande.
+- **Cofres secretos:** rincones con telarañas y calavera. El cofre es personal por jugador (botín, brasas, posible reliquia) y puede ser un **mímico**.
+- **Portales de elección:** al terminar una sala aparecen arcos de portal junto a la salida; el grupo vota caminando hacia uno (el contador se actualiza en vivo). Hasta 3 opciones por paso.
+- **Portal misterioso:** con cierta probabilidad una opción oculta su sala y da brasas extra al grupo.
+
+Config en `dungeon.yml`: `secrets` (`chamber-chance`, `nook-chance`, `loot`, `souls-big`, `souls-small`, `relic-chance-big`, `relic-chance-small`, `mimic-chance`, `fountain-regen-seconds`) y `path` (`mystery-chance`, `mystery-souls`).
+
+## Novedades (parte 12): Ysmera, Reina de Escarcha (segundo jefe final) y mobs por bioma
+
+Un **segundo jefe final**, elegible en el Hub (pedestal azul de hielo). Fuerza el bioma **Cripta Helada** y construye su propia sala: *Corte de Escarcha*
+(suelo rúnico helado con radios luminosos, trono de hielo, ocho columnas, cascadas heladas, carámbanos en el techo, cuatro **altares de cristal** y cuatro **hogueras** rodeadas de muretes).
+
+**Modelo 3D propio en tres formas** (una por fase: reina azul, tormenta violeta con alas abiertas, cero absoluto negro y blanco con halo), con corona, cetro, alas de plumas de cristal,
+fragmentos orbitando y carámbanos colgando. El código del jefe **dirige las animaciones** (nueva API en `MobVisuals`: `pose`, `lift`, `pulse`, `shake`, `tempo`, `drop`):
+alza los brazos al lanzar, se eleva al canalizar, se encoge y reaparece al teletransportarse, tiembla antes de romperse...
+
+| Fase | Qué pasa |
+|---|---|
+| **Intro** | Cinemática con franjas negras: la reina despierta y se eleva mientras la cámara orbita. |
+| **I · Reina Gélida** | *Carámbanos* telegrafiados (caen del techo), *Onda helada* (**¡hay que saltarla!**, de 1 a 3 anillos), *Lanzas de escarcha* (proyectiles esquivables en abanico), *Salto glacial* (se teletransporta a tu espalda y hace un tajo en cono), *Invocación* de enemigos helados y **Agarre Helado**: congela a un jugador en un cubo de hielo y **un aliado debe acercarse** para descongelarlo (si nadie viene, recibe daño). |
+| **Transición · Escudo de Cristal** (66%) | Se eleva inmune y despiertan **4 cristales** que debes romper (vida propia que sube con el grupo y el Calor) mientras invoca y dispara rayos desde cada cristal. Al caer el último queda **aturdida 11 s con +60% de daño recibido**. |
+| **II · Tormenta** | Todo lo anterior más **Lanzas de hielo** en línea. Aparecen **ventiscas** con un **medidor de frío** (barra en pantalla y escarcha vanilla): estar fuera de las **hogueras** te congela; cada cierto tiempo una *ventisca* triplica el frío y empuja con el viento. |
+| **Transición · Cero Absoluto** (33%) | 13 s de cuenta atrás: el suelo se congela desde el centro y solo se sobrevive junto a una **hoguera**. Al final, una explosión gélida daña a quien esté fuera. Después queda exhausta (+60% daño). |
+| **III · Cero Absoluto** | Suelo de hielo **resbaladizo**, cooldowns más cortos, *Cometa glacial* (meteoro de hielo con onda expansiva) y **Frenesí** por debajo del 20% de vida. |
+| **Muerte** | Cinemática de ~9 s: se congela por completo, se agrieta y estalla en cristales. |
+
+Botín personal en el cofre: *Corazón de Escarcha*, cristales de prismarina, hielo azul, libros del jefe y, con probabilidad, el *Filo de Escarcha*.
+
+**Mobs por bioma:** los cinco mobs helados (Congelado, Arquero de Escarcha, Yeti, Banshee de Ventisca y Chamán de Nieve) ya aparecen en las oleadas **cuando el bioma es Cripta Helada**
+(los demás biomas siguen con los de ceniza; la Bestia aparece en todos).
+
+**Arquitectura de jefes:** nueva interfaz `DungeonBoss` (spawn, tick, daño, muerte, botín...) y `Cinematic` (cámara reutilizable con franjas). Un jefe nuevo = una clase que implemente `DungeonBoss`,
+una línea en `BossDef.ALL` y un `case` en `DungeonInstance.spawnCustomBoss`.
+
+Ajustes en `dungeon.yml` → `ysmera` (`health`, `health-per-extra-player`, `crystal-health`, `blade-chance`, `xp`, `loot`). Como siempre, si ya tienes `dungeon.yml` se rellenan los valores que falten.
+**Resource pack:** se ha regenerado (`CustomMobsPack.zip`) y `models.sha1` de `config.yml` actualizado: súbelo a `main` junto con el código o los modelos no cargarán.

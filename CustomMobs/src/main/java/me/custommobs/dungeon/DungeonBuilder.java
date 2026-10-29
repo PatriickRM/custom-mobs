@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class DungeonBuilder {
 
     /** Largo del pasillo entre salas. */
-    public static final int CORRIDOR = 7;
+    public static final int CORRIDOR = 13;
 
     // ------------------------------------------------------------------ geometría
 
@@ -40,6 +40,8 @@ public final class DungeonBuilder {
         public final List<int[]> pads = new ArrayList<>();
         /** Posición del cofre de descanso. */
         public int[] chest;
+        /** Puntos de anclaje de objetivos (cristales, faros...): centros (x, z) con el suelo ya marcado. */
+        public final List<int[]> anchors = new ArrayList<>();
 
         Room(int index, RoomType type, int x0, int x1, int z0, int z1, int floorY, int height,
              int westWall, int eastWall, int cz) {
@@ -92,6 +94,29 @@ public final class DungeonBuilder {
         }
     }
 
+    /** Un secreto de la dungeon: palanca que abre una cámara oculta, cofre escondido o fuente curativa. */
+    public static final class Secret {
+        public enum Kind { LEVER, CHEST, FOUNTAIN }
+
+        public final Kind kind;
+        public final int room;
+        public final int x, y, z;
+        public final String id;
+        /** Cofre de cámara secreta (mejor botín) frente a cofre de pasillo/rincón. */
+        public boolean big;
+        /** Bloques de la pared falsa que desaparecen al tirar de la palanca. */
+        public final List<int[]> plug = new ArrayList<>();
+
+        Secret(Kind kind, int room, int x, int y, int z, String id) {
+            this.kind = kind;
+            this.room = room;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.id = id;
+        }
+    }
+
     private record Op(int x, int y, int z, BlockData data, boolean physics) {}
 
     // ------------------------------------------------------------------ estado
@@ -103,6 +128,7 @@ public final class DungeonBuilder {
     private final Biome biome;
     private final List<Room> rooms = new ArrayList<>();
     private final List<Op> ops = new ArrayList<>();
+    private final List<Secret> secrets = new ArrayList<>();
     private final Set<Long> ticketed = new HashSet<>();
     private final int oy;
     private int minX, maxX, minZ, maxZ;
@@ -134,12 +160,16 @@ public final class DungeonBuilder {
         }
         this.minX = ox - 2;
         this.maxX = cursor;
-        this.minZ = oz - maxHalf - 3;
-        this.maxZ = oz + maxHalf + 3;
+        this.minZ = oz - maxHalf - 12;     // margen extra: las cámaras secretas sobresalen de las paredes
+        this.maxZ = oz + maxHalf + 12;
     }
 
     public List<Room> rooms() {
         return rooms;
+    }
+
+    public List<Secret> secrets() {
+        return secrets;
     }
 
     public double progress() {
@@ -302,26 +332,141 @@ public final class DungeonBuilder {
         }
     }
 
+    /** Vestíbulo entre dos salas: 9 de ancho, columnas con farolillos y, a veces, una fuente curativa o un cofre escondido. */
     private void corridor(Room a, Room b) {
+        final int w = 4;
+        final int h = 6;
         int cz = a.cz;
         int xs = a.eastWall;      // incluye ambas paredes de sala
         int xe = b.westWall;
         int fy = a.floorY;
         for (int x = xs; x <= xe; x++) {
-            for (int z = cz - 2; z <= cz + 2; z++) {
+            for (int z = cz - w; z <= cz + w; z++) {
                 set(x, fy, z, floor(x, z));
-                set(x, fy + 5, z, ceiling());
+                set(x, fy + h + 1, z, ceiling());
             }
-            for (int y = fy + 1; y <= fy + 4; y++) {
-                set(x, y, cz - 2, wall());
-                set(x, y, cz + 2, wall());
+            for (int y = fy + 1; y <= fy + h; y++) {
+                set(x, y, cz - w, wall());
+                set(x, y, cz + w, wall());
+            }
+        }
+        // alfombra central de ladrillos rojos
+        for (int x = xs + 1; x < xe; x++) {
+            for (int z = cz - 1; z <= cz + 1; z++) {
+                if (z == cz || ((x + z) & 1) == 0) set(x, fy, z, Material.RED_NETHER_BRICKS);
+            }
+        }
+        // columnas pegadas a las paredes con capitel y farolillos
+        for (int x = xs + 3; x <= xe - 3; x += 3) {
+            for (int side = -1; side <= 1; side += 2) {
+                int z = cz + side * (w - 1);
+                for (int y = fy + 1; y <= fy + h; y++) set(x, y, z, Material.POLISHED_BASALT);
+                set(x, fy + 1, z, Material.CHISELED_POLISHED_BLACKSTONE);
+                set(x, fy + h, z, Material.CHISELED_POLISHED_BLACKSTONE);
+                hangingLantern(x, fy + h - 1, z - side);
             }
         }
         int mid = (xs + xe) / 2;
-        set(mid, fy + 5, cz, Material.SHROOMLIGHT);
-        set(xs + 2, fy + 5, cz, Material.SHROOMLIGHT);
-        set(xe - 2, fy + 5, cz, Material.SHROOMLIGHT);
-        if (cfg.b("lighting.enabled")) for (int x = xs + 1; x < xe; x += 3) glow(x, fy + 3, cz);
+        for (int x = xs + 2; x <= xe - 2; x += 4) set(x, fy + h + 1, cz, Material.SHROOMLIGHT);
+        set(mid, fy + h + 1, cz, Material.SHROOMLIGHT);
+        if (cfg.b("lighting.enabled")) for (int x = xs + 1; x < xe; x += 3) glow(x, fy + 4, cz);
+        // rasgo especial del vestíbulo
+        int roll = rnd.nextInt(100);
+        if (roll < 30) {
+            fountain(a, mid, cz + (w - 1));
+        } else if (roll < 55) {
+            chest(a, mid, fy + 1, cz - (w - 1), BlockFace.SOUTH, false, "h" + a.index);
+        }
+    }
+
+    /** Fuente de almas: un caldero de agua entre dos farolillos (cura una vez a cada jugador). */
+    private void fountain(Room a, int x, int z) {
+        int fy = a.floorY;
+        org.bukkit.block.data.Levelled c = (org.bukkit.block.data.Levelled) Material.WATER_CAULDRON.createBlockData();
+        c.setLevel(c.getMaximumLevel());
+        set(x, fy + 1, z, c);
+        set(x - 1, fy + 1, z, Material.SOUL_LANTERN);
+        set(x + 1, fy + 1, z, Material.SOUL_LANTERN);
+        set(x, fy, z, Material.GILDED_BLACKSTONE);
+        secrets.add(new Secret(Secret.Kind.FOUNTAIN, a.index, x, fy + 1, z, "f" + a.index));
+    }
+
+    /** Cofre escondido (se abre una vez por jugador). */
+    private void chest(Room r, int x, int y, int z, BlockFace facing, boolean big, String id) {
+        org.bukkit.block.data.type.Chest ch = (org.bukkit.block.data.type.Chest) Material.CHEST.createBlockData();
+        ch.setFacing(facing);
+        set(x, y, z, ch);
+        Secret s = new Secret(Secret.Kind.CHEST, r.index, x, y, z, id);
+        s.big = big;
+        secrets.add(s);
+    }
+
+    private boolean secretRoom(Room r) {
+        return switch (r.type) {
+            case WAVES, TRAP, PUZZLE, SWEEP, ALTAR -> true;
+            default -> false;
+        };
+    }
+
+    /** Palanca oculta que abre una cámara secreta tras la pared + (a veces) un cofre escondido en un rincón. */
+    private void plantSecrets(Room r) {
+        if (!secretRoom(r)) return;
+        int fy = r.floorY;
+        if (rnd.nextDouble() < cfg.d("secrets.chamber-chance") && r.x1 - r.x0 > 24 && r.height >= 8) {
+            boolean north = rnd.nextBoolean();
+            int ax = r.x0 + 10 + rnd.nextInt(Math.max(1, r.x1 - r.x0 - 19));
+            int dir = north ? -1 : 1;
+            int wallZ = north ? r.z0 - 1 : r.z1 + 1;
+            // cámara: casco macizo con el interior vaciado
+            for (int x = ax - 4; x <= ax + 4; x++) {
+                for (int z = 1; z <= 8; z++) {
+                    for (int y = fy; y <= fy + 5; y++) {
+                        set(x, y, wallZ + dir * z, Material.DEEPSLATE_BRICKS);
+                    }
+                }
+            }
+            for (int x = ax - 3; x <= ax + 3; x++) {
+                for (int z = 1; z <= 7; z++) {
+                    set(x, fy, wallZ + dir * z, ((x + z) & 1) == 0 ? Material.POLISHED_BLACKSTONE_BRICKS : Material.GILDED_BLACKSTONE);
+                    for (int y = fy + 1; y <= fy + 4; y++) set(x, y, wallZ + dir * z, Material.AIR);
+                }
+            }
+            set(ax - 3, fy + 4, wallZ + dir * 2, Material.SOUL_LANTERN);
+            set(ax + 3, fy + 4, wallZ + dir * 2, Material.SOUL_LANTERN);
+            set(ax - 3, fy + 4, wallZ + dir * 6, Material.SOUL_LANTERN);
+            set(ax + 3, fy + 4, wallZ + dir * 6, Material.SOUL_LANTERN);
+            set(ax - 2, fy + 1, wallZ + dir * 7, Material.SOUL_CAMPFIRE);
+            set(ax + 2, fy + 1, wallZ + dir * 7, Material.SOUL_CAMPFIRE);
+            if (cfg.b("lighting.enabled")) glow(ax, fy + 3, wallZ + dir * 4);
+            // cofre grande al fondo, mirando a la entrada
+            chest(r, ax, fy + 1, wallZ + dir * 7, north ? BlockFace.SOUTH : BlockFace.NORTH, true, "c" + r.index);
+            // la palanca va en la pared contraria, a la altura de la vista
+            int lx = r.x0 + 9 + rnd.nextInt(Math.max(1, r.x1 - r.x0 - 17));
+            while ((lx - r.x0 - 2) % 4 == 0) lx++;
+            int lz = north ? r.z1 : r.z0;                       // cara interior de la pared opuesta
+            BlockFace out = north ? BlockFace.NORTH : BlockFace.SOUTH;
+            org.bukkit.block.data.type.Switch sw = (org.bukkit.block.data.type.Switch) Material.LEVER.createBlockData();
+            sw.setFace(org.bukkit.block.data.type.Switch.Face.WALL);
+            sw.setFacing(out);
+            set(lx, fy + 2, lz, sw);
+            Secret l2 = new Secret(Secret.Kind.LEVER, r.index, lx, fy + 2, lz, "l" + r.index);
+            // pared falsa 3x3 (ladrillos agrietados)
+            for (int x = ax - 1; x <= ax + 1; x++) {
+                for (int y = fy + 1; y <= fy + 3; y++) {
+                    set(x, y, wallZ, rnd.nextInt(4) == 0 ? Material.CRACKED_POLISHED_BLACKSTONE_BRICKS : Material.CRACKED_DEEPSLATE_BRICKS);
+                    l2.plug.add(new int[]{x, y, wallZ});
+                }
+            }
+            secrets.add(l2);
+        }
+        if (rnd.nextDouble() < cfg.d("secrets.nook-chance")) {
+            boolean north = rnd.nextBoolean();
+            int x = r.x0 + 9 + rnd.nextInt(Math.max(1, r.x1 - r.x0 - 17));
+            int z = north ? r.z0 + 1 : r.z1 - 1;
+            chest(r, x, fy + 1, z, north ? BlockFace.SOUTH : BlockFace.NORTH, false, "n" + r.index);
+            set(x, fy + 2, z, Material.COBWEB);
+            set(x + 1, fy + 1, z, Material.SKELETON_SKULL);
+        }
     }
 
     /** Abre un hueco de 3x3 en una pared y le pone marco. */
@@ -620,6 +765,10 @@ public final class DungeonBuilder {
                 brazier(r.x1, r.z1, r);
             }
             case VORTHAK -> {
+                if (ysmera()) {
+                    iceCourt(r);
+                    break;
+                }
                 emblem(r, 6.5, 13.5);
                 int o = h - 4;
                 for (int k = 0; k < 8; k++) {
@@ -641,6 +790,17 @@ public final class DungeonBuilder {
     }
 
     // ------------------------------------------------------------------ diseño (molduras, pilastras, arañas, coliseo, trono)
+
+    /** Jefe final de esta dungeon: decide la decoración de la sala del jefe. */
+    String bossId = "vorthak";
+
+    void bossId(String id) {
+        this.bossId = id == null ? "vorthak" : id;
+    }
+
+    private boolean ysmera() {
+        return "ysmera".equals(bossId);
+    }
 
     private void stair(int x, int y, int z, Material m, BlockFace facing, boolean top) {
         org.bukkit.block.data.type.Stairs d = (org.bukkit.block.data.type.Stairs) m.createBlockData();
@@ -669,10 +829,17 @@ public final class DungeonBuilder {
         banners(r);
         chandeliers(r);
         switch (r.type) {
-            case WAVES -> coliseum(r);
-            case VORTHAK -> throne(r);
+            case WAVES -> {
+                coliseum(r);
+                architecture(r);
+            }
+            case VORTHAK -> {
+                if (ysmera()) iceThrone(r);
+                else throne(r);
+            }
             default -> { }
         }
+        plantSecrets(r);
     }
 
     /** Moldura de escaleras invertidas donde la pared se une con el techo. */
@@ -771,6 +938,233 @@ public final class DungeonBuilder {
         }
     }
 
+    // ------------------------------------------------------------------ arquitectura de las arenas
+
+    /** Pasillo despejado entre la puerta oeste y la este (y el sitio donde aparecen los jugadores). */
+    private boolean lane(Room r, int x, int z) {
+        return Math.abs(z - r.cz) <= 3 && (x - r.x0 < 8 || r.x1 - x < 8);
+    }
+
+    /** Un punto donde se puede construir: lejos de paredes, pasillos, centro y anclajes de objetivo. */
+    private boolean free(Room r, int x, int z) {
+        if (x < r.x0 + 3 || x > r.x1 - 3 || z < r.z0 + 3 || z > r.z1 - 3) return false;
+        if (lane(r, x, z)) return false;
+        if (Math.hypot(x - r.cx(), z - r.cz) < 7.0) return false;
+        for (int[] a : r.anchors) {
+            if (Math.hypot(x - a[0], z - a[1]) < 5.0) return false;
+        }
+        return true;
+    }
+
+    /** Columna de basalto con base y capitel; broken = parte superior desmoronada. */
+    private void column(Room r, int x, int z, int h, boolean broken) {
+        int fy = r.floorY;
+        int top = Math.min(r.floorY + r.height, fy + h);
+        for (int y = fy + 1; y <= top; y++) {
+            boolean crack = broken && y > top - 2 && rnd.nextInt(3) == 0;
+            set(x, y, z, crack ? Material.CRACKED_POLISHED_BLACKSTONE_BRICKS : Material.POLISHED_BASALT);
+        }
+        set(x, fy + 1, z, Material.CHISELED_POLISHED_BLACKSTONE);
+        if (!broken) set(x, top, z, Material.CHISELED_POLISHED_BLACKSTONE);
+    }
+
+    /** Variante de arena al azar + anclajes de objetivo + cadenas colgantes. */
+    private void architecture(Room r) {
+        placeAnchors(r);
+        Set<Long> taken = new HashSet<>();
+        switch (rnd.nextInt(4)) {
+            case 0 -> ruins(r, taken);
+            case 1 -> terraces(r, taken);
+            case 2 -> cathedral(r, taken);
+            default -> ringArches(r, taken);
+        }
+        hangingChains(r);
+    }
+
+    private void placeAnchors(Room r) {
+        double rad = Math.min(r.half() - 6.0, r.half() * 0.62);
+        if (rad < 5.0) return;
+        int[] angles = {-90, -35, 35, 90, 145, -145};
+        int fy = r.floorY;
+        for (int deg : angles) {
+            double a = Math.toRadians(deg);
+            int ax = r.cx() + (int) Math.round(Math.cos(a) * rad);
+            int az = r.cz + (int) Math.round(Math.sin(a) * rad);
+            r.anchors.add(new int[]{ax, az});
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dz = -2; dz <= 2; dz++) {
+                    int d = Math.max(Math.abs(dx), Math.abs(dz));
+                    if (d == 2 && Math.abs(dx) + Math.abs(dz) == 4) continue;
+                    set(ax + dx, fy, az + dz, d == 0 ? Material.CRYING_OBSIDIAN
+                            : d == 1 ? Material.POLISHED_BLACKSTONE : Material.GILDED_BLACKSTONE);
+                }
+            }
+        }
+    }
+
+    /** Ruinas: columnas rotas, muros bajos y escombros repartidos por la arena (cobertura). */
+    private void ruins(Room r, Set<Long> taken) {
+        int fy = r.floorY;
+        int placed = 0;
+        for (int tries = 0; tries < 260 && placed < 18; tries++) {
+            int x = r.x0 + 3 + rnd.nextInt(Math.max(1, r.x1 - r.x0 - 5));
+            int z = r.z0 + 3 + rnd.nextInt(Math.max(1, r.z1 - r.z0 - 5));
+            int kind = rnd.nextInt(3);
+            if (kind == 0) {
+                if (!free(r, x, z) || taken.contains(key(x, z))) continue;
+                column(r, x, z, 3 + rnd.nextInt(Math.max(1, r.height - 5)), true);
+                taken.add(key(x, z));
+            } else if (kind == 1) {
+                boolean alongX = rnd.nextBoolean();
+                int len = 4 + rnd.nextInt(5);
+                boolean ok = true;
+                for (int i = 0; i < len && ok; i++) {
+                    int xx = alongX ? x + i : x, zz = alongX ? z : z + i;
+                    ok = free(r, xx, zz) && !taken.contains(key(xx, zz));
+                }
+                if (!ok) continue;
+                for (int i = 0; i < len; i++) {
+                    int xx = alongX ? x + i : x, zz = alongX ? z : z + i;
+                    int hgt = 2 + (i % 3 == 0 ? 1 : 0) + (rnd.nextInt(5) == 0 ? -1 : 0);
+                    for (int y = 1; y <= hgt; y++) {
+                        set(xx, fy + y, zz, rnd.nextInt(4) == 0 ? Material.CRACKED_DEEPSLATE_BRICKS : Material.DEEPSLATE_BRICKS);
+                    }
+                    taken.add(key(xx, zz));
+                }
+            } else {
+                if (!free(r, x, z) || taken.contains(key(x, z))) continue;
+                for (int dx = 0; dx <= 1; dx++) {
+                    for (int dz = 0; dz <= 1; dz++) {
+                        if (rnd.nextInt(3) == 0) continue;
+                        set(x + dx, fy + 1, z + dz, rnd.nextBoolean() ? Material.COBBLED_DEEPSLATE : Material.DEEPSLATE_BRICKS);
+                        taken.add(key(x + dx, z + dz));
+                    }
+                }
+            }
+            placed++;
+        }
+    }
+
+    /** Terrazas: cuatro plataformas elevadas en las esquinas con escalera hacia el centro. */
+    private void terraces(Room r, Set<Long> taken) {
+        int fy = r.floorY;
+        int span = 9;
+        for (int sx = -1; sx <= 1; sx += 2) {
+            for (int sz = -1; sz <= 1; sz += 2) {
+                int px0 = sx < 0 ? r.x0 + 3 : r.x1 - 3 - (span - 1);
+                int pz0 = sz < 0 ? r.z0 + 3 : r.z1 - 3 - (span - 1);
+                if (px0 + span - 1 > r.x1 - 3 || pz0 + span - 1 > r.z1 - 3) continue;
+                for (int x = px0; x < px0 + span; x++) {
+                    for (int z = pz0; z < pz0 + span; z++) {
+                        for (int y = 1; y <= 3; y++) {
+                            boolean edge = x == px0 || x == px0 + span - 1 || z == pz0 || z == pz0 + span - 1;
+                            set(x, fy + y, z, y == 3 ? (((x + z) & 1) == 0 ? Material.POLISHED_BLACKSTONE_BRICKS : Material.DEEPSLATE_TILES)
+                                    : edge ? Material.DEEPSLATE_BRICKS : Material.COBBLED_DEEPSLATE);
+                        }
+                        taken.add(key(x, z));
+                    }
+                }
+                // escalera de 3 peldaños por el lado que mira al centro (en Z), ancho 3
+                int mx = px0 + span / 2;
+                int stepZ = sz < 0 ? pz0 + span : pz0 - 1;       // primer bloque fuera de la plataforma
+                int dir = sz < 0 ? 1 : -1;                        // hacia fuera del borde
+                BlockFace face = sz < 0 ? BlockFace.SOUTH : BlockFace.NORTH;
+                for (int k = 0; k < 3; k++) {
+                    int zz = stepZ + dir * k;
+                    int yy = fy + 3 - k;
+                    for (int dx = -1; dx <= 1; dx++) {
+                        stair(mx + dx, yy, zz, Material.POLISHED_BLACKSTONE_BRICK_STAIRS, face, false);
+                        for (int y = fy + 1; y < yy; y++) set(mx + dx, y, zz, Material.COBBLED_DEEPSLATE);
+                        taken.add(key(mx + dx, zz));
+                    }
+                }
+                // faroles en las esquinas exteriores
+                int ex = sx < 0 ? px0 : px0 + span - 1;
+                int ez = sz < 0 ? pz0 : pz0 + span - 1;
+                set(ex, fy + 4, ez, Material.POLISHED_BLACKSTONE_WALL);
+                set(ex, fy + 5, ez, Material.SOUL_LANTERN);
+            }
+        }
+    }
+
+    /** Catedral: dos hileras de columnas altas a cada lado de una nave central. */
+    private void cathedral(Room r, Set<Long> taken) {
+        for (int side = -1; side <= 1; side += 2) {
+            int z = r.cz + side * 9;
+            for (int x = r.x0 + 10; x <= r.x1 - 10; x += 6) {
+                if (!free(r, x, z) || !free(r, x + 1, z + 1)) continue;
+                for (int dx = 0; dx <= 1; dx++) {
+                    for (int dz = 0; dz <= 1; dz++) {
+                        column(r, x + dx, z + dz, r.height, false);
+                        taken.add(key(x + dx, z + dz));
+                    }
+                }
+                // capitel con linterna colgante
+                int top = r.floorY + r.height;
+                if (top - 2 > r.floorY) hangingLantern(x, top - 2, z - side);
+            }
+        }
+        // altares bajos de ruinas en las esquinas
+        int fy = r.floorY;
+        for (int sx = -1; sx <= 1; sx += 2) {
+            for (int sz = -1; sz <= 1; sz += 2) {
+                int x = sx < 0 ? r.x0 + 4 : r.x1 - 5;
+                int z = sz < 0 ? r.z0 + 4 : r.z1 - 5;
+                for (int dx = 0; dx <= 1; dx++) {
+                    for (int dz = 0; dz <= 1; dz++) {
+                        set(x + dx, fy + 1, z + dz, Material.POLISHED_BLACKSTONE_BRICKS);
+                        taken.add(key(x + dx, z + dz));
+                    }
+                }
+                set(x, fy + 2, z, Material.SOUL_CAMPFIRE);
+            }
+        }
+    }
+
+    /** Arcos: ocho arcos de piedra en anillo alrededor del centro. */
+    private void ringArches(Room r, Set<Long> taken) {
+        double rad = Math.min(r.half() - 8.0, r.half() * 0.42);
+        if (rad < 7.5) return;
+        int fy = r.floorY;
+        for (int k = 0; k < 8; k++) {
+            double a = Math.toRadians(22.5 + 45.0 * k);
+            int x = r.cx() + (int) Math.round(Math.cos(a) * rad);
+            int z = r.cz + (int) Math.round(Math.sin(a) * rad);
+            boolean alongZ = Math.abs(Math.cos(a)) > Math.abs(Math.sin(a));
+            int h = Math.min(7, r.height - 3);
+            boolean ok = true;
+            for (int i = -2; i <= 2 && ok; i++) {
+                int xx = alongZ ? x : x + i, zz = alongZ ? z + i : z;
+                ok = free(r, xx, zz) || Math.hypot(xx - r.cx(), zz - r.cz) >= 7.0 && !lane(r, xx, zz)
+                        && xx >= r.x0 + 3 && xx <= r.x1 - 3 && zz >= r.z0 + 3 && zz <= r.z1 - 3;
+            }
+            if (!ok) continue;
+            int ax = alongZ ? x : x - 2, bx = alongZ ? x : x + 2;
+            int az = alongZ ? z - 2 : z, bz = alongZ ? z + 2 : z;
+            column(r, ax, az, h, false);
+            column(r, bx, bz, h, false);
+            for (int i = -2; i <= 2; i++) {
+                int xx = alongZ ? x : x + i, zz = alongZ ? z + i : z;
+                set(xx, fy + h + 1, zz, Math.abs(i) == 2 ? Material.CHISELED_POLISHED_BLACKSTONE
+                        : i == 0 ? Material.GILDED_BLACKSTONE : Material.POLISHED_BLACKSTONE_BRICKS);
+                taken.add(key(xx, zz));
+            }
+            if (fy + h < fy + r.height) set(x, fy + h, alongZ ? z : z, Material.SOUL_LANTERN);
+        }
+    }
+
+    /** Cadenas colgando del techo (con linterna a veces). */
+    private void hangingChains(Room r) {
+        int top = r.floorY + r.height;
+        for (int i = 0; i < 22; i++) {
+            int x = r.x0 + 2 + rnd.nextInt(Math.max(1, r.x1 - r.x0 - 3));
+            int z = r.z0 + 2 + rnd.nextInt(Math.max(1, r.z1 - r.z0 - 3));
+            int len = 2 + rnd.nextInt(4);
+            for (int y = 0; y < len; y++) set(x, top - 1 - y, z, Material.CHAIN);
+            if (rnd.nextInt(3) == 0) hangingLantern(x, top - 1 - len, z);
+        }
+    }
+
     /** Sala de Vorthak: rosetón exterior de runas y un trono de obsidiana contra la pared este. */
     private void throne(Room r) {
         int cx = r.cx();
@@ -806,6 +1200,151 @@ public final class DungeonBuilder {
         // braseros de fuego de alma flanqueando el trono
         brazier(tx - 1, r.cz - 4, r);
         brazier(tx - 1, r.cz + 4, r);
+    }
+
+
+    // ------------------------------------------------------------------ Corte de Escarcha (sala de Ysmera)
+
+    private void icicle(int x, int topY, int z, int len) {
+        for (int k = 0; k < len; k++) {
+            org.bukkit.block.data.type.PointedDripstone d =
+                    (org.bukkit.block.data.type.PointedDripstone) Material.POINTED_DRIPSTONE.createBlockData();
+            d.setVerticalDirection(BlockFace.DOWN);
+            d.setThickness(k == len - 1 ? org.bukkit.block.data.type.PointedDripstone.Thickness.TIP
+                    : k == 0 ? org.bukkit.block.data.type.PointedDripstone.Thickness.BASE
+                    : org.bukkit.block.data.type.PointedDripstone.Thickness.MIDDLE);
+            set(x, topY - k, z, d);
+        }
+    }
+
+    private void iceColumn(int x, int z, Room r) {
+        int fy = r.floorY;
+        int top = fy + r.height;
+        for (int y = fy + 1; y <= top; y++) {
+            set(x, y, z, (y - fy) % 5 == 0 ? Material.SEA_LANTERN : Material.PACKED_ICE);
+        }
+        set(x, fy + 1, z, Material.BLUE_ICE);
+        set(x, top, z, Material.BLUE_ICE);
+        for (int[] o : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+            set(x + o[0], fy + 1, z + o[1], Material.BLUE_ICE);
+            set(x + o[0], top - 1, z + o[1], Material.ICE);
+        }
+    }
+
+    /** Suelo rúnico helado, altares de cristal, hogueras, columnas y carámbanos. */
+    private void iceCourt(Room r) {
+        int cx = r.cx();
+        int fy = r.floorY;
+        int top = fy + r.height;
+        // suelo: dais central, anillo luminoso, seis radios y nieve fuera
+        for (int x = r.x0; x <= r.x1; x++) {
+            for (int z = r.z0; z <= r.z1; z++) {
+                double d = Math.hypot(x - cx, z - r.cz);
+                double ang = Math.toDegrees(Math.atan2(z - r.cz, x - cx));
+                double spoke = Math.abs(((ang % 60) + 60) % 60);
+                spoke = Math.min(spoke, 60 - spoke);
+                if (d < 6.5) {
+                    set(x, fy, z, ((x + z) & 1) == 0 ? Material.PACKED_ICE : Material.BLUE_ICE);
+                } else if (Math.abs(d - 7.2) < 0.6) {
+                    set(x, fy, z, Material.SEA_LANTERN);
+                } else if (d < 16.5 && d > 7.8 && spoke * Math.PI / 180 * d < 0.6) {
+                    set(x, fy, z, Material.BLUE_ICE);
+                } else if (Math.abs(d - 16.8) < 0.6) {
+                    set(x, fy, z, Material.PACKED_ICE);
+                } else if (d > 17.5 && rnd.nextInt(100) < 18) {
+                    set(x, fy, z, rnd.nextBoolean() ? Material.SNOW_BLOCK : Material.PACKED_ICE);
+                }
+            }
+        }
+        // altares de los cristales de la transición
+        for (int[] s : YsmeraBoss.crystalSpots(r)) {
+            for (int dx = -2; dx <= 2; dx++) {
+                for (int dz = -2; dz <= 2; dz++) {
+                    if (Math.abs(dx) + Math.abs(dz) <= 3) set(s[0] + dx, fy, s[1] + dz, Material.BLUE_ICE);
+                }
+            }
+            set(s[0], fy + 1, s[1], Material.PACKED_ICE);
+            stair(s[0] + 1, fy + 1, s[1], Material.PRISMARINE_BRICK_STAIRS, BlockFace.EAST, false);
+            stair(s[0] - 1, fy + 1, s[1], Material.PRISMARINE_BRICK_STAIRS, BlockFace.WEST, false);
+            stair(s[0], fy + 1, s[1] + 1, Material.PRISMARINE_BRICK_STAIRS, BlockFace.SOUTH, false);
+            stair(s[0], fy + 1, s[1] - 1, Material.PRISMARINE_BRICK_STAIRS, BlockFace.NORTH, false);
+        }
+        // hogueras: refugio contra el frío (anillo de muretes para no pisar el fuego)
+        for (int[] w : YsmeraBoss.warmSpots(r)) {
+            for (int dx = -3; dx <= 3; dx++) {
+                for (int dz = -3; dz <= 3; dz++) {
+                    if (dx * dx + dz * dz <= 10) set(w[0] + dx, fy, w[1] + dz, Material.SMOOTH_BASALT);
+                }
+            }
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dz = -1; dz <= 1; dz++) {
+                    if (dx == 0 && dz == 0) set(w[0], fy + 1, w[1], Material.CAMPFIRE);
+                    else set(w[0] + dx, fy + 1, w[1] + dz, Material.COBBLESTONE_WALL);
+                }
+            }
+            for (int[] o : new int[][]{{3, 0}, {-3, 0}, {0, 3}, {0, -3}}) {
+                set(w[0] + o[0], fy + 1, w[1] + o[1], Material.POLISHED_BLACKSTONE_WALL);
+                set(w[0] + o[0], fy + 2, w[1] + o[1], Material.POLISHED_BLACKSTONE_WALL);
+                set(w[0] + o[0], fy + 3, w[1] + o[1], Material.LANTERN);
+            }
+        }
+        // columnas de hielo en anillo
+        for (int k = 0; k < 8; k++) {
+            double a = Math.PI / 8 + k * Math.PI / 4;
+            iceColumn(cx + (int) Math.round(Math.cos(a) * 14.5), r.cz + (int) Math.round(Math.sin(a) * 14.5), r);
+        }
+        // cascadas heladas en las paredes laterales
+        for (int x = r.x0 + 5; x <= r.x1 - 5; x += 8) {
+            for (int w = 0; w < 2; w++) {
+                for (int y = fy + 1; y < top; y++) {
+                    set(x + w, y, r.z0, y > top - 3 ? Material.ICE : Material.BLUE_ICE);
+                    set(x + w, y, r.z1, y > top - 3 ? Material.ICE : Material.BLUE_ICE);
+                }
+            }
+            set(x, fy + 4, r.z0, Material.SEA_LANTERN);
+            set(x, fy + 4, r.z1, Material.SEA_LANTERN);
+        }
+        // carámbanos del techo
+        for (int i = 0; i < 160; i++) {
+            int x = r.x0 + rnd.nextInt(r.x1 - r.x0 + 1);
+            int z = r.z0 + rnd.nextInt(r.z1 - r.z0 + 1);
+            icicle(x, top - 1, z, 1 + rnd.nextInt(4));
+        }
+        // nieve acumulada junto a las paredes
+        for (int x = r.x0; x <= r.x1; x++) {
+            if (rnd.nextInt(3) == 0) set(x, fy + 1, r.z0, Material.SNOW);
+            if (rnd.nextInt(3) == 0) set(x, fy + 1, r.z1, Material.SNOW);
+        }
+    }
+
+    /** Trono de hielo con respaldo de cristal, al fondo de la sala. */
+    private void iceThrone(Room r) {
+        int fy = r.floorY;
+        int tx = r.x1;
+        for (int x = tx - 5; x <= tx; x++) {
+            for (int dz = -5; dz <= 5; dz++) {
+                set(x, fy + 1, r.cz + dz, Material.PACKED_ICE);
+            }
+        }
+        for (int x = tx - 3; x <= tx; x++) {
+            for (int dz = -3; dz <= 3; dz++) {
+                set(x, fy + 2, r.cz + dz, Material.BLUE_ICE);
+            }
+        }
+        for (int dz = -4; dz <= 4; dz++) {
+            int h = Math.abs(dz) == 4 ? 14 : 12 - 2 * Math.abs(dz);
+            for (int y = fy + 3; y <= fy + 3 + h; y++) {
+                set(tx, y, r.cz + dz, y == fy + 3 + h ? Material.ICE : Material.BLUE_ICE);
+            }
+        }
+        set(tx, fy + 7, r.cz - 1, Material.SEA_LANTERN);
+        set(tx, fy + 7, r.cz + 1, Material.SEA_LANTERN);
+        set(tx, fy + 9, r.cz, Material.SEA_LANTERN);
+        stair(tx - 1, fy + 3, r.cz, Material.PRISMARINE_BRICK_STAIRS, BlockFace.WEST, false);
+        set(tx - 1, fy + 3, r.cz - 1, Material.PRISMARINE_BRICKS);
+        set(tx - 1, fy + 3, r.cz + 1, Material.PRISMARINE_BRICKS);
+        set(tx - 1, fy + 4, r.cz - 1, Material.PRISMARINE_BRICK_SLAB);
+        set(tx - 1, fy + 4, r.cz + 1, Material.PRISMARINE_BRICK_SLAB);
     }
 
     // ------------------------------------------------------------------ chunks y ejecución

@@ -464,6 +464,22 @@ public final class DungeonConfig {
                 - "NETHERITE_SCRAP:1:2:0.50"
                 - "EXPERIENCE_BOTTLE:8:16:1.0"
 
+            ysmera:
+              # Jefe final alternativo: Ysmera, Reina de Escarcha (se elige en el Hub). Fuerza el bioma Cripta Helada.
+              health: 1000
+              # Reduce el daño recibido por jugador extra (la vida máxima de un mob no puede pasar de 1024).
+              health-per-extra-player: 0.55
+              # Vida de cada cristal del Escudo de Cristal (x1.45 por jugador extra).
+              crystal-health: 70
+              blade-chance: 0.30
+              xp: 3000
+              loot:
+                - "ENCHANTED_GOLDEN_APPLE:1:2:1.0"
+                - "DIAMOND:4:8:1.0"
+                - "NETHERITE_SCRAP:2:5:1.0"
+                - "EXPERIENCE_BOTTLE:12:24:1.0"
+                - "POTION_REGEN:1:2:0.60"
+
             rewards:
               # Recompensa personal al derrotar a Vorthak (además de su botín en el cofre).
               xp: 1000

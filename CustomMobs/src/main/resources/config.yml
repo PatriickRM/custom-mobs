@@ -56,5 +56,5 @@ dungeon:
 models:
   enabled: true
   resource-pack-url: "https://raw.githubusercontent.com/PatriickRM/custom-mobs/main/resourcepack/CustomMobsPack.zip"
-  sha1: "f347339c7b9738ebd997457b7856bdd8469b94bc"
+  sha1: "665551f78d20d3222cb1015046d4e6a2eb3cdfed"
   required: true

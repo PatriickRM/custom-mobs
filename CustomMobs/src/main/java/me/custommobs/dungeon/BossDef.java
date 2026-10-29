@@ -9,8 +9,9 @@ import java.util.List;
  * (los no disponibles se muestran sellados) y se puede elegir al entrar en la cola.
  *
  * <p><b>Añadir un jefe:</b> copia una línea de {@link #ALL}, ponle id, nombre, icono y descripción, y marca
- * {@code available = true} cuando su combate esté implementado (hoy solo Vorthak tiene combate:
- * {@code DungeonInstance.spawnVorthak}).</p>
+ * {@code available = true} cuando su combate esté implementado (Vorthak tiene su flujo propio
+ * ({@code DungeonInstance.spawnVorthak}); los jefes nuevos implementan {@link DungeonBoss} y se enganchan en
+ * {@code DungeonInstance.spawnCustomBoss}, como {@link YsmeraBoss}).</p>
  */
 public record BossDef(String id, String title, String color, Material icon, List<String> blurb, boolean available) {
 
@@ -18,10 +19,13 @@ public record BossDef(String id, String title, String color, Material icon, List
             List.of("El señor de la dungeon.", "Combate en cuatro fases con una arena que cambia.",
                     "Cuanto más rápido llegues, más fuerte despierta."), true);
 
+    public static final BossDef YSMERA = new BossDef("ysmera", "Ysmera", "<aqua>", Material.BLUE_ICE,
+            List.of("La Reina de Escarcha.", "Escudo de cristales, ventiscas con medidor de frío y Cero Absoluto.",
+                    "Dungeon en la Cripta Helada."), true);
+
     public static final List<BossDef> ALL = List.of(
             VORTHAK,
-            new BossDef("sello_2", "???", "<dark_gray>", Material.OBSIDIAN,
-                    List.of("Un sello antiguo bloquea este camino.", "Algo despertará aquí en el futuro."), false),
+            YSMERA,
             new BossDef("sello_3", "???", "<dark_gray>", Material.CRYING_OBSIDIAN,
                     List.of("Un sello antiguo bloquea este camino.", "Algo despertará aquí en el futuro."), false));
 

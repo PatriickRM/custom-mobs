@@ -2384,3 +2384,1066 @@ mobs:
         rest: [0, 0, 0]
         model: chaman_staff_glow
         glow: true
+  ysmera:
+    scale: 1.0
+    name: "Ysmera, Reina de Escarcha"
+    nodes:
+      - id: core
+        parent: null
+        pivot: [0, 20, 0]
+        rest: [0, 0, 0]
+        model: null
+        glow: false
+        hover_amp: 2.2
+        hover_speed: 0.9
+      - id: gown
+        parent: core
+        pivot: [0, 22, 0]
+        rest: [0, 0, 0]
+        model: ysmera_gown
+        glow: false
+        idle_amp: 1.6
+        idle_axis: "z"
+        idle_speed: 0.8
+      - id: icicle0
+        parent: gown
+        pivot: [-6.2, 10, 3.8]
+        rest: [0, 0, 0]
+        model: ysmera_icicle0
+        glow: false
+        idle_amp: 4
+        idle_axis: "z"
+        idle_speed: 1.1
+        idle_phase: 0
+      - id: icicle1
+        parent: gown
+        pivot: [-3.1, 10, -4.6]
+        rest: [0, 0, 0]
+        model: ysmera_icicle1
+        glow: false
+        idle_amp: 7
+        idle_axis: "x"
+        idle_speed: 1.1700000000000002
+        idle_phase: 51
+      - id: icicle2
+        parent: gown
+        pivot: [0, 10, 4.6]
+        rest: [0, 0, 0]
+        model: ysmera_icicle2
+        glow: false
+        idle_amp: 4
+        idle_axis: "z"
+        idle_speed: 1.2400000000000002
+        idle_phase: 102
+      - id: icicle3
+        parent: gown
+        pivot: [3.1, 10, -4.6]
+        rest: [0, 0, 0]
+        model: ysmera_icicle3
+        glow: false
+        idle_amp: 7
+        idle_axis: "x"
+        idle_speed: 1.31
+        idle_phase: 153
+      - id: icicle4
+        parent: gown
+        pivot: [6.2, 10, 3.8]
+        rest: [0, 0, 0]
+        model: ysmera_icicle4
+        glow: false
+        idle_amp: 4
+        idle_axis: "z"
+        idle_speed: 1.3800000000000001
+        idle_phase: 204
+      - id: icicle5
+        parent: gown
+        pivot: [-5.4, 10, -3.0]
+        rest: [0, 0, 0]
+        model: ysmera_icicle5
+        glow: false
+        idle_amp: 7
+        idle_axis: "x"
+        idle_speed: 1.4500000000000002
+        idle_phase: 255
+      - id: icicle6
+        parent: gown
+        pivot: [5.4, 10, -3.0]
+        rest: [0, 0, 0]
+        model: ysmera_icicle6
+        glow: false
+        idle_amp: 4
+        idle_axis: "z"
+        idle_speed: 1.52
+        idle_phase: 306
+      - id: torso
+        parent: core
+        pivot: [0, 22, 0]
+        rest: [0, 0, 0]
+        model: ysmera_torso
+        glow: false
+        idle_amp: 1.0
+        idle_axis: "x"
+        idle_speed: 1.0
+      - id: gem
+        parent: torso
+        pivot: [0, 22, 0]
+        rest: [0, 0, 0]
+        model: ysmera_gem
+        glow: true
+      - id: head
+        parent: torso
+        pivot: [0, 34, 0]
+        rest: [0, 0, 0]
+        model: ysmera_head
+        glow: false
+        look: true
+      - id: crown
+        parent: head
+        pivot: [0, 40, 0]
+        rest: [0, 0, 0]
+        model: ysmera_crown
+        glow: false
+        idle_amp: 2.0
+        idle_axis: "z"
+        idle_speed: 1.3
+      - id: crown_glow
+        parent: crown
+        pivot: [0, 40, 0]
+        rest: [0, 0, 0]
+        model: ysmera_crown_glow
+        glow: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 34, 0]
+        rest: [0, 0, 0]
+        model: ysmera_head_glow
+        glow: true
+      - id: armL
+        parent: torso
+        pivot: [5, 33, 0]
+        rest: [-30, 0, -12]
+        model: ysmera_arml
+        glow: false
+        idle_amp: 5
+        idle_axis: "x"
+        idle_speed: 1.0
+        atk: 60
+      - id: armR
+        parent: torso
+        pivot: [-5, 33, 0]
+        rest: [-38, 0, 8]
+        model: ysmera_armr
+        glow: false
+        idle_amp: 4
+        idle_axis: "x"
+        idle_speed: 1.0
+        idle_phase: 170
+        atk: 60
+      - id: scepter
+        parent: armR
+        pivot: [-5.5, 19, 0]
+        rest: [48, 0, 0]
+        model: ysmera_scepter
+        glow: false
+      - id: scepter_gem
+        parent: scepter
+        pivot: [-5.5, 19, 0]
+        rest: [0, 0, 0]
+        model: ysmera_scepter_gem
+        glow: true
+        hover_amp: 1.0
+        hover_speed: 1.4
+        spin_axis: "y"
+        spin_speed: 70
+      - id: wingL
+        parent: torso
+        pivot: [3, 31, -3]
+        rest: [0, 30, 22]
+        model: ysmera_wingl
+        glow: false
+        idle_amp: 7
+        idle_axis: "z"
+        idle_speed: 1.0
+        idle_phase: 0
+      - id: featherL0
+        parent: wingL
+        pivot: [4.0, 31, 0]
+        rest: [0, 0, -6.0]
+        model: ysmera_featherl0
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 0
+      - id: featherL1
+        parent: wingL
+        pivot: [9.5, 31, 0]
+        rest: [0, 0, -13.333333333333332]
+        model: ysmera_featherl1
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 40
+      - id: featherL2
+        parent: wingL
+        pivot: [15.0, 31, 0]
+        rest: [0, 0, -20.666666666666664]
+        model: ysmera_featherl2
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 80
+      - id: wingR
+        parent: torso
+        pivot: [-3, 31, -3]
+        rest: [0, -30, -22]
+        model: ysmera_wingr
+        glow: false
+        idle_amp: 7
+        idle_axis: "z"
+        idle_speed: 1.0
+        idle_phase: 180
+      - id: featherR0
+        parent: wingR
+        pivot: [-4.0, 31, 0]
+        rest: [0, 0, 6.0]
+        model: ysmera_featherr0
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 0
+      - id: featherR1
+        parent: wingR
+        pivot: [-9.5, 31, 0]
+        rest: [0, 0, 13.333333333333332]
+        model: ysmera_featherr1
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 40
+      - id: featherR2
+        parent: wingR
+        pivot: [-15.0, 31, 0]
+        rest: [0, 0, 20.666666666666664]
+        model: ysmera_featherr2
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 80
+      - id: shard0
+        parent: core
+        pivot: [0, 22, 0]
+        rest: [0, 0, 0]
+        model: ysmera_shard0
+        glow: true
+        orbit_r: 15
+        orbit_speed: -48
+        orbit_phase: 0.0
+        hover_amp: 2.0
+        hover_speed: 1.5
+        spin_axis: "y"
+        spin_speed: 140
+      - id: shard1
+        parent: core
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: ysmera_shard1
+        glow: true
+        orbit_r: 18
+        orbit_speed: 62
+        orbit_phase: 90.0
+        hover_amp: 2.0
+        hover_speed: 1.8
+        spin_axis: "y"
+        spin_speed: 140
+      - id: shard2
+        parent: core
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: ysmera_shard2
+        glow: true
+        orbit_r: 21
+        orbit_speed: -76
+        orbit_phase: 180.0
+        hover_amp: 2.0
+        hover_speed: 2.1
+        spin_axis: "y"
+        spin_speed: 140
+      - id: shard3
+        parent: core
+        pivot: [0, 34, 0]
+        rest: [0, 0, 0]
+        model: ysmera_shard3
+        glow: true
+        orbit_r: 15
+        orbit_speed: 48
+        orbit_phase: 270.0
+        hover_amp: 2.0
+        hover_speed: 1.5
+        spin_axis: "y"
+        spin_speed: 140
+  ysmera2:
+    scale: 1.0
+    name: "Ysmera, Reina de Escarcha"
+    nodes:
+      - id: core
+        parent: null
+        pivot: [0, 20, 0]
+        rest: [0, 0, 0]
+        model: null
+        glow: false
+        hover_amp: 2.8
+        hover_speed: 0.9
+      - id: gown
+        parent: core
+        pivot: [0, 22, 0]
+        rest: [0, 0, 0]
+        model: ysmera2_gown
+        glow: false
+        idle_amp: 1.6
+        idle_axis: "z"
+        idle_speed: 0.8
+      - id: icicle0
+        parent: gown
+        pivot: [-6.2, 10, 3.8]
+        rest: [0, 0, 0]
+        model: ysmera2_icicle0
+        glow: false
+        idle_amp: 4
+        idle_axis: "z"
+        idle_speed: 1.1
+        idle_phase: 0
+      - id: icicle1
+        parent: gown
+        pivot: [-3.1, 10, -4.6]
+        rest: [0, 0, 0]
+        model: ysmera2_icicle1
+        glow: false
+        idle_amp: 7
+        idle_axis: "x"
+        idle_speed: 1.1700000000000002
+        idle_phase: 51
+      - id: icicle2
+        parent: gown
+        pivot: [0, 10, 4.6]
+        rest: [0, 0, 0]
+        model: ysmera2_icicle2
+        glow: false
+        idle_amp: 4
+        idle_axis: "z"
+        idle_speed: 1.2400000000000002
+        idle_phase: 102
+      - id: icicle3
+        parent: gown
+        pivot: [3.1, 10, -4.6]
+        rest: [0, 0, 0]
+        model: ysmera2_icicle3
+        glow: false
+        idle_amp: 7
+        idle_axis: "x"
+        idle_speed: 1.31
+        idle_phase: 153
+      - id: icicle4
+        parent: gown
+        pivot: [6.2, 10, 3.8]
+        rest: [0, 0, 0]
+        model: ysmera2_icicle4
+        glow: false
+        idle_amp: 4
+        idle_axis: "z"
+        idle_speed: 1.3800000000000001
+        idle_phase: 204
+      - id: icicle5
+        parent: gown
+        pivot: [-5.4, 10, -3.0]
+        rest: [0, 0, 0]
+        model: ysmera2_icicle5
+        glow: false
+        idle_amp: 7
+        idle_axis: "x"
+        idle_speed: 1.4500000000000002
+        idle_phase: 255
+      - id: icicle6
+        parent: gown
+        pivot: [5.4, 10, -3.0]
+        rest: [0, 0, 0]
+        model: ysmera2_icicle6
+        glow: false
+        idle_amp: 4
+        idle_axis: "z"
+        idle_speed: 1.52
+        idle_phase: 306
+      - id: torso
+        parent: core
+        pivot: [0, 22, 0]
+        rest: [0, 0, 0]
+        model: ysmera2_torso
+        glow: false
+        idle_amp: 1.0
+        idle_axis: "x"
+        idle_speed: 1.0
+      - id: gem
+        parent: torso
+        pivot: [0, 22, 0]
+        rest: [0, 0, 0]
+        model: ysmera2_gem
+        glow: true
+      - id: head
+        parent: torso
+        pivot: [0, 34, 0]
+        rest: [0, 0, 0]
+        model: ysmera2_head
+        glow: false
+        look: true
+      - id: crown
+        parent: head
+        pivot: [0, 40, 0]
+        rest: [0, 0, 0]
+        model: ysmera2_crown
+        glow: false
+        idle_amp: 2.0
+        idle_axis: "z"
+        idle_speed: 1.3
+      - id: crown_glow
+        parent: crown
+        pivot: [0, 40, 0]
+        rest: [0, 0, 0]
+        model: ysmera2_crown_glow
+        glow: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 34, 0]
+        rest: [0, 0, 0]
+        model: ysmera2_head_glow
+        glow: true
+      - id: armL
+        parent: torso
+        pivot: [5, 33, 0]
+        rest: [-30, 0, -12]
+        model: ysmera2_arml
+        glow: false
+        idle_amp: 5
+        idle_axis: "x"
+        idle_speed: 1.0
+        atk: 60
+      - id: armR
+        parent: torso
+        pivot: [-5, 33, 0]
+        rest: [-38, 0, 8]
+        model: ysmera2_armr
+        glow: false
+        idle_amp: 4
+        idle_axis: "x"
+        idle_speed: 1.0
+        idle_phase: 170
+        atk: 60
+      - id: scepter
+        parent: armR
+        pivot: [-5.5, 19, 0]
+        rest: [48, 0, 0]
+        model: ysmera2_scepter
+        glow: false
+      - id: scepter_gem
+        parent: scepter
+        pivot: [-5.5, 19, 0]
+        rest: [0, 0, 0]
+        model: ysmera2_scepter_gem
+        glow: true
+        hover_amp: 1.0
+        hover_speed: 1.4
+        spin_axis: "y"
+        spin_speed: 70
+      - id: wingL
+        parent: torso
+        pivot: [3, 31, -3]
+        rest: [0, 44, 30]
+        model: ysmera2_wingl
+        glow: false
+        idle_amp: 7
+        idle_axis: "z"
+        idle_speed: 1.0
+        idle_phase: 0
+      - id: featherL0
+        parent: wingL
+        pivot: [4.0, 31, 0]
+        rest: [0, 0, -6.0]
+        model: ysmera2_featherl0
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 0
+      - id: featherL1
+        parent: wingL
+        pivot: [8.667, 31, 0]
+        rest: [0, 0, -16.5]
+        model: ysmera2_featherl1
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 40
+      - id: featherL2
+        parent: wingL
+        pivot: [13.333, 31, 0]
+        rest: [0, 0, -27.0]
+        model: ysmera2_featherl2
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 80
+      - id: featherL3
+        parent: wingL
+        pivot: [18.0, 31, 0]
+        rest: [0, 0, -37.5]
+        model: ysmera2_featherl3
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 120
+      - id: wingR
+        parent: torso
+        pivot: [-3, 31, -3]
+        rest: [0, -44, -30]
+        model: ysmera2_wingr
+        glow: false
+        idle_amp: 7
+        idle_axis: "z"
+        idle_speed: 1.0
+        idle_phase: 180
+      - id: featherR0
+        parent: wingR
+        pivot: [-4.0, 31, 0]
+        rest: [0, 0, 6.0]
+        model: ysmera2_featherr0
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 0
+      - id: featherR1
+        parent: wingR
+        pivot: [-8.667, 31, 0]
+        rest: [0, 0, 16.5]
+        model: ysmera2_featherr1
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 40
+      - id: featherR2
+        parent: wingR
+        pivot: [-13.333, 31, 0]
+        rest: [0, 0, 27.0]
+        model: ysmera2_featherr2
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 80
+      - id: featherR3
+        parent: wingR
+        pivot: [-18.0, 31, 0]
+        rest: [0, 0, 37.5]
+        model: ysmera2_featherr3
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 120
+      - id: shard0
+        parent: core
+        pivot: [0, 22, 0]
+        rest: [0, 0, 0]
+        model: ysmera2_shard0
+        glow: true
+        orbit_r: 15
+        orbit_speed: -48
+        orbit_phase: 0.0
+        hover_amp: 2.0
+        hover_speed: 1.5
+        spin_axis: "y"
+        spin_speed: 140
+      - id: shard1
+        parent: core
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: ysmera2_shard1
+        glow: true
+        orbit_r: 18
+        orbit_speed: 62
+        orbit_phase: 60.0
+        hover_amp: 2.0
+        hover_speed: 1.8
+        spin_axis: "y"
+        spin_speed: 140
+      - id: shard2
+        parent: core
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: ysmera2_shard2
+        glow: true
+        orbit_r: 21
+        orbit_speed: -76
+        orbit_phase: 120.0
+        hover_amp: 2.0
+        hover_speed: 2.1
+        spin_axis: "y"
+        spin_speed: 140
+      - id: shard3
+        parent: core
+        pivot: [0, 34, 0]
+        rest: [0, 0, 0]
+        model: ysmera2_shard3
+        glow: true
+        orbit_r: 15
+        orbit_speed: 48
+        orbit_phase: 180.0
+        hover_amp: 2.0
+        hover_speed: 1.5
+        spin_axis: "y"
+        spin_speed: 140
+      - id: shard4
+        parent: core
+        pivot: [0, 22, 0]
+        rest: [0, 0, 0]
+        model: ysmera2_shard4
+        glow: true
+        orbit_r: 18
+        orbit_speed: -62
+        orbit_phase: 240.0
+        hover_amp: 2.0
+        hover_speed: 1.8
+        spin_axis: "y"
+        spin_speed: 140
+      - id: shard5
+        parent: core
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: ysmera2_shard5
+        glow: true
+        orbit_r: 21
+        orbit_speed: 76
+        orbit_phase: 300.0
+        hover_amp: 2.0
+        hover_speed: 2.1
+        spin_axis: "y"
+        spin_speed: 140
+      - id: halo
+        parent: core
+        pivot: [0, 40, 0]
+        rest: [0, 0, 0]
+        model: ysmera2_halo
+        glow: true
+        spin_axis: "y"
+        spin_speed: 40
+  ysmera3:
+    scale: 1.0
+    name: "Ysmera, Reina de Escarcha"
+    nodes:
+      - id: core
+        parent: null
+        pivot: [0, 20, 0]
+        rest: [0, 0, 0]
+        model: null
+        glow: false
+        hover_amp: 3.4
+        hover_speed: 0.9
+      - id: gown
+        parent: core
+        pivot: [0, 22, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_gown
+        glow: false
+        idle_amp: 1.6
+        idle_axis: "z"
+        idle_speed: 0.8
+      - id: icicle0
+        parent: gown
+        pivot: [-6.2, 10, 3.8]
+        rest: [0, 0, 0]
+        model: ysmera3_icicle0
+        glow: false
+        idle_amp: 4
+        idle_axis: "z"
+        idle_speed: 1.1
+        idle_phase: 0
+      - id: icicle1
+        parent: gown
+        pivot: [-3.1, 10, -4.6]
+        rest: [0, 0, 0]
+        model: ysmera3_icicle1
+        glow: false
+        idle_amp: 7
+        idle_axis: "x"
+        idle_speed: 1.1700000000000002
+        idle_phase: 51
+      - id: icicle2
+        parent: gown
+        pivot: [0, 10, 4.6]
+        rest: [0, 0, 0]
+        model: ysmera3_icicle2
+        glow: false
+        idle_amp: 4
+        idle_axis: "z"
+        idle_speed: 1.2400000000000002
+        idle_phase: 102
+      - id: icicle3
+        parent: gown
+        pivot: [3.1, 10, -4.6]
+        rest: [0, 0, 0]
+        model: ysmera3_icicle3
+        glow: false
+        idle_amp: 7
+        idle_axis: "x"
+        idle_speed: 1.31
+        idle_phase: 153
+      - id: icicle4
+        parent: gown
+        pivot: [6.2, 10, 3.8]
+        rest: [0, 0, 0]
+        model: ysmera3_icicle4
+        glow: false
+        idle_amp: 4
+        idle_axis: "z"
+        idle_speed: 1.3800000000000001
+        idle_phase: 204
+      - id: icicle5
+        parent: gown
+        pivot: [-5.4, 10, -3.0]
+        rest: [0, 0, 0]
+        model: ysmera3_icicle5
+        glow: false
+        idle_amp: 7
+        idle_axis: "x"
+        idle_speed: 1.4500000000000002
+        idle_phase: 255
+      - id: icicle6
+        parent: gown
+        pivot: [5.4, 10, -3.0]
+        rest: [0, 0, 0]
+        model: ysmera3_icicle6
+        glow: false
+        idle_amp: 4
+        idle_axis: "z"
+        idle_speed: 1.52
+        idle_phase: 306
+      - id: torso
+        parent: core
+        pivot: [0, 22, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_torso
+        glow: false
+        idle_amp: 1.0
+        idle_axis: "x"
+        idle_speed: 1.0
+      - id: gem
+        parent: torso
+        pivot: [0, 22, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_gem
+        glow: true
+      - id: head
+        parent: torso
+        pivot: [0, 34, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_head
+        glow: false
+        look: true
+      - id: crown
+        parent: head
+        pivot: [0, 40, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_crown
+        glow: false
+        idle_amp: 2.0
+        idle_axis: "z"
+        idle_speed: 1.3
+      - id: crown_glow
+        parent: crown
+        pivot: [0, 40, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_crown_glow
+        glow: true
+      - id: head_glow
+        parent: head
+        pivot: [0, 34, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_head_glow
+        glow: true
+      - id: armL
+        parent: torso
+        pivot: [5, 33, 0]
+        rest: [-30, 0, -12]
+        model: ysmera3_arml
+        glow: false
+        idle_amp: 5
+        idle_axis: "x"
+        idle_speed: 1.0
+        atk: 60
+      - id: armR
+        parent: torso
+        pivot: [-5, 33, 0]
+        rest: [-38, 0, 8]
+        model: ysmera3_armr
+        glow: false
+        idle_amp: 4
+        idle_axis: "x"
+        idle_speed: 1.0
+        idle_phase: 170
+        atk: 60
+      - id: scepter
+        parent: armR
+        pivot: [-5.5, 19, 0]
+        rest: [48, 0, 0]
+        model: ysmera3_scepter
+        glow: false
+      - id: scepter_gem
+        parent: scepter
+        pivot: [-5.5, 19, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_scepter_gem
+        glow: true
+        hover_amp: 1.0
+        hover_speed: 1.4
+        spin_axis: "y"
+        spin_speed: 70
+      - id: wingL
+        parent: torso
+        pivot: [3, 31, -3]
+        rest: [0, 56, 38]
+        model: ysmera3_wingl
+        glow: false
+        idle_amp: 10
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 0
+      - id: featherL0
+        parent: wingL
+        pivot: [4.0, 31, 0]
+        rest: [0, 0, -6.0]
+        model: ysmera3_featherl0
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 0
+      - id: featherL1
+        parent: wingL
+        pivot: [8.25, 31, 0]
+        rest: [0, 0, -17.2]
+        model: ysmera3_featherl1
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 40
+      - id: featherL2
+        parent: wingL
+        pivot: [12.5, 31, 0]
+        rest: [0, 0, -28.4]
+        model: ysmera3_featherl2
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 80
+      - id: featherL3
+        parent: wingL
+        pivot: [16.75, 31, 0]
+        rest: [0, 0, -39.6]
+        model: ysmera3_featherl3
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 120
+      - id: featherL4
+        parent: wingL
+        pivot: [21.0, 31, 0]
+        rest: [0, 0, -50.8]
+        model: ysmera3_featherl4
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 160
+      - id: wingR
+        parent: torso
+        pivot: [-3, 31, -3]
+        rest: [0, -56, -38]
+        model: ysmera3_wingr
+        glow: false
+        idle_amp: 10
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 180
+      - id: featherR0
+        parent: wingR
+        pivot: [-4.0, 31, 0]
+        rest: [0, 0, 6.0]
+        model: ysmera3_featherr0
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 0
+      - id: featherR1
+        parent: wingR
+        pivot: [-8.25, 31, 0]
+        rest: [0, 0, 17.2]
+        model: ysmera3_featherr1
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 40
+      - id: featherR2
+        parent: wingR
+        pivot: [-12.5, 31, 0]
+        rest: [0, 0, 28.4]
+        model: ysmera3_featherr2
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 80
+      - id: featherR3
+        parent: wingR
+        pivot: [-16.75, 31, 0]
+        rest: [0, 0, 39.6]
+        model: ysmera3_featherr3
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 120
+      - id: featherR4
+        parent: wingR
+        pivot: [-21.0, 31, 0]
+        rest: [0, 0, 50.8]
+        model: ysmera3_featherr4
+        glow: false
+        idle_amp: 3
+        idle_axis: "z"
+        idle_speed: 1.2
+        idle_phase: 160
+      - id: shard0
+        parent: core
+        pivot: [0, 22, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_shard0
+        glow: true
+        orbit_r: 15
+        orbit_speed: -48
+        orbit_phase: 0.0
+        hover_amp: 2.0
+        hover_speed: 1.5
+        spin_axis: "y"
+        spin_speed: 140
+      - id: shard1
+        parent: core
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_shard1
+        glow: true
+        orbit_r: 18
+        orbit_speed: 62
+        orbit_phase: 45.0
+        hover_amp: 2.0
+        hover_speed: 1.8
+        spin_axis: "y"
+        spin_speed: 140
+      - id: shard2
+        parent: core
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_shard2
+        glow: true
+        orbit_r: 21
+        orbit_speed: -76
+        orbit_phase: 90.0
+        hover_amp: 2.0
+        hover_speed: 2.1
+        spin_axis: "y"
+        spin_speed: 140
+      - id: shard3
+        parent: core
+        pivot: [0, 34, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_shard3
+        glow: true
+        orbit_r: 15
+        orbit_speed: 48
+        orbit_phase: 135.0
+        hover_amp: 2.0
+        hover_speed: 1.5
+        spin_axis: "y"
+        spin_speed: 140
+      - id: shard4
+        parent: core
+        pivot: [0, 22, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_shard4
+        glow: true
+        orbit_r: 18
+        orbit_speed: -62
+        orbit_phase: 180.0
+        hover_amp: 2.0
+        hover_speed: 1.8
+        spin_axis: "y"
+        spin_speed: 140
+      - id: shard5
+        parent: core
+        pivot: [0, 26, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_shard5
+        glow: true
+        orbit_r: 21
+        orbit_speed: 76
+        orbit_phase: 225.0
+        hover_amp: 2.0
+        hover_speed: 2.1
+        spin_axis: "y"
+        spin_speed: 140
+      - id: shard6
+        parent: core
+        pivot: [0, 30, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_shard6
+        glow: true
+        orbit_r: 15
+        orbit_speed: -48
+        orbit_phase: 270.0
+        hover_amp: 2.0
+        hover_speed: 1.5
+        spin_axis: "y"
+        spin_speed: 140
+      - id: shard7
+        parent: core
+        pivot: [0, 34, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_shard7
+        glow: true
+        orbit_r: 18
+        orbit_speed: 62
+        orbit_phase: 315.0
+        hover_amp: 2.0
+        hover_speed: 1.8
+        spin_axis: "y"
+        spin_speed: 140
+      - id: halo
+        parent: core
+        pivot: [0, 40, 0]
+        rest: [0, 0, 0]
+        model: ysmera3_halo
+        glow: true
+        spin_axis: "y"
+        spin_speed: -55

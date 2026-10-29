@@ -1,4 +1,5 @@
 """Los 7 mobs de la dungeon (ceniza e infierno). Unidades en píxeles (16 = 1 bloque), frente = +Z, +X = izquierda."""
+import math
 from engine import S, B, Node, Mob
 
 # ----------------------------------------------------------------------------- paletas
@@ -793,5 +794,127 @@ def chaman():
     return Mob('chaman', 'Chamán de Nieve', nodes)
 
 
+# ============================================================================= YSMERA, REINA DE ESCARCHA (jefe)
+Q_ICE = ['#0d2238', '#173a5c', '#235b88', '#3d8cbf', '#9fe0f5']
+Q_STORM = ['#120d30', '#21185a', '#35298a', '#5646c2', '#a99cff']
+Q_VOID = ['#04060c', '#0b121f', '#18263a', '#2f4966', '#b8dcf5']
+G_STORM = ['#3a1ea0', '#7a52ff', '#c0a8ff', '#f1eaff']
+G_VOIDW = ['#8fd2ff', '#cfeeff', '#ffffff', '#ffffff']
+
+
+def _ysmera(ph):
+    """Ysmera, Reina de Escarcha. Se dibuja con la escala del modelo 1.0 y el SCALE del mob (1.5): ~48 px sin cetro.
+    Fase 1 'Reina Gélida' (azul), fase 2 'Tormenta' (violeta eléctrico, alas abiertas), fase 3 'Cero Absoluto' (negro y blanco, rota)."""
+    pal = {1: Q_ICE, 2: Q_STORM, 3: Q_VOID}[ph]
+    GL = {1: G_ICE, 2: G_STORM, 3: G_VOIDW}[ph]
+    cr = (4, 5, '#ffffff') if ph == 3 else None
+    dress = S(pal, bias=1.6, spread=1.0, stripes=True, cracks=cr, speck=(0.04, '#ffffff'))
+    dress_d = S(pal, bias=0.9, spread=0.8, stripes=True)
+    trim = S(pal, bias=3.4, spread=0.5, trim='#ffffff')
+    bodice = S(pal, bias=1.9, spread=0.9, rivets=True, trim='#cfeeff', cracks=cr)
+    skin = S(BONE_ICE, bias=2.3, spread=0.7)
+    hair = S(SNOWFUR if ph < 3 else ['#0b1220', '#1a2638', '#2c3d58', '#4b6482', '#8fb0cf'], bias=2.2, spread=1.0, stripes=True)
+    crown = S(ICE if ph < 3 else ['#cfeeff', '#e8f7ff', '#ffffff', '#ffffff', '#ffffff'], bias=2.6, spread=0.8, speck=(0.08, '#ffffff'))
+    claw = S(ICE, bias=3.0, spread=0.6)
+    wing = S(pal, bias=2.2, spread=0.9, speck=(0.06, '#ffffff'))
+    spar = S(pal, bias=1.4, spread=0.8, trim='#9fe0f5')
+    wood = S(['#0a1522', '#112236', '#1a3350', '#27496d'], bias=1.8, spread=0.8, stripes=True)
+    aura = {1: 8, 2: 10, 3: 12}[ph]
+
+    nodes = [Node('core', (0, 20, 0), [], hover_amp={1: 2.2, 2: 2.8, 3: 3.4}[ph], hover_speed=0.9)]
+    # vestido: tres niveles que se mecen + carámbanos colgando
+    nodes.append(Node('gown', (0, 22, 0), [
+        B(-8, 8, 10, 15, -6, 6, dress), B(-6.8, 6.8, 15, 19, -5, 5, dress), B(-5.4, 5.4, 19, 22, -4, 4, dress_d),
+        B(-8.3, 8.3, 10, 11.4, -6.3, 6.3, trim), B(-7.1, 7.1, 14.4, 15.4, -5.3, 5.3, trim)],
+        parent='core', idle_amp=1.6, idle_axis='z', idle_speed=0.8))
+    ice_pos = [(-6.2, 3.8), (-3.1, -4.6), (0, 4.6), (3.1, -4.6), (6.2, 3.8), (-5.4, -3.0), (5.4, -3.0)]
+    for i, (x, z) in enumerate(ice_pos):
+        h = 7 + (i % 3) * 2
+        nodes.append(Node(f'icicle{i}', (x, 10, z), [B(x - 0.9, x + 0.9, 10 - h, 10, z - 0.9, z + 0.9, crown),
+                                                     B(x - 0.4, x + 0.4, 10 - h - 2, 10 - h, z - 0.4, z + 0.4, crown)],
+                          parent='gown', idle_amp=4 + (i % 2) * 3, idle_axis='x' if i % 2 else 'z', idle_speed=1.1 + i * 0.07, idle_phase=i * 51))
+    nodes.append(Node('torso', (0, 22, 0), [
+        B(-4, 4, 22, 34, -2.6, 2.6, bodice), B(-4.4, 4.4, 22, 24.4, -3, 3, trim),
+        B(-5, 5, 32, 35, -3.2, 3.2, crown),
+        B(-9, -4, 33, 36, -3.2, 3.2, crown), B(4, 9, 33, 36, -3.2, 3.2, crown),
+        B(-8.4, -7.2, 36, 43, -0.8, 0.8, crown), B(7.2, 8.4, 36, 43, -0.8, 0.8, crown),
+        B(-6.4, -5.6, 36, 40, -0.6, 0.6, crown), B(5.6, 6.4, 36, 40, -0.6, 0.6, crown)],
+        parent='core', idle_amp=1.0, idle_axis='x', idle_speed=1.0))
+    nodes.append(Node('gem', (0, 22, 0), [B(-1.3, 1.3, 27, 31, 2.6, 2.85, glow(GL)), B(-0.5, 0.5, 31, 33, 2.6, 2.85, glow(GL))],
+                      parent='torso', glow=True))
+    nodes.append(Node('head', (0, 34, 0), [
+        B(-3, 3, 34, 40.5, -3, 3, skin), B(-3.7, 3.7, 39.2, 41.6, -3.7, 3.7, hair),
+        B(-3.9, -3, 22, 40, -3.5, 3.4, hair), B(3, 3.9, 22, 40, -3.5, 3.4, hair), B(-3.7, 3.7, 16, 40, -4.9, -3.0, hair),
+        B(-3.2, 3.2, 33, 34.2, 2.9, 3.4, skin)],
+        parent='torso', look=True))
+    nodes.append(Node('crown', (0, 40, 0), [
+        B(-4.0, 4.0, 40.5, 42.8, -4.0, 4.0, crown),
+        B(-0.9, 0.9, 42.8, 50.5, 2.6, 4.2, crown), B(-3.6, -2.2, 42.8, 47.5, 2.6, 4.0, crown), B(2.2, 3.6, 42.8, 47.5, 2.6, 4.0, crown),
+        B(-3.8, -2.6, 42.8, 46, -1.0, 1.0, crown), B(2.6, 3.8, 42.8, 46, -1.0, 1.0, crown),
+        B(-1.0, 1.0, 42.8, 48, -4.2, -2.6, crown)],
+        parent='head', idle_amp=2.0, idle_axis='z', idle_speed=1.3))
+    nodes.append(Node('crown_glow', (0, 40, 0), [B(-0.45, 0.45, 49.5, 51.5, 3.0, 3.9, glow(GL)), B(-3.2, -2.6, 46.5, 48, 3.0, 3.6, glow(GL)),
+                                                 B(2.6, 3.2, 46.5, 48, 3.0, 3.6, glow(GL))], parent='crown', glow=True))
+    nodes.append(Node('head_glow', (0, 34, 0), [B(-2.4, -0.8, 36.6, 38.2, 3.0, 3.2, glow(GL)), B(0.8, 2.4, 36.6, 38.2, 3.0, 3.2, glow(GL))],
+                      parent='head', glow=True))
+    # brazos: manga larga + mano con garras
+    arm = lambda sx: [B(3.8 * sx, 7 * sx, 22, 34, -1.7, 1.7, dress), B(3.6 * sx, 7.2 * sx, 21, 23.2, -2.0, 2.0, trim),
+                      B(4.2 * sx, 6.6 * sx, 17.5, 21, -1.3, 1.3, skin),
+                      B(4.3 * sx, 4.9 * sx, 12, 17.5, -0.4, 0.4, claw), B(5.2 * sx, 5.8 * sx, 11.5, 17.5, -0.4, 0.4, claw),
+                      B(6.0 * sx, 6.6 * sx, 12, 17.5, -0.4, 0.4, claw)]
+    nodes.append(Node('armL', (5, 33, 0), arm(1), parent='torso', rest=(-30, 0, -12), idle_amp=5, idle_axis='x', idle_speed=1.0, atk=60))
+    nodes.append(Node('armR', (-5, 33, 0), mirror(arm(1)), parent='torso', rest=(-38, 0, 8), idle_amp=4, idle_axis='x', idle_speed=1.0,
+                      idle_phase=170, atk=60))
+    nodes.append(Node('scepter', (-5.5, 19, 0), [B(-0.55, 0.55, -5, 32, -0.55, 0.55, wood), B(-1.0, 1.0, 20, 22, -1.0, 1.0, crown),
+                                                   B(-1.6, 1.6, 31.5, 35, -1.6, 1.6, crown)], parent='armR', rest=(48, 0, 0)))
+    nodes.append(Node('scepter_gem', (-5.5, 19, 0), [B(-1.3, 1.3, 34, 40, -1.3, 1.3, glow(GL)), B(-2.4, 2.4, 36, 38, -0.3, 0.3, glow(GL)),
+                                                       B(-0.3, 0.3, 36, 38, -2.4, 2.4, glow(GL))], parent='scepter', glow=True,
+                      hover_amp=1.0, hover_speed=1.4, spin_axis='y', spin_speed=70))
+    # alas: larguero + plumas de cristal en abanico (más grandes en cada fase)
+    nf = {1: 3, 2: 4, 3: 5}[ph]
+    spread = {1: 22, 2: 42, 3: 56}[ph]
+    for sx, name in ((1, 'L'), (-1, 'R')):
+        L = {1: 15, 2: 18, 3: 21}[ph]
+        nodes.append(Node('wing' + name, (3 * sx, 31, -3), [B(2.5 * sx if sx > 0 else -L - 0.5, (L if sx > 0 else -2.5), 30.6, 32.6, -0.8, 0.8, spar)],
+                          parent='torso', rest=(0, 30 * sx if ph == 1 else (44 * sx if ph == 2 else 56 * sx), {1: 22, 2: 30, 3: 38}[ph] * sx),
+                          idle_amp=7 if ph < 3 else 10, idle_axis='z', idle_speed=1.0 if ph < 3 else 1.2, idle_phase=0 if sx > 0 else 180))
+        for i in range(nf):
+            x = (4 + i * (L - 4) / max(1, nf - 1)) * sx
+            ln = 20 - i * (2.2 if ph == 1 else 1.4)
+            nodes.append(Node(f'feather{name}{i}', (x, 31, 0), [B(x - 1.3, x + 1.3, 31 - ln, 31, -0.5, 0.5, wing),
+                                                                B(x - 0.5, x + 0.5, 31 - ln - 3, 31 - ln, -0.5, 0.5, wing)],
+                              parent='wing' + name, rest=(0, 0, -sx * (6 + i * spread / nf)),
+                              idle_amp=3, idle_axis='z', idle_speed=1.2, idle_phase=i * 40))
+    # fragmentos de hielo orbitando
+    for i in range({1: 4, 2: 6, 3: 8}[ph]):
+        r = 15 + (i % 3) * 3
+        nodes.append(Node(f'shard{i}', (0, 22 + (i % 4) * 4, 0), [B(-1.1, 1.1, 18 + (i % 4) * 4, 24 + (i % 4) * 4, -1.1, 1.1, glow(GL))],
+                          parent='core', glow=True, orbit_r=r, orbit_speed=(48 + 14 * (i % 3)) * (1 if i % 2 else -1),
+                          orbit_phase=i * 360 / {1: 4, 2: 6, 3: 8}[ph], hover_amp=2.0, hover_speed=1.5 + (i % 3) * 0.3,
+                          spin_axis='y', spin_speed=140))
+    if ph >= 2:
+        segs = []
+        n = 8 if ph == 2 else 12
+        for k in range(n):
+            a = 2 * math.pi * k / n
+            x, z = math.cos(a) * 10.5, math.sin(a) * 10.5
+            segs.append(B(x - 0.9, x + 0.9, 53, 56, z - 0.9, z + 0.9, glow(GL)))
+        nodes.append(Node('halo', (0, 40, 0), [B(b.lo[0], b.hi[0], b.lo[1], b.hi[1], b.lo[2], b.hi[2], b.style) for b in segs],
+                          parent='core', glow=True, spin_axis='y', spin_speed=40 if ph == 2 else -55))
+    return Mob(f'ysmera{"" if ph == 1 else ph}', 'Ysmera, Reina de Escarcha', nodes, scale=1.0)
+
+
+def ysmera():
+    return _ysmera(1)
+
+
+def ysmera2():
+    return _ysmera(2)
+
+
+def ysmera3():
+    return _ysmera(3)
+
+
 ALL = [cenizo, calcinado, marchito, bruto, espectro, sacerdote, bestia, vorthak, vorthak2, vorthak3, vorthak4,
-       sombra, guardian, nigromante, congelado, escarcha, yeti, banshee, chaman]
+       sombra, guardian, nigromante, congelado, escarcha, yeti, banshee, chaman, ysmera, ysmera2, ysmera3]

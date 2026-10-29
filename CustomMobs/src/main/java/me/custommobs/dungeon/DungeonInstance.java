@@ -197,6 +197,10 @@ public final class DungeonInstance {
     private UUID vorthakId;
     private boolean vorthakDead;
     private long vorthakMissing;
+    /** Jefe final distinto de Vorthak (interfaz {@link DungeonBoss}). */
+    private DungeonBoss cboss;
+    private long cbossSpawnTick;
+    private long cbossMissing;
     private long arenaNext;
     private int arenaPhase = -1;
     private int finalScore;
@@ -233,8 +237,9 @@ public final class DungeonInstance {
         for (int st = 0; st < steps.size(); st++) {
             for (int ri : steps.get(st)) stepOfRoom[ri] = st;
         }
-        this.biome = Biome.of(cfg.s("biome"));
+        this.biome = this.boss.id().equals("ysmera") ? Biome.FROST : Biome.of(cfg.s("biome"));
         this.builder = new DungeonBuilder(plugin, world, cfg, types, 16, cfg.i("build-y"), oz, System.nanoTime(), biome);
+        this.builder.bossId(this.boss.id());
         this.rooms = builder.rooms();
         this.secrets = new SecretSystem(this, cfg, world, builder);
         this.portals = new PathPortals(world);
@@ -481,7 +486,7 @@ public final class DungeonInstance {
         } else if (s.contains("MINI JEFE") || s.contains("SOMBRA") || s.contains("GUARDI") || s.contains("NIGROMANTE")) {
             key = "entity.wither.spawn";
             v[1] = 0.6f;
-        } else if (s.contains("VORTHAK")) {
+        } else if (s.contains("VORTHAK") || s.contains("ESCARCHA")) {
             key = "entity.ender_dragon.growl";
             v[1] = 0.55f;
         } else if (s.contains("TRAMPA") || s.contains("EMBOSCADA") || s.contains("MALDICI")) {
@@ -610,7 +615,7 @@ public final class DungeonInstance {
         p.setSaturation(20f);
         p.setFireTicks(0);
         p.showBossBar(bar);
-        p.sendMessage(Text.mm("<dark_gray>━━━━━━━━ <gradient:#ff4d4d:#ffb347><bold>DUNGEON DE VORTHAK</bold></gradient> <dark_gray>━━━━━━━━"));
+        p.sendMessage(Text.mm("<dark_gray>━━━━━━━━ <gradient:" + bossGradient() + "><bold>DUNGEON DE " + boss.title().toUpperCase() + "</bold></gradient> <dark_gray>━━━━━━━━"));
         p.sendMessage(Text.mm("<gray>Vidas: <red>" + maxLives + " ❤</red>  <dark_gray>·</dark_gray>  Salas: <white>"
                 + (steps.size() - 1) + "</white>  <dark_gray>·</dark_gray>  Equipo: <white>" + members.size() + "</white>"));
         p.sendMessage(Text.mm("<gray>Si un compañero cae sin vidas, mantén <white>SHIFT</white> sobre su tumba para revivirlo."));
@@ -841,9 +846,15 @@ public final class DungeonInstance {
             }
             case REST -> startRest(r);
             case VORTHAK -> {
-                vorthakSpawnTick = tick + 80;
-                titleAll("<gradient:#ff4d4d:#ffb347><bold>VORTHAK</bold></gradient>", "<gray>No hay vuelta atrás.</gray>");
-                soundAll(Sound.ENTITY_WITHER_SPAWN, 0.8f, 0.6f);
+                if (customBoss()) {
+                    cbossSpawnTick = tick + 80;
+                    titleAll("<gradient:" + bossGradient() + "><bold>LA CORTE DE ESCARCHA</bold></gradient>", "<gray>No hay vuelta atrás.</gray>");
+                    soundAll(Sound.BLOCK_GLASS_BREAK, 0.8f, 0.5f);
+                } else {
+                    vorthakSpawnTick = tick + 80;
+                    titleAll("<gradient:#ff4d4d:#ffb347><bold>VORTHAK</bold></gradient>", "<gray>No hay vuelta atrás.</gray>");
+                    soundAll(Sound.ENTITY_WITHER_SPAWN, 0.8f, 0.6f);
+                }
             }
             default -> { }
         }
@@ -1882,7 +1893,7 @@ public final class DungeonInstance {
 
     private void startRest(DungeonBuilder.Room r) {
         restEnd = tick + cfg.i("rest.seconds") * 20L;
-        titleAll("<green><bold>SALA DE DESCANSO</bold></green>", "<gray>Recupérate antes de Vorthak</gray>");
+        titleAll("<green><bold>SALA DE DESCANSO</bold></green>", "<gray>Recupérate antes de " + boss.title() + "</gray>");
         int restore = cfg.i("rest.restore-lives");
         for (PState s : members.values()) {
             int cap = maxLives + s.bonusLives;
@@ -1924,7 +1935,81 @@ public final class DungeonInstance {
 
     // ------------------------------------------------------------------ Vorthak
 
+    private boolean customBoss() {
+        return !boss.id().equals(BossDef.VORTHAK.id());
+    }
+
+    String bossGradient() {
+        return boss.id().equals("ysmera") ? "#9fe0f5:#ffffff" : "#ff4d4d:#ffb347";
+    }
+
+    private void spawnCustomBoss(DungeonBuilder.Room r) {
+        if (boss.id().equals(YsmeraBoss.ID)) {
+            cboss = YsmeraBoss.spawn(this, r);
+            vorthakDead = false;
+        } else {
+            plugin.getLogger().warning("[Dungeon #" + id + "] Jefe sin implementar: " + boss.id());
+        }
+    }
+
+    private void discardCBoss() {
+        if (cboss != null) {
+            cboss.discard();
+            cboss = null;
+        }
+        cbossSpawnTick = 0;
+        cbossMissing = 0;
+    }
+
+    /** Bucle de la sala del jefe final cuando no es Vorthak. */
+    private void customBossTick(DungeonBuilder.Room r) {
+        if (cboss == null) {
+            if (cbossSpawnTick > 0 && tick >= cbossSpawnTick) {
+                cbossSpawnTick = 0;
+                spawnCustomBoss(r);
+            }
+            return;
+        }
+        if (vorthakDead) return;
+        if (cboss.finished()) {
+            vorthakDead = true;
+            plugin.getLogger().warning("[Dungeon #" + id + "] El jefe terminó sin pasar por el evento de muerte: completando por respaldo.");
+            try {
+                complete(new ArrayList<>());
+            } catch (Throwable t) {
+                plugin.getLogger().log(java.util.logging.Level.SEVERE, "Error al completar la dungeon #" + id, t);
+            }
+            return;
+        }
+        if (!cboss.entity().isValid()) {
+            cbossMissing += 2;
+            if (cbossMissing > 100) {
+                discardCBoss();
+                cbossSpawnTick = tick + 20;
+            }
+            return;
+        }
+        cbossMissing = 0;
+        hint = cboss.hint();
+        cboss.tick(tick);
+    }
+
+    private void onCustomBossDeath(EntityDeathEvent e) {
+        vorthakDead = true;
+        plugin.getLogger().info("[Dungeon #" + id + "] " + boss.title() + " ha caído: se completa la dungeon.");
+        cboss.onDeath(e);
+        try {
+            complete(new ArrayList<>());
+        } catch (Throwable t) {
+            plugin.getLogger().log(java.util.logging.Level.SEVERE, "Error al completar la dungeon #" + id, t);
+        }
+    }
+
     private void vorthakTick(DungeonBuilder.Room r) {
+        if (customBoss()) {
+            customBossTick(r);
+            return;
+        }
         if (vorthakId == null && vorthakSpawnTick > 0 && tick >= vorthakSpawnTick) {
             vorthakSpawnTick = 0;
             spawnVorthak(r);
@@ -2301,7 +2386,7 @@ public final class DungeonInstance {
     }
 
     boolean isBossEntity(Entity e) {
-        return e.getUniqueId().equals(vorthakId) || bosses.heraldOwner(e) != null;
+        return e.getUniqueId().equals(vorthakId) || bosses.heraldOwner(e) != null || (cboss != null && cboss.owns(e));
     }
 
     /** Enemigo normal o mini jefe de esta partida sobre el que las bendiciones pueden causar daño. */
@@ -2318,6 +2403,10 @@ public final class DungeonInstance {
     public void onMobDamaged(EntityDamageEvent e) {
         if (objectives.onDamaged(e)) return;
         if (puzzles.onDamaged(e)) return;
+        if (cboss != null && cboss.owns(e.getEntity())) {
+            cboss.onDamage(e);
+            return;
+        }
         if (mini != null && mini.owns(e.getEntity().getUniqueId())) mini.onDamage(e);
     }
 
@@ -2334,7 +2423,7 @@ public final class DungeonInstance {
         if (killer != null) {
             PState s = members.get(killer.getUniqueId());
             if (s != null) s.kills++;
-            if (!u.equals(vorthakId)) {
+            if (!u.equals(vorthakId) && !(cboss != null && u.equals(cboss.id()))) {
                 bless.onKill(e.getEntity(), killer);
                 relics.onKill(e.getEntity(), killer,
                         e.getEntity().getPersistentDataContainer().has(manager.eliteKey, PersistentDataType.BYTE));
@@ -2356,6 +2445,10 @@ public final class DungeonInstance {
         }
         if (u.equals(vorthakId)) {
             onVorthakDeath(e);
+            return;
+        }
+        if (cboss != null && u.equals(cboss.id())) {
+            onCustomBossDeath(e);
             return;
         }
         boolean elite = e.getEntity().getPersistentDataContainer().has(manager.eliteKey, PersistentDataType.BYTE);
@@ -2558,6 +2651,7 @@ public final class DungeonInstance {
             mini = null;
         }
         discardVorthak();
+        discardCBoss();
         removeAllTombs();
         restoreHazards();
         purgeEntities();
@@ -2670,7 +2764,7 @@ public final class DungeonInstance {
 
         // botín personal: cada jugador tira su propio loot y lo recoge en SU cofre (no cae nada al suelo)
         for (UUID u : members.keySet()) {
-            List<ItemStack> mine = new ArrayList<>(VorthakBoss.rollLoot(plugin, bosses));
+            List<ItemStack> mine = new ArrayList<>(cboss != null ? cboss.rollLoot() : VorthakBoss.rollLoot(plugin, bosses));
             mine.addAll(cfg.rollLoot("rewards.loot"));
             rewards.put(u, mine);
         }
@@ -2937,6 +3031,7 @@ public final class DungeonInstance {
         objectives.clear();
         portals.clear();
         discardVorthak();
+        discardCBoss();
         removeAllTombs();
         restoreHazards();
         for (Map.Entry<UUID, PState> en : new ArrayList<>(members.entrySet())) {

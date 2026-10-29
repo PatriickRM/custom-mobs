@@ -33,13 +33,19 @@ import java.util.concurrent.ThreadLocalRandom;
 public final class WaveMobs {
 
     private enum Arch {
-        CENIZO(Zombie.class, "Cenizo", "cenizo", 28, 5, 0.24, 0),
-        CALCINADO(Skeleton.class, "Arquero Calcinado", "calcinado", 22, 4, 0.25, 0),
-        MARCHITO(Husk.class, "Marchito", "marchito", 36, 6, 0.25, 1),
-        BRUTO(Vindicator.class, "Bruto Forjado", "bruto", 42, 9, 0.27, 1),
-        ESPECTRO(WitherSkeleton.class, "Espectro", "espectro", 48, 9, 0.27, 2),
-        ACECHADOR(Stray.class, "Sacerdote de Almas", "sacerdote", 32, 4, 0.26, 2),
-        BESTIA(Ravager.class, "Bestia de Ceniza", "bestia", 95, 12, 0.30, 3);
+        CENIZO(Zombie.class, "Cenizo", "cenizo", 28, 5, 0.24, 0, 0),
+        CALCINADO(Skeleton.class, "Arquero Calcinado", "calcinado", 22, 4, 0.25, 0, 0),
+        MARCHITO(Husk.class, "Marchito", "marchito", 36, 6, 0.25, 1, 0),
+        BRUTO(Vindicator.class, "Bruto Forjado", "bruto", 42, 9, 0.27, 1, 0),
+        ESPECTRO(WitherSkeleton.class, "Espectro", "espectro", 48, 9, 0.27, 2, 0),
+        ACECHADOR(Stray.class, "Sacerdote de Almas", "sacerdote", 32, 4, 0.26, 2, 0),
+        BESTIA(Ravager.class, "Bestia de Ceniza", "bestia", 95, 12, 0.30, 3, 2),
+        // Cripta Helada (bioma FROST)
+        CONGELADO(Zombie.class, "Congelado", "congelado", 30, 5, 0.24, 0, 1),
+        ESCARCHA(Stray.class, "Arquero de Escarcha", "escarcha", 22, 4, 0.25, 0, 1),
+        YETI(Vindicator.class, "Yeti", "yeti", 46, 9, 0.26, 1, 1),
+        BANSHEE(WitherSkeleton.class, "Banshee de Ventisca", "banshee", 40, 8, 0.28, 2, 1),
+        CHAMAN(Stray.class, "Chamán de Nieve", "chaman", 34, 4, 0.26, 2, 1);
 
         final Class<? extends LivingEntity> type;
         final String name;
@@ -48,8 +54,10 @@ public final class WaveMobs {
         final double atk;
         final double speed;
         final int minTier;
+        /** 0 = bioma cenizo/vacío/carmesí, 1 = solo Cripta Helada, 2 = cualquiera. */
+        final int biome;
 
-        Arch(Class<? extends LivingEntity> type, String name, String model, double hp, double atk, double speed, int minTier) {
+        Arch(Class<? extends LivingEntity> type, String name, String model, double hp, double atk, double speed, int minTier, int biome) {
             this.type = type;
             this.name = name;
             this.model = model;
@@ -57,6 +65,7 @@ public final class WaveMobs {
             this.atk = atk;
             this.speed = speed;
             this.minTier = minTier;
+            this.biome = biome;
         }
     }
 
@@ -71,7 +80,9 @@ public final class WaveMobs {
                                      double hpMul, double dmgMul) {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
         List<Arch> pool = new ArrayList<>();
+        boolean frost = inst.biome() == Biome.FROST;
         for (Arch a : Arch.values()) {
+            if (a.biome != 2 && (a.biome == 1) != frost) continue;
             if (a.minTier <= tier) {
                 pool.add(a);
                 if (a.minTier == tier) pool.add(a); // los del tier actual pesan más
@@ -80,7 +91,7 @@ public final class WaveMobs {
         Arch arch = pool.get(rnd.nextInt(pool.size()));
         World w = loc.getWorld();
 
-        w.spawnParticle(org.bukkit.Particle.SOUL_FIRE_FLAME, loc.clone().add(0, 1, 0), 18, 0.3, 0.6, 0.3, 0.04);
+        w.spawnParticle(frost ? org.bukkit.Particle.SNOWFLAKE : org.bukkit.Particle.SOUL_FIRE_FLAME, loc.clone().add(0, 1, 0), 18, 0.3, 0.6, 0.3, 0.04);
         w.playSound(loc, org.bukkit.Sound.ENTITY_ENDERMAN_TELEPORT, 0.6f, 0.5f);
 
         LivingEntity e = w.spawn(loc, arch.type);
@@ -147,7 +158,7 @@ public final class WaveMobs {
         attr(e, Attribute.ARMOR, new double[]{3, 6, 10, 15, 18}[t]);
         EntityEquipment eq = e.getEquipment();
         if (eq == null) return;
-        if (arch == Arch.CALCINADO || arch == Arch.ACECHADOR) eq.setItemInMainHand(vis.invisibleItem(Material.BOW));
+        if (arch == Arch.CALCINADO || arch == Arch.ACECHADOR || arch == Arch.ESCARCHA || arch == Arch.CHAMAN) eq.setItemInMainHand(vis.invisibleItem(Material.BOW));
         eq.setItemInMainHandDropChance(0f);
         eq.setItemInOffHandDropChance(0f);
         eq.setHelmetDropChance(0f);
@@ -179,9 +190,9 @@ public final class WaveMobs {
             eq.setBoots(new ItemStack(Material.DIAMOND_BOOTS));
         }
         switch (arch) {
-            case CALCINADO, ACECHADOR -> eq.setItemInMainHand(new ItemStack(Material.BOW));
-            case BRUTO -> eq.setItemInMainHand(new ItemStack(t >= 3 ? Material.DIAMOND_AXE : Material.IRON_AXE));
-            case ESPECTRO -> eq.setItemInMainHand(new ItemStack(t >= 3 ? Material.DIAMOND_SWORD : Material.IRON_SWORD));
+            case CALCINADO, ACECHADOR, ESCARCHA, CHAMAN -> eq.setItemInMainHand(new ItemStack(Material.BOW));
+            case BRUTO, YETI -> eq.setItemInMainHand(new ItemStack(t >= 3 ? Material.DIAMOND_AXE : Material.IRON_AXE));
+            case ESPECTRO, BANSHEE -> eq.setItemInMainHand(new ItemStack(t >= 3 ? Material.DIAMOND_SWORD : Material.IRON_SWORD));
             default -> eq.setItemInMainHand(new ItemStack(t >= 3 ? Material.IRON_SWORD
                     : t >= 1 ? Material.STONE_SWORD : Material.WOODEN_SWORD));
         }
